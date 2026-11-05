@@ -17,20 +17,37 @@ const billing = polarPlugin();
 export const enabledProviders = Object.keys(social) as ('google' | 'github')[];
 
 /* On Vercel, fall back to the deployment's own URL when BETTER_AUTH_URL is unset. */
-const baseURL =
+const rawURL = (
   process.env.BETTER_AUTH_URL ||
   (process.env.VERCEL_PROJECT_PRODUCTION_URL && process.env.VERCEL_ENV === 'production'
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000');
+      : 'http://localhost:3000')
+).replace(/\/+$/, '');
+/* A public site is always served over https; only localhost uses plain http. */
+const baseURL = /^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(rawURL) ? rawURL : rawURL.replace(/^http:\/\//, 'https://');
+
+/* Accept requests from the www / non-www twin too (middleware redirects pages there anyway). */
+function origins() {
+  const list = [baseURL];
+  try {
+    const u = new URL(baseURL);
+    if (!/^(localhost|127\.0\.0\.1)$/.test(u.hostname)) {
+      list.push(`${u.protocol}//${u.host.startsWith('www.') ? u.host.slice(4) : `www.${u.host}`}`);
+    }
+  } catch {
+    /* invalid URL: Better Auth reports it */
+  }
+  return [...list, ...(process.env.TRUSTED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean)];
+}
 
 export const authOptions = {
   appName: 'Citezeno',
   baseURL,
   secret: process.env.BETTER_AUTH_SECRET,
   database: pool,
-  trustedOrigins: [baseURL, ...(process.env.TRUSTED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean)],
+  trustedOrigins: origins(),
 
   emailAndPassword: {
     enabled: true,
