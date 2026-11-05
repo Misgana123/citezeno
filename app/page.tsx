@@ -71,7 +71,7 @@ export default function Home() {
                 <li><Icon name="shield" /> Every reference links to a real record</li>
                 <li><Icon name="quote" /> 12 citation styles</li>
                 <li><Icon name="word" /> Download as Word or PDF</li>
-                <li><Icon name="bolt" /> Runs in your browser, no account</li>
+                <li><Icon name="bolt" /> Runs in your browser, no account needed</li>
               </ul>
             </div>
             <HeroThread />

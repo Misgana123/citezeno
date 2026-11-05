@@ -1,20 +1,24 @@
 'use client';
 
 import { useEffect } from 'react';
-import { timeAgo, type Saved } from '@/lib/library';
+import Link from 'next/link';
+import type { LibItem } from '@/lib/cloud';
+import { timeAgo } from '@/lib/library';
 import { STYLES } from '@/lib/styles';
 import { Icon } from '../Icon';
 
 export function LibraryDrawer({
   items,
+  signedIn,
   currentId,
   onOpen,
   onDelete,
   onClose,
 }: {
-  items: Saved[];
+  items: LibItem[];
+  signedIn: boolean;
   currentId: string | null;
-  onOpen: (s: Saved) => void;
+  onOpen: (s: LibItem) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
 }) {
@@ -30,7 +34,10 @@ export function LibraryDrawer({
         <header className="drawer-head">
           <div>
             <h2 id="lib-title">Library</h2>
-            <p className="small">{items.length ? `${items.length} saved trace${items.length === 1 ? '' : 's'}, kept in this browser.` : 'Kept in this browser.'}</p>
+            <p className="small">
+              {items.length ? `${items.length} saved trace${items.length === 1 ? '' : 's'}, ` : ''}
+              {signedIn ? 'synced to your account.' : 'kept in this browser.'}
+            </p>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Close the library">
             <Icon name="x" />
@@ -52,7 +59,7 @@ export function LibraryDrawer({
                     <span>{STYLES[it.style]?.name || it.style}</span>
                     <span>{timeAgo(it.savedAt)}</span>
                   </span>
-                  <span className="lib-snip serif">{it.draft.slice(0, 140)}…</span>
+                  {it.draft ? <span className="lib-snip serif">{it.draft.slice(0, 140)}…</span> : null}
                 </button>
                 <button className="icon-btn lib-del" onClick={() => onDelete(it.id)} aria-label={`Delete “${it.title}”`}>
                   <Icon name="trash" />
@@ -60,6 +67,12 @@ export function LibraryDrawer({
               </li>
             ))}
           </ul>
+        )}
+        {!signedIn && (
+          <p className="drawer-note">
+            <Link href="/sign-in?next=/studio">Sign in</Link> to keep your library on every device. Traces in this browser
+            are added to your account.
+          </p>
         )}
       </aside>
     </div>

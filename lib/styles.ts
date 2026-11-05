@@ -387,7 +387,7 @@ Object.values(STYLES).forEach((st) => {
 /* ---------- numeric markers ---------- */
 function compress(nums) {
   nums = ([...new Set(nums)] as number[]).sort((a, b) => a - b);
-  const out = [];
+  const out: number[][] = [];
   for (let k = 0; k < nums.length; k++) {
     let j = k;
     while (j + 1 < nums.length && nums[j + 1] === nums[j] + 1) j++;
@@ -420,7 +420,7 @@ export function bibtex(list) {
   return list.map((s) => {
     const k = kindOf(s);
     const type = k === 'book' ? 'book' : k === 'chapter' ? 'incollection' : k === 'web' ? 'misc' : s.type === 'proceedings' ? 'inproceedings' : 'article';
-    const f = [];
+    const f: string[] = [];
     const add = (name, v) => v && f.push(`  ${name.padEnd(9)} = {${v}}`);
     add('title', `{${bibEsc(s.title)}}`);
     add('author', A(s).map((a) => (a.literal ? `{${bibEsc(a.family)}}` : `${bibEsc(a.family)}, ${bibEsc(a.given)}`)).join(' and '));
@@ -464,7 +464,7 @@ export function csljson(list) {
   return JSON.stringify(list.map((s) => {
     const o: any = { id: bibKey(s, used), type: map[s.type] || 'article-journal', title: s.title };
     if (A(s).length) o.author = A(s).map((a) => (a.literal ? { literal: a.family } : { family: a.family, given: a.given }));
-    if (s.year) { const d = parseDate(s); o.issued = { 'date-parts': [[d.y, d.m, d.d].filter(Boolean)] }; }
+    if (s.year) { const d = parseDate(s)!; o.issued = { 'date-parts': [[d.y, d.m, d.d].filter(Boolean)] }; }
     if (s.container) o['container-title'] = s.container;
     ['volume', 'issue', 'publisher'].forEach((k) => s[k] && (o[k] = s[k]));
     if (s.place) o['publisher-place'] = s.place;

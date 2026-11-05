@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Icon, LogoMark } from './Icon';
+import { UserMenu } from './UserMenu';
 
 const LINKS = [
   { href: '/studio', label: 'Studio' },
   { href: '/styles', label: 'Citation styles' },
   { href: '/#method', label: 'How it works' },
+  { href: '/contact', label: 'Contact' },
 ];
 
 export function ThemeToggle() {
@@ -64,6 +66,7 @@ export function Nav({ onBlue = false, wide = false }: { onBlue?: boolean; wide?:
             <span className="kbd">Ctrl K</span>
           </button>
           <ThemeToggle />
+          <UserMenu />
           {path !== '/studio' && (
             <Link className="btn btn-thread btn-sm" href="/studio">
               Open the studio
@@ -90,6 +93,14 @@ export function Footer() {
           <a href="https://www.wikipedia.org" target="_blank" rel="noopener noreferrer">Wikipedia</a>. Open every source and
           check it before you rely on it.
         </p>
+        <nav className="foot-links" aria-label="Footer">
+          <Link href="/studio">Studio</Link>
+          <Link href="/styles">Citation styles</Link>
+          <Link href="/contact">Contact</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
+          <span>© {new Date().getFullYear()} Citezeno</span>
+        </nav>
       </div>
     </footer>
   );

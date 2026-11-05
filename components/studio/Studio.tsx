@@ -6,6 +6,8 @@ import {
   TraceError, addSource, attachClaim, citedSet, removeSource, render, replaceSource, sentenceForSelection, trace, traceClaim,
   type LogLine, type Step, type StepState,
 } from '@/lib/engine';
+import { useSession } from '@/lib/auth-client';
+import { deleteRemote, fetchRemote, pushRemote, syncLibrary, type LibItem } from '@/lib/cloud';
 import { fromSaved, loadLibrary, removeEntry, toSaved, upsert, type Saved } from '@/lib/library';
 import { SAMPLES } from '@/lib/samples';
 import { STYLES, STYLE_GROUPS } from '@/lib/styles';
@@ -53,7 +55,10 @@ export function Studio() {
   const [tab, setTab] = useState<Tab>('doc');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [doc, setDocRaw] = usePersistent<DocOptions>('doc', DEFAULT_DOC, (d) => ({ ...DEFAULT_DOC, ...d }));
-  const [library, setLibrary] = useState<Saved[]>([]);
+  const [library, setLibrary] = useState<LibItem[]>([]);
+  const { data: session } = useSession();
+  const userId = session?.user.id;
+  const syncWarned = useRef(false);
   const [libOpen, setLibOpen] = useState(false);
   const [entryId, setEntryId] = useState<string | null>(null);
   const tracedDraft = useRef('');
@@ -72,7 +77,20 @@ export function Studio() {
     setScroll({ y: el.scrollTop, p: max > 0 ? el.scrollTop / max : 0 });
   }, []);
 
-  useEffect(() => setLibrary(loadLibrary()), []);
+  /* Signed out: the library lives in this browser. Signed in: it is merged with
+     the account copy, and browser-only traces are uploaded. */
+  useEffect(() => {
+    const local = loadLibrary();
+    setLibrary(local);
+    if (!userId) return;
+    let live = true;
+    syncLibrary(local)
+      .then((list) => live && setLibrary(list))
+      .catch(() => live && toast('Couldn’t reach your account library. Showing traces in this browser.', true));
+    return () => {
+      live = false;
+    };
+  }, [userId]);
   const setDoc = useCallback((p: Partial<DocOptions>) => setDocRaw((d) => ({ ...d, ...p })), [setDocRaw]);
 
   /* keep the library entry for the open trace up to date */
@@ -80,10 +98,21 @@ export function Studio() {
     if (!result || !entryId) return;
     const t = setTimeout(() => {
       const text = tracedDraft.current;
-      setLibrary(upsert(toSaved(entryId, suggestTitle(text), text, prefs.style, prefs.mode, result)));
+      const entry = toSaved(entryId, suggestTitle(text), text, prefs.style, prefs.mode, result);
+      const local = upsert(entry);
+      if (!userId) return setLibrary(local);
+      setLibrary((prev) => [entry, ...prev.filter((x) => x.id !== entry.id)]);
+      pushRemote(entry).then(
+        () => (syncWarned.current = false),
+        (e: Error) => {
+          if (syncWarned.current) return;
+          syncWarned.current = true;
+          toast(`Saved in this browser only: ${e.message}`, true);
+        },
+      );
     }, 400);
     return () => clearTimeout(t);
-  }, [result, entryId, prefs.style, prefs.mode]);
+  }, [result, entryId, prefs.style, prefs.mode, userId]);
 
   const deferred = useDeferredValue(draft);
   const analysis = useMemo(() => (deferred.trim() ? analyse(deferred) : null), [deferred]);
@@ -251,7 +280,17 @@ export function Studio() {
   const onPin = (id: string, pin: string) => {
     setResult((r) => (r ? { ...r, pins: { ...(r.pins || {}), [id]: pin } } : r));
   };
-  const openEntry = (it: Saved) => {
+  const openEntry = async (item: LibItem) => {
+    let it: Saved;
+    if (item.result) it = item as Saved;
+    else {
+      try {
+        it = await fetchRemote(item.id);
+      } catch (e) {
+        toast((e as Error).message, true);
+        return;
+      }
+    }
     annotations.current = {};
     tracedDraft.current = it.draft;
     setDraft(it.draft);
@@ -289,7 +328,7 @@ export function Studio() {
               spellCheck={false}
             />
             <span className="ws-saved">
-              <Icon name="check" /> Saved in this browser
+              <Icon name="check" /> {userId ? 'Saved to your account' : 'Saved in this browser'}
             </span>
           </div>
           <div className="ws-actions">
@@ -393,10 +432,15 @@ export function Studio() {
       {libOpen && (
         <LibraryDrawer
           items={library}
+          signedIn={Boolean(userId)}
           currentId={entryId}
           onOpen={openEntry}
           onDelete={(id) => {
-            setLibrary(removeEntry(id));
+            const local = removeEntry(id);
+            if (userId) {
+              setLibrary((prev) => prev.filter((x) => x.id !== id));
+              deleteRemote(id).catch((e: Error) => toast(e.message, true));
+            } else setLibrary(local);
             if (id === entryId) setEntryId(null);
             toast('Deleted from the library');
           }}

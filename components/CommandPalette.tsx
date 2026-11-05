@@ -84,6 +84,8 @@ export function CommandPalette() {
       { id: 'go-studio', group: 'Go to', label: 'Studio', icon: 'doc', run: () => router.push('/studio') },
       { id: 'go-styles', group: 'Go to', label: 'Citation styles', icon: 'quote', run: () => router.push('/styles') },
       { id: 'go-home', group: 'Go to', label: 'Home', icon: 'thread', run: () => router.push('/') },
+      { id: 'go-account', group: 'Go to', label: 'Account', icon: 'user', keywords: 'profile password sign in', run: () => router.push('/account') },
+      { id: 'go-contact', group: 'Go to', label: 'Contact us', icon: 'mail', keywords: 'email help support feedback', run: () => router.push('/contact') },
       { id: 'theme', group: 'Appearance', label: 'Toggle light or dark theme', icon: 'moon', run: flipTheme },
     ];
   }, [extra, router]);

@@ -41,6 +41,12 @@ const PATHS: Record<string, string> = {
   pdf: 'M6 3h9l5 5v13H6zM15 3v5h5M9 17v-5h1.5a1.5 1.5 0 0 1 0 3H9M14 12v5M14 12h2.5M14 14.5h2',
   chevron: 'm9 6 6 6-6 6',
   layers: 'M12 3 3 8l9 5 9-5zM3 13l9 5 9-5',
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0',
+  logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
+  mail: 'M3 6h18v12H3zM3 7l9 6 9-6',
+  lock: 'M6 11h12v10H6zM8.5 11V7.5a3.5 3.5 0 0 1 7 0V11',
+  device: 'M3 5h18v11H3zM8 20h8M12 16v4',
+  clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3 2',
 };
 
 export type IconName = keyof typeof PATHS;

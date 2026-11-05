@@ -4,12 +4,14 @@ import { CommandPalette } from '@/components/CommandPalette';
 import { Toaster } from '@/components/toast';
 import './globals.css';
 import './studio.css';
+import './site.css';
 
 const ui = Schibsted_Grotesk({ subsets: ['latin'], variable: '--font-ui', display: 'swap' });
 const read = Newsreader({ subsets: ['latin'], style: ['normal', 'italic'], variable: '--font-read', display: 'swap' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.BETTER_AUTH_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000')),
   title: { default: 'Citezeno — real citations for AI-generated text', template: '%s · Citezeno' },
   description:
     'Paste text from any AI model. Citezeno finds real, verifiable sources for its claims in OpenAlex, Crossref, Open Library and Wikipedia, and formats them in APA, MLA, Chicago, Harvard, IEEE, Vancouver, AMA and more.',
