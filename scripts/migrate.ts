@@ -67,6 +67,18 @@ alter table trace add column if not exists "titleLocked" boolean not null defaul
 
 -- Admin inbox state (v3)
 alter table contact_message add column if not exists handled boolean not null default false;
+
+-- Activity history shown on /history (v4). Credit changes come from credit_ledger.
+create table if not exists activity (
+  id          bigserial   primary key,
+  "userId"    text        not null references "user"(id) on delete cascade,
+  "createdAt" timestamptz not null default now(),
+  kind        text        not null,
+  "traceId"   text,
+  title       text,
+  meta        jsonb       not null default '{}'::jsonb
+);
+create index if not exists activity_user_time on activity ("userId", "createdAt" desc);
 `;
 
 async function main() {
@@ -80,7 +92,7 @@ async function main() {
     console.log('Auth tables are up to date.');
   }
   await pool.query(APP_SQL);
-  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing).');
+  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, activity).');
 }
 
 main()

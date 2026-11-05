@@ -1,4 +1,5 @@
 import { auth } from '@/lib/auth';
+import { logActivity } from '@/lib/activity';
 import { pool } from '@/lib/db';
 import { json, sameOrigin } from '@/lib/http';
 
@@ -50,11 +51,12 @@ export async function POST(req: Request) {
     );
   }
 
-  await pool.query(
+  const saved = await pool.query<{ inserted: boolean; title: string }>(
     `insert into trace ("userId", id, title, style, mode, sources, snippet, data, "savedAt")
      values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
      on conflict ("userId", id) do update set title = case when trace."titleLocked" then trace.title else excluded.title end, style = excluded.style, mode = excluded.mode,
-       sources = excluded.sources, snippet = excluded.snippet, data = excluded.data, "savedAt" = excluded."savedAt"`,
+       sources = excluded.sources, snippet = excluded.snippet, data = excluded.data, "savedAt" = excluded."savedAt"
+     returning (xmax = 0) as inserted, title`,
     [
       s.user.id, id,
       String(e.title ?? 'Untitled').slice(0, 200),
@@ -66,5 +68,11 @@ export async function POST(req: Request) {
       savedAt,
     ],
   );
+  // first save of a trace = a new entry in the history
+  if (saved.rows[0]?.inserted) {
+    await logActivity(s.user.id, 'trace.created', {
+      traceId: id, title: saved.rows[0].title, meta: { sources: Math.max(0, Math.floor(Number(e.sources) || 0)), style: String(e.style ?? '') },
+    });
+  }
   return json({ ok: true });
 }

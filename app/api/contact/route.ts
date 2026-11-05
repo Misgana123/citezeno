@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { TOPICS, type Topic } from '@/lib/contact';
+import { logActivity } from '@/lib/activity';
 import { pool } from '@/lib/db';
 import { contactNotice, sendEmail } from '@/lib/email';
 import { clientIp, json, sameOrigin } from '@/lib/http';
@@ -57,6 +58,7 @@ export async function POST(req: Request) {
       await sendEmail({ to, replyTo: email, ...contactNotice({ name, email, topic, message }) });
       await pool.query(`update contact_message set delivered = true where id = $1`, [ins.rows[0].id]);
     }
+    if (session) await logActivity(session.user.id, 'contact.sent', { title: topic });
     return json({ ok: true });
   } catch (e) {
     console.error('[citezeno] contact failed', e);

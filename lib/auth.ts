@@ -1,5 +1,7 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
+import { createAuthMiddleware, isAPIError } from 'better-auth/api';
 import { nextCookies } from 'better-auth/next-js';
+import { logActivity } from './activity';
 import { twoFactor } from 'better-auth/plugins';
 import { pool } from './db';
 import { deleteEmail, emailEnabled, resetEmail, sendEmail, verifyEmail, welcomeEmail } from './email';
@@ -58,6 +60,9 @@ export const authOptions = {
     // Without a mail provider nobody could ever confirm, so only require it when mail is set up.
     requireEmailVerification: emailEnabled,
     revokeSessionsOnPasswordReset: true,
+    onPasswordReset: async ({ user }) => {
+      await logActivity(user.id, 'auth.password', { meta: { via: 'reset' } });
+    },
     sendResetPassword: async ({ user, url }) => {
       await sendEmail({ to: user.email, ...resetEmail(url) });
     },
@@ -74,7 +79,34 @@ export const authOptions = {
     afterEmailVerification: async (user) => welcome(user),
   },
 
+  /* Security events for the history page. Errors (wrong password etc.) are skipped. */
+  hooks: {
+    after: createAuthMiddleware(async (ctx) => {
+      if (isAPIError(ctx.context.returned)) return;
+      const userId = ctx.context.session?.user.id || ctx.context.newSession?.user.id;
+      if (!userId) return;
+      if (ctx.path === '/change-password') await logActivity(userId, 'auth.password', { meta: { via: 'account' } });
+      else if (ctx.path === '/two-factor/disable') await logActivity(userId, 'auth.2fa-off');
+      else if (ctx.path === '/two-factor/verify-totp') {
+        // verify-totp both finishes turning 2FA on and checks codes at sign-in:
+        // only log "on" when the last 2FA event wasn't already "on"
+        const { rows } = await pool.query<{ kind: string }>(
+          `select kind from activity where "userId" = $1 and kind in ('auth.2fa-on', 'auth.2fa-off') order by "createdAt" desc limit 1`,
+          [userId],
+        );
+        if (rows[0]?.kind !== 'auth.2fa-on') await logActivity(userId, 'auth.2fa-on');
+      }
+    }),
+  },
+
   databaseHooks: {
+    session: {
+      create: {
+        after: async (session) => {
+          await logActivity(session.userId, 'auth.signin', { meta: { userAgent: session.userAgent || '', ip: session.ipAddress || '' } });
+        },
+      },
+    },
     user: {
       create: {
         // Google/GitHub accounts arrive already confirmed; email accounts get it after confirming.

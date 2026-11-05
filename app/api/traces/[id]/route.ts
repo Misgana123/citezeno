@@ -1,4 +1,5 @@
 import { auth } from '@/lib/auth';
+import { logActivity } from '@/lib/activity';
 import { pool } from '@/lib/db';
 import { json, sameOrigin } from '@/lib/http';
 
@@ -29,8 +30,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const body = await req.json().catch(() => ({}));
   const title = String(body.title ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
   if (!title) return json({ error: 'Give the trace a title.' }, 400);
-  const r = await pool.query(`update trace set title = $3, "titleLocked" = true where "userId" = $1 and id = $2`, [s.user.id, id, title]);
+  const r = await pool.query<{ old: string }>(
+    `update trace t set title = $3, "titleLocked" = true from (select title as old from trace where "userId" = $1 and id = $2) o
+     where t."userId" = $1 and t.id = $2 returning o.old`,
+    [s.user.id, id, title],
+  );
   if (!r.rowCount) return json({ error: 'Not found.' }, 404);
+  if (r.rows[0].old !== title) await logActivity(s.user.id, 'trace.renamed', { traceId: id, title, meta: { from: r.rows[0].old } });
   return json({ ok: true, title });
 }
 
@@ -39,6 +45,7 @@ export async function DELETE(req: Request, { params }: Ctx) {
   const s = await auth.api.getSession({ headers: req.headers });
   if (!s) return json({ error: 'Sign in first.' }, 401);
   const { id } = await params;
-  await pool.query(`delete from trace where "userId" = $1 and id = $2`, [s.user.id, id]);
+  const d = await pool.query<{ title: string }>(`delete from trace where "userId" = $1 and id = $2 returning title`, [s.user.id, id]);
+  if (d.rows[0]) await logActivity(s.user.id, 'trace.deleted', { traceId: id, title: d.rows[0].title });
   return json({ ok: true });
 }
