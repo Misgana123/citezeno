@@ -23,7 +23,9 @@ export function middleware(req: NextRequest) {
 
   // www.citezeno.com → citezeno.com (or the other way round, whichever BETTER_AUTH_URL uses).
   // API calls are left alone so webhooks configured on either host keep working.
-  if (canon && host !== canon && host === twin(canon) && !path.startsWith('/api/')) {
+  // Search engine verification files (public/google*.html) are served on both hosts, unredirected.
+  const verification = /^\/google[\w-]+\.html$/.test(path);
+  if (canon && host !== canon && host === twin(canon) && !path.startsWith('/api/') && !verification) {
     const url = new URL(req.nextUrl.pathname + req.nextUrl.search, `https://${canon}`);
     return NextResponse.redirect(url, 308);
   }
