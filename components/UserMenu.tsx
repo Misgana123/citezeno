@@ -82,6 +82,9 @@ export function UserMenu() {
           <Link href="/studio" role="menuitem">
             <Icon name="doc" /> Studio
           </Link>
+          <Link href="/library" role="menuitem">
+            <Icon name="history" /> Library
+          </Link>
           <Link href="/contact" role="menuitem">
             <Icon name="mail" /> Contact us
           </Link>

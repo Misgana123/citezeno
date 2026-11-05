@@ -75,3 +75,24 @@ export function contactNotice(m: { name: string; email: string; topic: string; m
   };
 }
 
+
+export function welcomeEmail(name: string, freeCredits: number, studioURL: string) {
+  const first = (name || '').split(' ')[0] || 'there';
+  return {
+    subject: 'Welcome to Citezeno',
+    html: layout(
+      `Welcome, ${first}`,
+      [
+        `Your account is ready, with <b style="color:#13213a">${freeCredits} free credits</b> every month. One credit finds real sources for one claim.`,
+        'Paste a draft into the studio and choose <b style="color:#13213a">Trace all claims</b>, or select one sentence and choose <b style="color:#13213a">Cite this claim</b>. Every reference links to a record you can open and check.',
+      ],
+      { label: 'Open the studio', url: studioURL },
+      'You’re getting this because you created a Citezeno account.',
+    ),
+    text: `Welcome to Citezeno, ${first}.
+
+You get ${freeCredits} free credits every month. One credit finds real sources for one claim.
+
+Open the studio: ${studioURL}`,
+  };
+}

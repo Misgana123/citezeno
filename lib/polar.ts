@@ -3,6 +3,7 @@ import { createPolarCore } from '@polar-sh/sdk/2026-10';
 import { listProducts } from '@polar-sh/sdk/2026-10/services/products';
 import { pool } from './db';
 import { adjustPaid, creditsFor } from './credits';
+import { siteURL } from './site';
 
 /* Polar handles payments; Citezeno keeps the credit balance itself (lib/credits.ts).
    A paid order adds the credits named in its product's metadata ("credits": 500).
@@ -73,10 +74,10 @@ export function polarPlugin() {
     use: [
       checkout({
         successUrl: '/billing/success?checkout_id={CHECKOUT_ID}',
-        returnUrl: `${process.env.BETTER_AUTH_URL || ''}/pricing`,
+        returnUrl: `${siteURL}/pricing`,
         authenticatedUsersOnly: true,
       }),
-      portal({ returnUrl: `${process.env.BETTER_AUTH_URL || ''}/account#billing` }),
+      portal({ returnUrl: `${siteURL}/account#billing` }),
       ...(process.env.POLAR_WEBHOOK_SECRET
         ? [
             webhooks({

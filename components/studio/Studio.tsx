@@ -330,6 +330,37 @@ export function Studio() {
     setShowProgress(false);
     setTimeout(() => resultsEl.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   };
+  /* publish a read-only link to the open trace, in the current style */
+  const shareCurrent = async () => {
+    if (!result || !entryId) return toast('Trace your draft first, then share it.', true);
+    try {
+      const text = tracedDraft.current;
+      await pushRemote(toSaved(entryId, suggestTitle(text), text, prefs.style, prefs.mode, result));
+      const res = await fetch(`/api/traces/${entryId}/share`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ style: prefs.style, mode: prefs.mode }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Couldn’t create a link.');
+      await navigator.clipboard.writeText(body.url).catch(() => {});
+      toast('Read-only link copied. Turn it off any time in the library.');
+    } catch (e) {
+      toast((e as Error).message, true);
+    }
+  };
+
+  /* /studio?open=<id> (from the library page) opens that trace */
+  useEffect(() => {
+    if (!userId) return;
+    const id = new URLSearchParams(window.location.search).get('open');
+    if (!id) return;
+    window.history.replaceState(null, '', '/studio');
+    const local = loadLibrary().find((x) => x.id === id);
+    openEntry(local ?? ({ id } as LibItem));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
   const onRemove = (id: string) => {
     if (!result) return;
     setResult(removeSource(result, id));
@@ -369,6 +400,12 @@ export function Studio() {
               <span>Library</span>
               {library.length ? <span className="ws-count">{library.length}</span> : null}
             </button>
+            {userId && result && (
+              <button className="ws-btn" onClick={shareCurrent} title="Copy a read-only link to this trace">
+                <Icon name="globe" />
+                <span>Share</span>
+              </button>
+            )}
             <button className="ws-btn" onClick={() => setSettingsOpen(true)} title="Database settings">
               <Icon name="gear" />
               <span>Settings</span>

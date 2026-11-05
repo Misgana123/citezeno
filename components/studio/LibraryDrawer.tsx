@@ -39,6 +39,11 @@ export function LibraryDrawer({
               {signedIn ? 'synced to your account.' : 'kept in this browser.'}
             </p>
           </div>
+          {signedIn && (
+            <Link className="btn btn-ghost btn-sm" href="/library" style={{ marginLeft: 'auto' }}>
+              Manage
+            </Link>
+          )}
           <button className="icon-btn" onClick={onClose} aria-label="Close the library">
             <Icon name="x" />
           </button>

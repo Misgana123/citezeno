@@ -9,6 +9,7 @@ import { getBalance, history } from '@/lib/credits';
 import { pool } from '@/lib/db';
 import { polarEnabled } from '@/lib/polar';
 import { requireSession } from '@/lib/session';
+import { isAdmin } from '@/lib/admin';
 
 export const metadata: Metadata = { title: 'Account', robots: { index: false } };
 export const dynamic = 'force-dynamic';
@@ -44,10 +45,18 @@ export default async function AccountPage() {
               studio
             </Link>{' '}
             library.
+            {isAdmin(u) && (
+              <>
+                {' '}
+                <Link href="/admin" style={{ color: 'var(--ink)', fontWeight: 650 }}>
+                  Open the admin dashboard →
+                </Link>
+              </>
+            )}
           </p>
         </header>
         <AccountPanels
-          user={{ id: u.id, name: u.name, email: u.email, image: u.image ?? null, emailVerified: u.emailVerified, createdAt: new Date(u.createdAt).getTime() }}
+          user={{ id: u.id, name: u.name, email: u.email, image: u.image ?? null, emailVerified: u.emailVerified, createdAt: new Date(u.createdAt).getTime(), twoFactorEnabled: Boolean((u as { twoFactorEnabled?: boolean | null }).twoFactorEnabled) }}
           currentToken={session.session.token}
           providers={accounts.map((a) => a.providerId)}
           available={enabledProviders}

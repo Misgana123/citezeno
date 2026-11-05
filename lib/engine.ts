@@ -111,6 +111,7 @@ export async function trace(text: string, prefs: Prefs, settings: ApiSettings, e
         const s = db.get(x.id)!;
         if (opts.kind === 'books' && !['book', 'chapter'].includes(s.type)) return false;
         if (opts.oaOnly && !s.oa) return false;
+        if (s.retracted) return false; // never cite a retracted work automatically
         return x.score >= prefs.minRel;
       })
       .sort((a, b) => b.score - a.score),
@@ -118,7 +119,9 @@ export async function trace(text: string, prefs: Prefs, settings: ApiSettings, e
 
   const assigned = assign(cands, prefs.count);
   const total = assigned.reduce((n, a) => n + a.length, 0);
-  ev.step('rank', 'done', `${db.size} unique works, ${total} selected`);
+  let retracted = 0;
+  db.forEach((s) => s.retracted && retracted++);
+  ev.step('rank', 'done', `${db.size} unique works, ${total} selected${retracted ? `, ${retracted} retracted skipped` : ''}`);
   ev.step('format', 'active', 'Completing page numbers and volume details');
   await completeDetails(db, [...new Set(assigned.flat())], settings);
   if (ev.isCancelled()) return null;
@@ -185,6 +188,7 @@ export async function traceClaim(passage: string, prefs: Prefs, settings: ApiSet
       const s = db.get(x.id)!;
       if (opts.kind === 'books' && !['book', 'chapter'].includes(s.type)) return false;
       if (opts.oaOnly && !s.oa) return false;
+      if (s.retracted) return false;
       return x.score > 0.05;
     })
     .sort((a, b) => b.score - a.score);

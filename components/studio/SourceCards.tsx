@@ -130,6 +130,11 @@ export function SourceCards({
                     ))}
                     <span className="tag">{TYPE_LABEL[s.type] || 'Work'}</span>
                     {s.oa && <span className="tag oa">Open access</span>}
+                    {s.retracted && (
+                      <span className="tag retracted" title="OpenAlex lists this work as retracted. Don’t cite it.">
+                        Retracted
+                      </span>
+                    )}
                   </div>
                 </div>
                 <h3 className="scard-title">

@@ -20,6 +20,20 @@ export async function GET(req: Request, { params }: Ctx) {
   return json({ id: r.id, title: r.title, style: r.style, mode: r.mode, sources: r.sources, savedAt: new Date(r.savedAt).getTime(), draft: r.data.draft, result: r.data.result });
 }
 
+/* Rename. Body: { title }. */
+export async function PATCH(req: Request, { params }: Ctx) {
+  if (!sameOrigin(req)) return json({ error: 'Bad origin.' }, 403);
+  const s = await auth.api.getSession({ headers: req.headers });
+  if (!s) return json({ error: 'Sign in first.' }, 401);
+  const { id } = await params;
+  const body = await req.json().catch(() => ({}));
+  const title = String(body.title ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (!title) return json({ error: 'Give the trace a title.' }, 400);
+  const r = await pool.query(`update trace set title = $3, "titleLocked" = true where "userId" = $1 and id = $2`, [s.user.id, id, title]);
+  if (!r.rowCount) return json({ error: 'Not found.' }, 404);
+  return json({ ok: true, title });
+}
+
 export async function DELETE(req: Request, { params }: Ctx) {
   if (!sameOrigin(req)) return json({ error: 'Bad origin.' }, 403);
   const s = await auth.api.getSession({ headers: req.headers });

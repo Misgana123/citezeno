@@ -29,6 +29,8 @@ export type Source = {
   accessed?: string;
   citedBy?: number;
   oa?: boolean;
+  /* flagged as retracted by OpenAlex; never picked automatically */
+  retracted?: boolean;
   abstract?: string;
   keywords?: string[];
 };

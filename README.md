@@ -60,6 +60,10 @@ Each button appears only when its keys are set. Register these callback URLs wit
 | `/account` | Credits and billing history, Polar receipts portal, profile, sign-in methods, change password, signed-in devices, delete account |
 | `/pricing` | Credit packs loaded live from Polar, plus the free tier |
 | `/billing/success` | Shown after checkout while the credits arrive |
+| `/library` | Every saved trace: search, filter, sort, rename, share, delete, reopen in the studio |
+| `/s/[token]` | Public read-only view of a shared trace, in any style, with a BibTeX download |
+| `/two-factor` | The code step of sign-in when two-step verification is on |
+| `/admin` | Admin dashboard: key numbers, daily charts, users (adjust credits), contact inbox |
 | `/contact` | Contact form that emails your team and keeps a copy in the database |
 | `/privacy`, `/terms` | Privacy policy and terms of use |
 
@@ -76,6 +80,17 @@ Each button appears only when its keys are set. Register these callback URLs wit
 - **Six result views.** Manuscript, References, Sources (replace, copy, remove, or add your own by DOI or ISBN), Map (claims tied to sources by threads weighted by match strength), Insights (coverage, match strength, databases, publication years), and Export (Word, PDF, BibTeX, RIS, CSL-JSON, plain text, HTML).
 - **Command menu.** Press `Ctrl K` (or `⌘ K`) to switch style or output, load a sample, change tabs, or toggle the theme. `Ctrl Enter` in the editor traces all claims, or cites the selected passage when the cite box is open.
 - **Light and dark themes.** Your draft, preferences and settings are saved in the browser.
+
+## Features added in v3
+
+- **Retraction check.** Works OpenAlex marks as retracted are never picked automatically, and any that you add by hand show a red “Retracted” tag.
+- **Shareable links.** From the studio (Share) or the library page, publish a read-only link. Viewers can switch citation style and download BibTeX. You can turn the link off at any time, and view counts are shown. Shared HTML is sanitised before anyone else sees it.
+- **Library page** at `/library`, with search, style filter, sorting, renaming (renamed titles stick), sharing and deleting. A trace deleted there is also removed from your other browsers.
+- **Two-step verification** with authenticator-app codes, 10 backup codes and a “trust this device for 30 days” option. Set it up under Account → Sign-in and security.
+- **Admin dashboard** at `/admin`, for the emails in `ADMIN_EMAILS`: accounts, weekly active users, credits used, revenue, daily charts, user search with credit adjustments, and the contact inbox with handled/open status.
+- **Welcome email** when an account is confirmed (or right away for Google/GitHub sign-ups).
+- **Security headers** on every response: Content-Security-Policy, HSTS, X-Frame-Options and Referrer-Policy.
+- **Tests and CI.** `npm test` runs unit tests for styles, claim detection, sanitising, redirects and credit months. GitHub Actions type-checks, tests and builds on every push.
 
 ## Accounts and security
 
@@ -98,6 +113,10 @@ app/
   api/contact/        contact form endpoint
   api/credits/        balance, spend and refund
   pricing/, billing/  pricing page and checkout success
+  library/            full library page
+  s/[token]/          public shared trace
+  admin/              admin dashboard
+  api/admin/          admin actions (credits, inbox)
   privacy/, terms/    legal pages
   site.css            accounts, contact, legal and system pages
   layout.tsx          fonts, theme script, command menu, toasts
@@ -121,6 +140,9 @@ lib/
   credits.ts          credit ledger: monthly free credits, spend, refund, purchases
   polar.ts            Polar checkout, portal, webhooks and the product list
   pricing.ts          pricing rules shared by browser and server
+  admin.ts            who can open /admin
+  sanitize.ts         cleans shared HTML before it's shown publicly
+  site.ts             the site's public URL
   docmodel.ts         rendered manuscript → document model for Word/PDF
   docx.ts             Word (.docx) writer
   pdf.ts              PDF writer (Times, links, page numbers)

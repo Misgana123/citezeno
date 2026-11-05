@@ -115,6 +115,7 @@ function fromOpenAlex(w: any): Source {
     url: doi ? `https://doi.org/${doi}` : loc.landing_page_url || w.id,
     citedBy: w.cited_by_count || 0,
     oa: !!(w.open_access && w.open_access.is_oa),
+    retracted: !!w.is_retracted,
     abstract: rebuildAbstract(w.abstract_inverted_index),
     keywords: (w.keywords || []).map((k: any) => k.display_name || k.keyword).filter(Boolean),
   };
@@ -129,7 +130,7 @@ async function openalex(query: string, opts: SearchOpts) {
   else if (opts.kind === 'scholarly') f.push('type:article|review|book|book-chapter|preprint');
   f.push('has_doi:true');
   const sel =
-    'id,doi,display_name,publication_year,publication_date,authorships,primary_location,biblio,cited_by_count,type,open_access,abstract_inverted_index,keywords';
+    'id,doi,display_name,publication_year,publication_date,authorships,primary_location,biblio,cited_by_count,type,open_access,abstract_inverted_index,keywords,is_retracted';
   const s = opts.settings || {};
   const tail = `${s.email ? `&mailto=${encodeURIComponent(s.email)}` : ''}${s.openalexKey ? `&api_key=${encodeURIComponent(s.openalexKey)}` : ''}`;
   const per = opts.limit || 12;
@@ -347,6 +348,7 @@ export function merge(a: Source, b: Source): Source {
   if ((b.abstract || '').length > (a.abstract || '').length) out.abstract = b.abstract;
   out.citedBy = Math.max(a.citedBy || 0, b.citedBy || 0);
   out.oa = a.oa || b.oa;
+  out.retracted = !!(a.retracted || b.retracted);
   out.providers = [...new Set([...(a.providers || [a.provider]), ...(b.providers || [b.provider])])];
   return out;
 }

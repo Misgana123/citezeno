@@ -1,8 +1,11 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
+import { twoFactor } from 'better-auth/plugins';
 import { pool } from './db';
-import { deleteEmail, emailEnabled, resetEmail, sendEmail, verifyEmail } from './email';
+import { deleteEmail, emailEnabled, resetEmail, sendEmail, verifyEmail, welcomeEmail } from './email';
+import { FREE_MONTHLY_CREDITS } from './pricing';
 import { polarPlugin } from './polar';
+import { siteURL } from './site';
 
 /* Social sign-in is switched on only for providers whose keys are set. */
 const social: BetterAuthOptions['socialProviders'] = {};
@@ -14,19 +17,18 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
 }
 const billing = polarPlugin();
 
+/* Never let a failed welcome email break sign-up. */
+async function welcome(user: { email: string; name: string }) {
+  try {
+    await sendEmail({ to: user.email, ...welcomeEmail(user.name, FREE_MONTHLY_CREDITS, `${siteURL}/studio`) });
+  } catch (e) {
+    console.warn('[citezeno] welcome email failed', e);
+  }
+}
+
 export const enabledProviders = Object.keys(social) as ('google' | 'github')[];
 
-/* On Vercel, fall back to the deployment's own URL when BETTER_AUTH_URL is unset. */
-const rawURL = (
-  process.env.BETTER_AUTH_URL ||
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL && process.env.VERCEL_ENV === 'production'
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000')
-).replace(/\/+$/, '');
-/* A public site is always served over https; only localhost uses plain http. */
-const baseURL = /^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(rawURL) ? rawURL : rawURL.replace(/^http:\/\//, 'https://');
+const baseURL = siteURL;
 
 /* Accept requests from the www / non-www twin too (middleware redirects pages there anyway). */
 function origins() {
@@ -69,6 +71,19 @@ export const authOptions = {
     sendVerificationEmail: async ({ user, url }) => {
       await sendEmail({ to: user.email, ...verifyEmail(user.name, url) });
     },
+    afterEmailVerification: async (user) => welcome(user),
+  },
+
+  databaseHooks: {
+    user: {
+      create: {
+        // Google/GitHub accounts arrive already confirmed; email accounts get it after confirming.
+        // Without email set up nobody confirms, so welcome them straight away.
+        after: async (user) => {
+          if (user.emailVerified || !emailEnabled) await welcome(user);
+        },
+      },
+    },
   },
 
   socialProviders: social,
@@ -107,6 +122,9 @@ export const authOptions = {
       '/send-verification-email': { window: 60 * 10, max: 3 },
       '/change-password': { window: 60, max: 5 },
       '/delete-user': { window: 60 * 10, max: 3 },
+      '/two-factor/verify-totp': { window: 60, max: 5 },
+      '/two-factor/verify-backup-code': { window: 60, max: 5 },
+      '/two-factor/enable': { window: 60, max: 5 },
     },
   },
 
@@ -116,7 +134,12 @@ export const authOptions = {
   },
 
   // nextCookies must stay last
-  plugins: [...(billing ? [billing] : []), nextCookies()],
+  plugins: [
+    // authenticator-app codes with backup codes; trusted devices skip the prompt for 30 days
+    twoFactor({ issuer: 'Citezeno', backupCodeOptions: { amount: 10 } }),
+    ...(billing ? [billing] : []),
+    nextCookies(),
+  ],
 } satisfies BetterAuthOptions;
 
 export const auth = betterAuth(authOptions);

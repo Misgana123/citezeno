@@ -7,14 +7,14 @@ export const runtime = 'nodejs';
 const MAX_TRACES = 200;
 const MAX_BYTES = 1_500_000;
 
-type Row = { id: string; title: string; style: string; mode: string; sources: number; snippet: string; savedAt: Date };
+type Row = { id: string; title: string; style: string; mode: string; sources: number; snippet: string; savedAt: Date; shareToken: string | null; shareViews: number };
 
 /* List the signed-in user's saved traces (metadata only; open one to get its data). */
 export async function GET(req: Request) {
   const s = await auth.api.getSession({ headers: req.headers });
   if (!s) return json({ error: 'Sign in to see your library.' }, 401);
   const { rows } = await pool.query<Row>(
-    `select id, title, style, mode, sources, snippet, "savedAt" from trace where "userId" = $1 order by "savedAt" desc limit $2`,
+    `select id, title, style, mode, sources, snippet, "savedAt", "shareToken", "shareViews" from trace where "userId" = $1 order by "savedAt" desc limit $2`,
     [s.user.id, MAX_TRACES],
   );
   return json({ items: rows.map((r) => ({ ...r, savedAt: new Date(r.savedAt).getTime() })) });
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   await pool.query(
     `insert into trace ("userId", id, title, style, mode, sources, snippet, data, "savedAt")
      values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-     on conflict ("userId", id) do update set title = excluded.title, style = excluded.style, mode = excluded.mode,
+     on conflict ("userId", id) do update set title = case when trace."titleLocked" then trace.title else excluded.title end, style = excluded.style, mode = excluded.mode,
        sources = excluded.sources, snippet = excluded.snippet, data = excluded.data, "savedAt" = excluded."savedAt"`,
     [
       s.user.id, id,

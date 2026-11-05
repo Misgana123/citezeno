@@ -211,3 +211,95 @@
 .ledger .minus { color: var(--ink-2); font-weight: 700; }
 
 .umenu-pop a.umenu-top { display: inline; width: auto; padding: 0; background: none; font-weight: 700; text-decoration: underline; text-decoration-color: var(--thread); text-underline-offset: 3px; }
+
+/* ---------- retraction ---------- */
+.tag.retracted { background: var(--warn-soft); color: var(--warn); font-weight: 750; }
+
+/* ---------- shared trace ---------- */
+.share-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 28px; }
+.share-head > div { max-width: 46em; }
+.share-head .h2 { font-size: clamp(30px, 3.8vw, 46px); margin-top: 8px; }
+.share-head .lede { margin-top: 12px; font-size: 17px; }
+.share-kicker { display: inline-flex; align-items: center; gap: 7px; margin: 0; font-size: 13px; font-weight: 650; color: var(--ink-3); }
+.share-kicker svg { width: 15px; height: 15px; color: var(--verify); }
+.share-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.share-refs { margin-top: 40px; background: var(--sheet); border: 1px solid var(--rule-2); border-radius: var(--r); padding: 28px 32px; }
+.share-refs .h3 { margin-bottom: 16px; }
+.share-refs .sheet .list-title { display: none; }
+
+/* ---------- library page ---------- */
+.libm-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.libm-bar .select { width: auto; }
+.libm-search { position: relative; flex: 1 1 280px; }
+.libm-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--ink-3); }
+.libm-search .input { padding-left: 36px; }
+.libm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.libm-list li { display: flex; gap: 18px; align-items: center; justify-content: space-between; background: var(--sheet); border: 1px solid var(--rule-2); border-radius: var(--r); padding: 16px 18px; }
+.libm-main { display: grid; gap: 6px; min-width: 0; flex: 1; }
+.libm-title { font-weight: 700; font-size: 16px; color: var(--ink); text-decoration: none; }
+.libm-title:hover { text-decoration: underline; text-decoration-color: var(--thread); }
+.libm-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.lib-meta .shared { background: var(--verify-soft) !important; color: var(--verify) !important; display: inline-flex; align-items: center; gap: 4px; }
+.lib-meta .shared svg { width: 12px; height: 12px; }
+.lib-empty { text-align: center; padding: 64px 16px; display: grid; justify-items: center; gap: 10px; color: var(--ink-2); }
+.lib-empty svg { width: 36px; height: 36px; color: var(--thread); }
+.lib-empty p { margin: 0 0 8px; }
+@media (max-width: 760px) { .libm-list li { flex-direction: column; align-items: stretch; } .libm-actions { flex-wrap: wrap; } }
+
+/* ---------- admin ---------- */
+.adm-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 22px; }
+.adm-tiles .stat small { display: block; margin-top: 2px; font-size: 12px; color: var(--ink-3); }
+.adm-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-bottom: 22px; }
+.adm-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.adm-search { display: flex; gap: 8px; }
+.adm-search .input { width: 240px; }
+.seg a { display: inline-block; text-decoration: none; border-radius: 999px; padding: 6px 14px; font-size: 13.5px; font-weight: 650; color: var(--ink-2); }
+.seg a.on { background: var(--sheet); color: var(--ink); box-shadow: var(--shadow-sm); }
+.adm-table-wrap { overflow-x: auto; }
+.adm-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.adm-table th { text-align: left; font-size: 12px; font-weight: 650; color: var(--ink-3); padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+.adm-table td { padding: 10px; border-bottom: 1px solid var(--rule-2); vertical-align: middle; }
+.adm-table td small { display: block; color: var(--ink-3); font-size: 12.5px; }
+.adm-credits { display: inline-flex; align-items: center; gap: 10px; }
+.adm-grant { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.adm-grant .input { min-height: 34px; width: 160px; }
+.adm-inbox { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.adm-inbox li { border: 1px solid var(--rule-2); border-radius: 10px; padding: 14px 16px; background: var(--card); }
+.adm-inbox p { margin: 8px 0 0; white-space: pre-wrap; font-size: 14.5px; color: var(--ink-2); }
+.adm-msg-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; font-size: 14px; }
+.adm-msg-head small { display: block; color: var(--ink-3); font-size: 12.5px; }
+.adm-msg-actions { display: flex; gap: 10px; align-items: center; }
+
+/* single-series column chart. Hue checked with the dataviz validator:
+   light #2f6fa8 and dark #4f8fcf both pass, at 3:1 or more against the sheet. */
+.cchart { --col: #2f6fa8; margin: 0; background: var(--sheet); border: 1px solid var(--rule-2); border-radius: var(--r); padding: 18px 20px 14px; }
+[data-theme="dark"] .cchart { --col: #4f8fcf; }
+.cchart figcaption { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; font-size: 14px; }
+.cchart figcaption span { color: var(--ink-3); font-size: 13px; }
+.cchart-plot { display: grid; grid-template-columns: auto 1fr; gap: 8px; height: 150px; }
+.cchart-axis { display: flex; flex-direction: column; justify-content: space-between; font-size: 11.5px; color: var(--ink-3); text-align: right; }
+.cchart-cols { position: relative; display: flex; align-items: flex-end; gap: 2px; border-bottom: 1px solid var(--rule); border-top: 1px solid var(--rule-2); }
+.cchart-grid { display: none; }
+.cchart-col { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; cursor: default; }
+.cchart-bar { display: block; width: 100%; max-width: 24px; background: var(--col); border-radius: 4px 4px 0 0; transition: opacity 0.12s; }
+.cchart-cols:hover .cchart-bar { opacity: 0.55; }
+.cchart-col.on .cchart-bar { opacity: 1; }
+.cchart-peak { position: absolute; transform: translateY(-4px); font-size: 11.5px; font-weight: 650; color: var(--ink-2); white-space: nowrap; }
+.cchart-tip { position: absolute; bottom: calc(100% + 6px); transform: translateX(-50%); background: var(--ink); color: var(--ground); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; white-space: nowrap; pointer-events: none; z-index: 2; box-shadow: var(--shadow); }
+.cchart-tip span { display: block; opacity: 0.75; font-size: 11.5px; }
+.cchart-x { display: flex; justify-content: space-between; padding-left: 28px; margin-top: 6px; font-size: 11.5px; color: var(--ink-3); }
+.cchart-table { margin-top: 10px; font-size: 13px; }
+.cchart-table summary { cursor: pointer; color: var(--ink-3); font-weight: 600; }
+.cchart-table table { margin-top: 8px; border-collapse: collapse; width: 100%; }
+.cchart-table td, .cchart-table th { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--rule-2); }
+
+/* ---------- two-step verification ---------- */
+.tfa { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--rule-2); }
+.tfa form { max-width: none; }
+.tfa-grid { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: start; }
+.tfa-step { margin: 0 0 8px; font-weight: 650; font-size: 14px; color: var(--ink); }
+.tfa-qr { display: block; width: 180px; height: 180px; border-radius: 10px; background: #fff; padding: 6px; border: 1px solid var(--rule-2); }
+.tfa-key { font-family: var(--f-mono); font-size: 12.5px; background: var(--ground-2); padding: 2px 6px; border-radius: 5px; word-break: break-all; }
+.tfa-codes { list-style: none; margin: 8px 0 12px; padding: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; background: var(--card); border: 1px solid var(--rule-2); border-radius: 10px; font-family: var(--f-mono); font-size: 13px; }
+.otp-input { font-family: var(--f-mono); font-size: 20px; letter-spacing: 0.2em; text-align: center; max-width: 260px; }
+@media (max-width: 700px) { .tfa-grid { grid-template-columns: 1fr; } }

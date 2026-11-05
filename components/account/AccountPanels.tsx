@@ -9,8 +9,9 @@ import { Notice, PasswordField } from '../auth/bits';
 import { Icon } from '../Icon';
 import { toast } from '../toast';
 import { initials } from '../UserMenu';
+import { TwoFactorPanel } from './TwoFactorPanel';
 
-type User = { id: string; name: string; email: string; image: string | null; emailVerified: boolean; createdAt: number };
+type User = { id: string; name: string; email: string; image: string | null; emailVerified: boolean; createdAt: number; twoFactorEnabled: boolean };
 type Sess = { token: string; userAgent: string; ipAddress: string; createdAt: number; expiresAt: number };
 type Provider = 'google' | 'github';
 
@@ -250,6 +251,8 @@ export function AccountPanels({
               </div>
             </form>
           )}
+
+          <TwoFactorPanel enabled={user.twoFactorEnabled} hasPassword={hasPassword} />
         </section>
 
         <section className="panel" id="devices">

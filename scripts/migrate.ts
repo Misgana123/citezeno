@@ -56,6 +56,17 @@ create table if not exists credit_ledger (
   refunded    boolean     not null default false
 );
 create index if not exists credit_ledger_user_time on credit_ledger ("userId", "createdAt" desc);
+
+-- Read-only public links to a trace (v3)
+alter table trace add column if not exists "createdAt"   timestamptz not null default now();
+alter table trace add column if not exists "shareToken"  text unique;
+alter table trace add column if not exists "shareStyle"  text;
+alter table trace add column if not exists "shareMode"   text;
+alter table trace add column if not exists "shareViews"  integer not null default 0;
+alter table trace add column if not exists "titleLocked" boolean not null default false;
+
+-- Admin inbox state (v3)
+alter table contact_message add column if not exists handled boolean not null default false;
 `;
 
 async function main() {
@@ -69,7 +80,7 @@ async function main() {
     console.log('Auth tables are up to date.');
   }
   await pool.query(APP_SQL);
-  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger).');
+  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing).');
 }
 
 main()

@@ -20,12 +20,16 @@ export function SignInForm({ providers, next, error }: { providers: ('google' | 
     e.preventDefault();
     setBusy(true);
     setMsg(null);
-    const { error } = await signIn.email({ email: email.trim(), password, rememberMe: remember, callbackURL: next });
+    const { data, error } = await signIn.email({ email: email.trim(), password, rememberMe: remember, callbackURL: next });
     if (error) {
       setBusy(false);
       if (error.code === 'EMAIL_NOT_VERIFIED') {
         setMsg({ kind: 'info', text: `Confirm your email first. We’ve sent a new link to ${email.trim()}.` });
       } else setMsg({ kind: 'err', text: authMessage(error) });
+      return;
+    }
+    if (data && 'twoFactorRedirect' in data && data.twoFactorRedirect) {
+      router.push(`/two-factor?next=${encodeURIComponent(next)}`);
       return;
     }
     router.push(next);

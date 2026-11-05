@@ -1,10 +1,12 @@
 'use client';
 
 import { polarClient } from '@polar-sh/better-auth/client';
+import { twoFactorClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 
 /* Same origin as the app, so no baseURL is needed. */
-export const authClient = createAuthClient({ plugins: [polarClient()] });
+// The sign-in form handles the two-factor step itself (it knows where to go next).
+export const authClient = createAuthClient({ plugins: [polarClient(), twoFactorClient({ onTwoFactorRedirect: () => {} })] });
 
 export const { useSession, signIn, signUp, signOut } = authClient;
 
@@ -26,6 +28,11 @@ export function authMessage(err: { code?: string; message?: string; status?: num
       return 'Use at most 128 characters for your password.';
     case 'INVALID_PASSWORD':
       return 'Your current password is not right.';
+    case 'INVALID_CODE':
+    case 'INVALID_TWO_FACTOR_CODE':
+      return 'That code isn’t right. Check your authenticator app and try again.';
+    case 'INVALID_BACKUP_CODE':
+      return 'That backup code isn’t valid or was already used.';
     case 'INVALID_TOKEN':
       return 'This link has expired or was already used. Ask for a new one.';
     case 'INVALID_EMAIL':
