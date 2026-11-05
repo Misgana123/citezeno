@@ -1,10 +1,14 @@
 import type { Metadata } from 'next';
 import { Nav } from '@/components/Nav';
 import { Studio } from '@/components/studio/Studio';
+import { requireSession } from '@/lib/session';
 
 export const metadata: Metadata = { title: 'Studio' };
 
-export default function StudioPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function StudioPage() {
+  await requireSession('/studio');
   return (
     <>
       <Nav wide />

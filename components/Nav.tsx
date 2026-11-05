@@ -10,6 +10,7 @@ const LINKS = [
   { href: '/studio', label: 'Studio' },
   { href: '/styles', label: 'Citation styles' },
   { href: '/#method', label: 'How it works' },
+  { href: '/pricing', label: 'Pricing' },
   { href: '/contact', label: 'Contact' },
 ];
 
@@ -96,6 +97,7 @@ export function Footer() {
         <nav className="foot-links" aria-label="Footer">
           <Link href="/studio">Studio</Link>
           <Link href="/styles">Citation styles</Link>
+          <Link href="/pricing">Pricing</Link>
           <Link href="/contact">Contact</Link>
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>

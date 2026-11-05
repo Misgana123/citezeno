@@ -12,4 +12,4 @@ export function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ['/account/:path*'] };
+export const config = { matcher: ['/studio/:path*', '/account/:path*', '/billing/:path*'] };

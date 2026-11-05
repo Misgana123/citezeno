@@ -32,6 +32,30 @@ create table if not exists contact_message (
   delivered   boolean     not null default false
 );
 create index if not exists contact_ip_time on contact_message (ip, "createdAt" desc);
+
+-- Credits. "free" resets to the monthly allowance each calendar month (UTC) and
+-- does not roll over; "paid" comes from Polar purchases and never expires.
+create table if not exists credit_balance (
+  "userId"    text        primary key references "user"(id) on delete cascade,
+  free        integer     not null default 0 check (free >= 0),
+  paid        integer     not null default 0 check (paid >= 0),
+  "freeMonth" text        not null default '',
+  "updatedAt" timestamptz not null default now()
+);
+
+-- Every change to a balance. "ref" makes webhook grants idempotent.
+create table if not exists credit_ledger (
+  id          bigserial   primary key,
+  "userId"    text        not null references "user"(id) on delete cascade,
+  "createdAt" timestamptz not null default now(),
+  "freeDelta" integer     not null default 0,
+  "paidDelta" integer     not null default 0,
+  reason      text        not null,
+  ref         text        unique,
+  meta        jsonb       not null default '{}'::jsonb,
+  refunded    boolean     not null default false
+);
+create index if not exists credit_ledger_user_time on credit_ledger ("userId", "createdAt" desc);
 `;
 
 async function main() {
@@ -45,7 +69,7 @@ async function main() {
     console.log('Auth tables are up to date.');
   }
   await pool.query(APP_SQL);
-  console.log('App tables are up to date (trace, contact_message).');
+  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger).');
 }
 
 main()

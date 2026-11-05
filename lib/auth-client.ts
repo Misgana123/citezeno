@@ -1,9 +1,10 @@
 'use client';
 
+import { polarClient } from '@polar-sh/better-auth/client';
 import { createAuthClient } from 'better-auth/react';
 
 /* Same origin as the app, so no baseURL is needed. */
-export const authClient = createAuthClient();
+export const authClient = createAuthClient({ plugins: [polarClient()] });
 
 export const { useSession, signIn, signUp, signOut } = authClient;
 

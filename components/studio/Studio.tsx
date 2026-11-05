@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_DOC, suggestTitle, type DocOptions } from '@/lib/docmodel';
 import {
@@ -12,12 +13,15 @@ import { fromSaved, loadLibrary, removeEntry, toSaved, upsert, type Saved } from
 import { SAMPLES } from '@/lib/samples';
 import { STYLES, STYLE_GROUPS } from '@/lib/styles';
 import { enrich } from '@/lib/sources';
-import { analyse, topicTokens } from '@/lib/text';
+import { analyse, chooseClaims, topicTokens } from '@/lib/text';
+import { CREDITS_PER_CLAIM } from '@/lib/pricing';
 import { DEFAULT_PREFS, type ApiSettings, type Mode, type Prefs, type Result, type Source } from '@/lib/types';
 import { registerCommands, type Command } from '../CommandPalette';
 import { Icon } from '../Icon';
 import { toast } from '../toast';
 import { usePersistent } from '../usePersistent';
+import { OutOfCredits, refundCredits, spendCredits, useCredits } from '../useCredits';
+import { CreditsDialog } from './CreditsDialog';
 import { Controls, MODES } from './Controls';
 import { Editor } from './Editor';
 import { LibraryDrawer } from './LibraryDrawer';
@@ -59,6 +63,8 @@ export function Studio() {
   const { data: session } = useSession();
   const userId = session?.user.id;
   const syncWarned = useRef(false);
+  const credits = useCredits(Boolean(userId));
+  const [outOf, setOutOf] = useState<{ needed: number; have: number } | null>(null);
   const [libOpen, setLibOpen] = useState(false);
   const [entryId, setEntryId] = useState<string | null>(null);
   const tracedDraft = useRef('');
@@ -116,6 +122,8 @@ export function Studio() {
 
   const deferred = useDeferredValue(draft);
   const analysis = useMemo(() => (deferred.trim() ? analyse(deferred) : null), [deferred]);
+  /* what a full trace of the current draft would cost */
+  const cost = useMemo(() => (analysis ? chooseClaims(analysis.sentences, Math.min(prefs.count, 40)).length * CREDITS_PER_CLAIM : 0), [analysis, prefs.count]);
 
   const setPrefs = useCallback(
     (p: Partial<Prefs>) =>
@@ -152,14 +160,20 @@ export function Studio() {
     setLog([]);
     setProgress(0);
     setTimeout(() => progressEl.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+    let spendId: string | null = null;
+    let ok = false;
     try {
       const r = await trace(draft, prefs, settings, {
+        charge: async (n) => {
+          spendId = await spendCredits(n, 'trace');
+        },
         step: (s: Step, state: StepState, msg: string) => token === runToken.current && setSteps((v) => ({ ...v, [s]: { state, msg } })),
         progress: (f) => token === runToken.current && setProgress(f),
         log: (l) => token === runToken.current && setLog((xs) => [...xs.slice(-20), l]),
         isCancelled: () => token !== runToken.current,
       });
       if (!r || token !== runToken.current) return;
+      ok = true;
       annotations.current = {};
       tracedDraft.current = draft;
       setEntryId(`t${Date.now().toString(36)}`);
@@ -175,10 +189,17 @@ export function Studio() {
       }, 700);
     } catch (e) {
       if (token !== runToken.current) return;
+      if (e instanceof OutOfCredits) {
+        setShowProgress(false);
+        setOutOf({ needed: e.needed, have: e.have });
+        return;
+      }
       setShowProgress(e instanceof TraceError ? false : true);
       toast((e as Error).message, true);
     } finally {
       if (token === runToken.current) setRunning(false);
+      // stopped or failed after paying: give the credits back
+      if (spendId && !ok) refundCredits(spendId).then((back) => back && toast('Trace didn’t finish, so its credits were returned'));
     }
   }, [running, draft, prefs, settings, doc.title, setDoc]);
 
@@ -205,7 +226,10 @@ export function Studio() {
         return false;
       }
       setCiting(true);
+      let spendId: string | null = null;
+      let ok = false;
       try {
+        spendId = await spendCredits(1, 'cite');
         const found = await traceClaim(text.trim(), prefs, settings, n, result ? citedSet(result) : new Set(), topicTokens(a));
         if (!found.ids.length) {
           toast('No matching source was found for that passage. Try selecting a longer or more specific claim.', true);
@@ -219,12 +243,15 @@ export function Studio() {
         setTab('doc');
         setShowProgress(false);
         toast(`${found.ids.length} source${found.ids.length === 1 ? '' : 's'} added for that claim`);
+        ok = true;
         return true;
       } catch (e) {
-        toast((e as Error).message, true);
+        if (e instanceof OutOfCredits) setOutOf({ needed: e.needed, have: e.have });
+        else toast((e as Error).message, true);
         return false;
       } finally {
         setCiting(false);
+        if (spendId && !ok) refundCredits(spendId);
       }
     },
     [citing, running, draft, prefs, settings, result, entryId, doc.title, setDoc],
@@ -330,6 +357,11 @@ export function Studio() {
             <span className="ws-saved">
               <Icon name="check" /> {userId ? 'Saved to your account' : 'Saved in this browser'}
             </span>
+            {credits && (
+              <Link href="/pricing" className={`ws-credits${credits.total < Math.max(cost, 5) ? ' low' : ''}`} title={`${credits.free} free (resets monthly) + ${credits.paid} purchased`}>
+                <Icon name="bolt" /> {credits.total.toLocaleString()} credit{credits.total === 1 ? '' : 's'}
+              </Link>
+            )}
           </div>
           <div className="ws-actions">
             <button className="ws-btn" onClick={() => setLibOpen(true)} title="Recent traces">
@@ -349,6 +381,7 @@ export function Studio() {
             ) : (
               <button className="btn btn-thread btn-sm ws-run" onClick={run}>
                 <Icon name="search" /> Trace all claims
+                {cost > 0 && <span className="ws-cost">{cost} credit{cost === 1 ? '' : 's'}</span>}
                 <span className="kbd">Ctrl ↵</span>
               </button>
             )}
@@ -447,6 +480,8 @@ export function Studio() {
           onClose={() => setLibOpen(false)}
         />
       )}
+
+      {outOf && <CreditsDialog needed={outOf.needed} have={outOf.have} resetsAt={credits?.resetsAt} onClose={() => setOutOf(null)} />}
 
       {settingsOpen && (
         <SettingsDialog

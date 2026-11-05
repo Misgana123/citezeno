@@ -32,6 +32,21 @@ export default function TermsPage() {
             <li>You can delete your account at any time from the account page.</li>
           </ul>
 
+          <h2>Credits and payments</h2>
+          <ul>
+            <li>Searching for sources uses credits: one per claim. The cost is shown before each trace.</li>
+            <li>
+              Free monthly credits refill on the first of each month (UTC) and don’t roll over. Purchased credits don’t expire
+              while your account is open. Credits have no cash value and can’t be transferred.
+            </li>
+            <li>
+              Payments are processed by Polar as merchant of record, under its own terms. When a payment is refunded, the
+              credits it bought are removed from your balance.
+            </li>
+            <li>Deleting your account deletes any unused credits.</li>
+            <li>We may change prices for future purchases. Credits you already have keep their value.</li>
+          </ul>
+
           <h2>Your content</h2>
           <p>
             Drafts you trace stay yours. You give us permission to store and process them only to provide the service to

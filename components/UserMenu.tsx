@@ -6,12 +6,14 @@ import { useEffect, useRef, useState } from 'react';
 import { signOut, useSession } from '@/lib/auth-client';
 import { Icon } from './Icon';
 import { toast } from './toast';
+import { useCredits } from './useCredits';
 
 export const initials = (name?: string | null, email?: string | null) =>
   ((name || email || '?').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('') || '?').toUpperCase();
 
 export function UserMenu() {
   const { data, isPending } = useSession();
+  const credits = useCredits(Boolean(data));
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -33,10 +35,10 @@ export function UserMenu() {
   useEffect(() => setOpen(false), [path]);
 
   if (isPending) return <span className="umenu-skel" aria-hidden="true" />;
+  // signing in always lands in the studio
   if (!data) {
-    const next = path && !path.startsWith('/sign-') ? `?next=${encodeURIComponent(path)}` : '';
     return (
-      <Link className="nav-signin" href={`/sign-in${next}`}>
+      <Link className="nav-signin" href="/sign-in">
         Sign in
       </Link>
     );
@@ -60,9 +62,22 @@ export function UserMenu() {
           <div className="umenu-who">
             <b>{u.name || 'Your account'}</b>
             <span>{u.email}</span>
+            {credits && (
+              <span className="umenu-credits">
+                <span>
+                  <b>{credits.total.toLocaleString()}</b> credits
+                </span>
+                <Link href="/pricing" className="umenu-top">
+                  Top up
+                </Link>
+              </span>
+            )}
           </div>
           <Link href="/account" role="menuitem">
             <Icon name="user" /> Account
+          </Link>
+          <Link href="/pricing" role="menuitem">
+            <Icon name="bolt" /> Pricing and credits
           </Link>
           <Link href="/studio" role="menuitem">
             <Icon name="doc" /> Studio

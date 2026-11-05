@@ -18,15 +18,14 @@ export default function PrivacyPage() {
           <p className="updated">Last updated 5 November 2026</p>
           <p>This page explains what Citezeno stores about you, why, and what you can do about it.</p>
 
-          <h2>Using the studio without an account</h2>
+          <h2>How searching works</h2>
           <p>
-            Your draft, settings and library of recent traces are saved in your own browser (local storage). They are not
-            sent to our servers. To find sources, your browser sends short search phrases taken from your draft directly to
-            OpenAlex, Crossref, Open Library and, if you switch it on, Wikipedia. Their own privacy policies apply to those
-            requests.
+            Your draft, settings and a copy of your recent traces are saved in your own browser (local storage). To find
+            sources, your browser sends short search phrases taken from your draft directly to OpenAlex, Crossref, Open
+            Library and, if you switch it on, Wikipedia. Their own privacy policies apply to those requests.
           </p>
 
-          <h2>If you create an account</h2>
+          <h2>Your account</h2>
           <ul>
             <li>
               <b>Account details:</b> your name, email address, a securely hashed password (if you use one), and, if you sign
@@ -42,6 +41,13 @@ export default function PrivacyPage() {
             </li>
           </ul>
 
+          <h2>If you buy credits</h2>
+          <p>
+            Payments are handled by Polar, our merchant of record. Polar collects your payment details and billing address;
+            we never see your card number. We keep a record of your credit balance, each purchase (product, amount and
+            order number) and how many credits each trace used.
+          </p>
+
           <h2>If you contact us</h2>
           <p>
             We keep your name, email address, message and the IP address it was sent from, and forward the message to our
@@ -56,7 +62,8 @@ export default function PrivacyPage() {
 
           <h2>Who processes your data</h2>
           <p>
-            The site is hosted on Vercel, account data is stored in a Postgres database, and email is sent through Resend.
+            The site is hosted on Vercel, account data is stored in a Postgres database, email is sent through Resend, and
+            payments are processed by Polar.
             They process data only to provide those services to us. We never sell your data.
           </p>
 

@@ -2,9 +2,12 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { AccountPanels } from '@/components/account/AccountPanels';
+import { BillingPanel } from '@/components/billing/BillingPanel';
 import { Footer, Nav } from '@/components/Nav';
 import { auth, enabledProviders } from '@/lib/auth';
+import { getBalance, history } from '@/lib/credits';
 import { pool } from '@/lib/db';
+import { polarEnabled } from '@/lib/polar';
 import { requireSession } from '@/lib/session';
 
 export const metadata: Metadata = { title: 'Account', robots: { index: false } };
@@ -14,7 +17,7 @@ export default async function AccountPage() {
   const session = await requireSession('/account');
   const h = await headers();
 
-  const [accounts, sessions, stats] = await Promise.all([
+  const [accounts, sessions, stats, balance, ledger] = await Promise.all([
     auth.api.listUserAccounts({ headers: h }).catch(() => []),
     auth.api.listSessions({ headers: h }).catch(() => []),
     pool
@@ -24,6 +27,8 @@ export default async function AccountPage() {
       )
       .then((r) => r.rows[0])
       .catch(() => ({ n: '0', sources: '0', last: null })),
+    getBalance(session.user.id),
+    history(session.user.id, 15),
   ]);
 
   const u = session.user;
@@ -53,6 +58,7 @@ export default async function AccountPage() {
             createdAt: new Date(s.createdAt).getTime(),
             expiresAt: new Date(s.expiresAt).getTime(),
           }))}
+          billing={<BillingPanel initial={balance} history={ledger} polar={polarEnabled} />}
           stats={{ traces: Number(stats.n) || 0, sources: Number(stats.sources) || 0, last: stats.last ? new Date(stats.last).getTime() : null }}
         />
       </main>

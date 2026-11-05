@@ -32,6 +32,7 @@ export function AccountPanels({
   available,
   sessions: initialSessions,
   stats,
+  billing,
 }: {
   user: User;
   currentToken: string;
@@ -39,6 +40,7 @@ export function AccountPanels({
   available: Provider[];
   sessions: Sess[];
   stats: { traces: number; sources: number; last: number | null };
+  billing: React.ReactNode;
 }) {
   const router = useRouter();
   const hasPassword = providers.includes('credential');
@@ -134,6 +136,7 @@ export function AccountPanels({
     <div className="acct">
       <nav className="acct-nav" aria-label="Account sections">
         <a href="#profile">Profile</a>
+        <a href="#billing">Credits and billing</a>
         <a href="#library">Library</a>
         <a href="#security">Sign-in and security</a>
         <a href="#devices">Devices</a>
@@ -181,6 +184,8 @@ export function AccountPanels({
             </div>
           </form>
         </section>
+
+        {billing}
 
         <section className="panel" id="library">
           <h2>Library</h2>

@@ -2,6 +2,7 @@ import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
 import { pool } from './db';
 import { deleteEmail, emailEnabled, resetEmail, sendEmail, verifyEmail } from './email';
+import { polarPlugin } from './polar';
 
 /* Social sign-in is switched on only for providers whose keys are set. */
 const social: BetterAuthOptions['socialProviders'] = {};
@@ -11,6 +12,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
   social.github = { clientId: process.env.GITHUB_CLIENT_ID, clientSecret: process.env.GITHUB_CLIENT_SECRET };
 }
+const billing = polarPlugin();
+
 export const enabledProviders = Object.keys(social) as ('google' | 'github')[];
 
 /* On Vercel, fall back to the deployment's own URL when BETTER_AUTH_URL is unset. */
@@ -95,7 +98,8 @@ export const authOptions = {
     ipAddress: { ipAddressHeaders: ['x-forwarded-for', 'x-real-ip'] },
   },
 
-  plugins: [nextCookies()],
+  // nextCookies must stay last
+  plugins: [...(billing ? [billing] : []), nextCookies()],
 } satisfies BetterAuthOptions;
 
 export const auth = betterAuth(authOptions);

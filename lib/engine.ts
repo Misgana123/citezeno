@@ -17,6 +17,8 @@ export type TraceEvents = {
   progress: (fraction: number) => void;
   log: (line: LogLine) => void;
   isCancelled: () => boolean;
+  /* Called once the claims are chosen, before any search. Throw to stop the trace. */
+  charge?: (claims: number) => Promise<void>;
 };
 
 export class TraceError extends Error {}
@@ -31,6 +33,8 @@ export async function trace(text: string, prefs: Prefs, settings: ApiSettings, e
   ev.step('read', 'active', 'Finding citable claims');
   const analysis = analyse(text);
   const claims = chooseClaims(analysis.sentences, Math.min(prefs.count, 40));
+  if (!claims.length) throw new TraceError('No sentence in this draft makes a claim that can be cited.');
+  if (ev.charge) await ev.charge(claims.length);
   await wait(280);
   ev.step('read', 'done', `${claims.length} of ${analysis.sentences.length} sentences chosen`);
 
