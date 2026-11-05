@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { SPECIMENS, STYLE_GROUPS, plain, specimen } from '@/lib/styles';
 import { Icon } from './Icon';
@@ -30,7 +31,11 @@ export function StylesGallery() {
               return (
                 <article key={id} className="gcard">
                   <header>
-                    <b>{sp.style.name}</b>
+                    <b>
+                      <Link href={`/styles/${id}`} className="gcard-link">
+                        {sp.style.name}
+                      </Link>
+                    </b>
                     <span>{sp.style.edition}</span>
                     <button
                       className="icon-btn"

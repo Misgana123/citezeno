@@ -2,7 +2,44 @@ import Link from 'next/link';
 import { HeroThread } from '@/components/HeroThread';
 import { Icon } from '@/components/Icon';
 import { Footer, Nav } from '@/components/Nav';
+import { JsonLd } from '@/components/JsonLd';
 import { Specimens } from '@/components/Specimens';
+import { FREE_MONTHLY_CREDITS } from '@/lib/pricing';
+import { STYLE_GUIDES } from '@/lib/style-guides';
+import { SITE, appLd, faqLd, organizationLd, pageMeta, websiteLd } from '@/lib/seo';
+
+export const metadata = pageMeta({
+  title: 'Citezeno: find real sources and citations for AI-generated text',
+  description: SITE.description,
+  path: '/',
+});
+
+const FAQ: [string, string][] = [
+  [
+    'Does ChatGPT make up citations?',
+    'Often, yes. Large language models can write references that look correct but point to papers that don’t exist. Citezeno avoids this by only formatting records that it finds in real databases, so every reference links to a work you can open.',
+  ],
+  [
+    'How does Citezeno find sources?',
+    'It splits your draft into sentences, picks the ones that make factual claims, and searches OpenAlex, Crossref, Open Library and (optionally) Wikipedia for published works on the same topic. Matches are ranked by how closely their title, abstract and keywords fit the claim.',
+  ],
+  [
+    'Which citation styles are supported?',
+    'Twelve: APA 7, MLA 9, Chicago 17 (notes and author–date), Turabian 9, Harvard, ASA 7, IEEE, Vancouver, AMA 11, ACS and CSE 9, as in-text citations, footnotes, endnotes, a bibliography or an annotated bibliography.',
+  ],
+  [
+    'Is Citezeno free?',
+    `Yes, to start. Every account gets ${FREE_MONTHLY_CREDITS} free credits each month, and one credit finds sources for one claim. You can buy more credits if you need them; they never expire.`,
+  ],
+  [
+    'Can I download the result as a Word document?',
+    'Yes. Download a real .docx with proper footnotes and a hanging-indent reference list, a print-ready PDF, or BibTeX, RIS and CSL-JSON for Zotero, Mendeley and EndNote.',
+  ],
+  [
+    'Do I still need to check the sources?',
+    'Yes. Citezeno matches sources by topic and can’t read every paper in full. Open each one and confirm it supports your sentence before you submit. Works that have been retracted are skipped automatically.',
+  ],
+];
 
 const DBS = [
   ['OpenAlex', '250M+ scholarly works with abstracts'],
@@ -47,6 +84,10 @@ const STEPS = [
 export default function Home() {
   return (
     <>
+      <JsonLd data={organizationLd()} />
+      <JsonLd data={websiteLd()} />
+      <JsonLd data={appLd({ freeCredits: FREE_MONTHLY_CREDITS })} />
+      <JsonLd data={faqLd(FAQ)} />
       <Nav onBlue />
       <main>
         <section className="hero">
@@ -157,6 +198,35 @@ export default function Home() {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="section" style={{ paddingTop: 0 }} aria-labelledby="popular">
+          <div className="wrap">
+            <h2 className="h3" id="popular" style={{ marginBottom: 14 }}>
+              Citation generators by style
+            </h2>
+            <ul className="sg-links">
+              {Object.entries(STYLE_GUIDES).map(([id, g]) => (
+                <li key={id}>
+                  <Link href={`/styles/${id}`}>{g.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section className="section" style={{ paddingTop: 0 }} aria-labelledby="faq">
+          <div className="wrap faq" style={{ marginTop: 0 }}>
+            <h2 className="h2" id="faq" style={{ textAlign: 'center', marginBottom: 28 }}>
+              Questions, answered
+            </h2>
+            {FAQ.map(([q, a]) => (
+              <details key={q}>
+                <summary>{q}</summary>
+                <p>{a}</p>
+              </details>
+            ))}
           </div>
         </section>
 

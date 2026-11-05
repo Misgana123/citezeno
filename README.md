@@ -63,6 +63,8 @@ Each button appears only when its keys are set. Register these callback URLs wit
 | `/library` | Every saved trace: search, filter, sort, rename, share, delete, reopen in the studio |
 | `/s/[token]` | Public read-only view of a shared trace, in any style, with a BibTeX download |
 | `/two-factor` | The code step of sign-in when two-step verification is on |
+| `/history` | Activity timeline: traces, credits, sharing and security events, with filters and CSV export |
+| `/styles/[id]` | One landing page per citation style, with examples, rules and an FAQ |
 | `/admin` | Admin dashboard: key numbers, daily charts, users (adjust credits), contact inbox |
 | `/contact` | Contact form that emails your team and keeps a copy in the database |
 | `/privacy`, `/terms` | Privacy policy and terms of use |
@@ -80,6 +82,17 @@ Each button appears only when its keys are set. Register these callback URLs wit
 - **Six result views.** Manuscript, References, Sources (replace, copy, remove, or add your own by DOI or ISBN), Map (claims tied to sources by threads weighted by match strength), Insights (coverage, match strength, databases, publication years), and Export (Word, PDF, BibTeX, RIS, CSL-JSON, plain text, HTML).
 - **Command menu.** Press `Ctrl K` (or `⌘ K`) to switch style or output, load a sample, change tabs, or toggle the theme. `Ctrl Enter` in the editor traces all claims, or cites the selected passage when the cite box is open.
 - **Light and dark themes.** Your draft, preferences and settings are saved in the browser.
+
+## Features added in v4
+
+- **History** at `/history` is one timeline of everything on the account: traces created, renamed, shared and deleted; every credit spent, returned, bought or granted; sign-ins, password changes and two-step verification changes. It's grouped by day in your own time zone, with filters (traces, credits, sharing, security), paging, CSV download and “Clear history”. Credit records are kept when you clear it.
+- **SEO**
+  - Every public page has its own title, description, canonical URL and Open Graph/Twitter card. Private pages are `noindex` and blocked in `robots.txt`.
+  - **12 style landing pages** (`/styles/apa`, `/styles/mla`, …) target searches like “APA citation generator”. Each has live examples for an article, a book and a web page, key rules, an FAQ and its own share image.
+  - Structured data (JSON-LD): Organization, WebSite, WebApplication with offers, FAQPage (home, pricing, style pages), HowTo and BreadcrumbList.
+  - A generated social share image (1200×630), Apple touch icon, web app manifest, and a sitemap of every public page.
+  - The home page gains a visible FAQ and links to every style page. The pricing page is now static (refreshed every 5 minutes), so it loads fast for crawlers.
+  - Set `GOOGLE_SITE_VERIFICATION` to verify the site in Google Search Console, then submit `https://<your-domain>/sitemap.xml` there.
 
 ## Features added in v3
 

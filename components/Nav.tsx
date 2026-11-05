@@ -94,6 +94,14 @@ export function Footer() {
           <a href="https://www.wikipedia.org" target="_blank" rel="noopener noreferrer">Wikipedia</a>. Open every source and
           check it before you rely on it.
         </p>
+        <nav className="foot-links foot-styles" aria-label="Citation styles">
+          <Link href="/styles/apa">APA generator</Link>
+          <Link href="/styles/mla">MLA generator</Link>
+          <Link href="/styles/chicago">Chicago generator</Link>
+          <Link href="/styles/harvard">Harvard generator</Link>
+          <Link href="/styles/ieee">IEEE generator</Link>
+          <Link href="/styles/vancouver">Vancouver generator</Link>
+        </nav>
         <nav className="foot-links" aria-label="Footer">
           <Link href="/studio">Studio</Link>
           <Link href="/styles">Citation styles</Link>

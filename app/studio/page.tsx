@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import { Nav } from '@/components/Nav';
 import { Studio } from '@/components/studio/Studio';
 import { requireSession } from '@/lib/session';
+import { pageMeta } from '@/lib/seo';
 
-export const metadata: Metadata = { title: 'Studio' };
+export const metadata: Metadata = pageMeta({ title: 'Studio', path: '/studio', noindex: true });
 
 export const dynamic = 'force-dynamic';
 

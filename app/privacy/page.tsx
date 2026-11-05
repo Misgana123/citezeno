@@ -1,8 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Footer, Nav } from '@/components/Nav';
+import { pageMeta } from '@/lib/seo';
 
-export const metadata: Metadata = { title: 'Privacy policy' };
+export const metadata: Metadata = pageMeta({
+  title: 'Privacy policy',
+  description: 'What Citezeno stores about you, why, and how to delete it. No advertising or tracking cookies, and we never sell your data.',
+  path: '/privacy',
+});
 
 /* Plain-language policy describing what this codebase actually stores. Review it
    with your own legal adviser before relying on it. */

@@ -1,8 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Footer, Nav } from '@/components/Nav';
+import { pageMeta } from '@/lib/seo';
 
-export const metadata: Metadata = { title: 'Terms of use' };
+export const metadata: Metadata = pageMeta({
+  title: 'Terms of use',
+  description: 'The terms for using Citezeno: accounts, credits and payments, your content, and what Citezeno can and can’t check.',
+  path: '/terms',
+});
 
 /* Plain-language terms. Review them with your own legal adviser before relying on them. */
 export default function TermsPage() {

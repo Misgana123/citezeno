@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { JetBrains_Mono, Newsreader, Schibsted_Grotesk } from 'next/font/google';
 import { CommandPalette } from '@/components/CommandPalette';
 import { Toaster } from '@/components/toast';
+import { SITE } from '@/lib/seo';
 import { siteURL } from '@/lib/site';
 import './globals.css';
 import './studio.css';
@@ -13,9 +14,32 @@ const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', displ
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteURL),
-  title: { default: 'Citezeno — real citations for AI-generated text', template: '%s · Citezeno' },
-  description:
-    'Paste text from any AI model. Citezeno finds real, verifiable sources for its claims in OpenAlex, Crossref, Open Library and Wikipedia, and formats them in APA, MLA, Chicago, Harvard, IEEE, Vancouver, AMA and more.',
+  title: { default: 'Citezeno: real, verifiable citations for AI-generated text', template: '%s · Citezeno' },
+  description: SITE.description,
+  applicationName: SITE.name,
+  keywords: SITE.keywords,
+  authors: [{ name: SITE.name, url: siteURL }],
+  creator: SITE.name,
+  publisher: SITE.name,
+  category: 'education',
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    siteName: SITE.name,
+    url: '/',
+    title: `${SITE.name}: ${SITE.tagline}`,
+    description: SITE.description,
+    locale: 'en_US',
+  },
+  twitter: { card: 'summary_large_image', title: `${SITE.name}: ${SITE.tagline}`, description: SITE.description },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
+  },
+  formatDetection: { telephone: false, email: false, address: false },
+  // Google Search Console → Settings → Ownership verification → HTML tag → paste the content value
+  ...(process.env.GOOGLE_SITE_VERIFICATION ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } } : {}),
 };
 
 export const viewport: Viewport = {

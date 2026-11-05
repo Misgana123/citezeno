@@ -11,7 +11,9 @@ export async function GET(req: Request) {
   if (!s) return json({ error: 'Sign in first.' }, 401);
   const { items } = await loadHistory(s.user.id, { limit: 500 });
   const cell = (v: unknown) => {
+    if (typeof v === 'number') return String(v);
     const t = String(v ?? '');
+    // a leading = + - @ would run as a formula in Excel, so text cells starting with one get a quote
     return /[",\n]|^[=+\-@]/.test(t) ? `"${t.replace(/^([=+\-@])/, "'$1").replace(/"/g, '""')}"` : t;
   };
   const lines = [['time (UTC)', 'event', 'trace', 'details', 'credits'].join(',')];

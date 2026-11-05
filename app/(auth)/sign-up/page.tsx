@@ -5,8 +5,13 @@ import { enabledProviders } from '@/lib/auth';
 import { FREE_MONTHLY_CREDITS } from '@/lib/pricing';
 import { safeNext } from '@/lib/safe-next';
 import { getSession } from '@/lib/session';
+import { pageMeta } from '@/lib/seo';
 
-export const metadata: Metadata = { title: 'Create an account' };
+export const metadata: Metadata = pageMeta({
+  title: 'Create a free account',
+  description: 'Sign up free and get monthly credits to find real, verifiable sources for your writing in 12 citation styles.',
+  path: '/sign-up',
+});
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 

@@ -1,10 +1,14 @@
-import { siteURL } from '@/lib/site';
 import type { MetadataRoute } from 'next';
+import { siteURL } from '@/lib/site';
 
 export default function robots(): MetadataRoute.Robots {
-  const base = siteURL;
   return {
-    rules: { userAgent: '*', allow: '/', disallow: ['/api/', '/account', '/reset-password', '/verify-email', '/billing/', '/studio'] },
-    sitemap: `${base}/sitemap.xml`,
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      disallow: ['/api/', '/studio', '/account', '/library', '/history', '/admin', '/billing/', '/s/', '/sign-in', '/forgot-password', '/reset-password', '/verify-email', '/two-factor'],
+    },
+    sitemap: `${siteURL}/sitemap.xml`,
+    host: siteURL,
   };
 }

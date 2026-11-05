@@ -3,11 +3,13 @@ import Link from 'next/link';
 import { ContactForm } from '@/components/ContactForm';
 import { Icon } from '@/components/Icon';
 import { Footer, Nav } from '@/components/Nav';
+import { pageMeta } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Contact',
-  description: 'Questions, bug reports or ideas for Citezeno. Send us a message and we’ll reply by email.',
-};
+export const metadata: Metadata = pageMeta({
+  title: 'Contact us',
+  description: 'Questions, bug reports, a wrong citation or an idea for Citezeno? Send us a message and a person will reply by email, usually within two working days.',
+  path: '/contact',
+});
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 

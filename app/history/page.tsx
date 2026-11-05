@@ -1,32 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ClearHistory } from '@/components/history/ClearHistory';
-import { Icon, type IconName } from '@/components/Icon';
+import { HistoryList } from '@/components/history/HistoryList';
+import { Icon } from '@/components/Icon';
 import { Footer, Nav } from '@/components/Nav';
-import { FILTERS, describe, loadHistory, type HistoryFilter, type HistoryItem } from '@/lib/history';
+import { FILTERS, loadHistory, type HistoryFilter } from '@/lib/history';
 import { requireSession } from '@/lib/session';
 
 export const metadata: Metadata = { title: 'History', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
-
-const ICON: Record<string, IconName> = {
-  'trace.created': 'search', 'trace.renamed': 'wand', 'trace.deleted': 'trash', 'trace.shared': 'globe', 'trace.unshared': 'globe',
-  'auth.signin': 'device', 'auth.password': 'lock', 'auth.2fa-on': 'shield', 'auth.2fa-off': 'shield', 'contact.sent': 'mail',
-};
-const iconFor = (k: string): IconName => ICON[k] || (k.startsWith('credits.') ? 'bolt' : 'history');
-
-function dayLabel(iso: string) {
-  const d = new Date(iso);
-  const today = new Date();
-  const y = new Date(today);
-  y.setDate(today.getDate() - 1);
-  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
-  if (same(d, today)) return 'Today';
-  if (same(d, y)) return 'Yesterday';
-  return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
-}
 
 export default async function HistoryPage({ searchParams }: Props) {
   const session = await requireSession('/history');
@@ -35,13 +19,6 @@ export default async function HistoryPage({ searchParams }: Props) {
   const before = typeof sp.before === 'string' ? sp.before : null;
   const { items, next } = await loadHistory(session.user.id, { filter, before });
 
-  const groups: [string, HistoryItem[]][] = [];
-  for (const it of items) {
-    const label = dayLabel(it.at);
-    const last = groups[groups.length - 1];
-    if (last && last[0] === label) last[1].push(it);
-    else groups.push([label, [it]]);
-  }
   const q = (o: Record<string, string | null>) => {
     const p = new URLSearchParams();
     if (o.type && o.type !== 'all') p.set('type', o.type);
@@ -85,51 +62,7 @@ export default async function HistoryPage({ searchParams }: Props) {
             </Link>
           </div>
         ) : (
-          <ol className="hist">
-            {groups.map(([label, list]) => (
-              <li key={label} className="hist-day">
-                <h2 className="hist-day-title">{label}</h2>
-                <ol>
-                  {list.map((it) => {
-                    const d = describe(it);
-                    return (
-                      <li key={it.id} className={`hist-item k-${it.kind.split('.')[0]}`}>
-                        <span className="hist-ico" aria-hidden="true">
-                          <Icon name={iconFor(it.kind)} />
-                        </span>
-                        <div className="hist-body">
-                          <p>
-                            {d.text}
-                            {it.title && (
-                              <>
-                                {' '}
-                                {it.traceExists ? (
-                                  <Link href={`/studio?open=${encodeURIComponent(it.traceId!)}`}>“{it.title}”</Link>
-                                ) : (
-                                  <b>“{it.title}”</b>
-                                )}
-                              </>
-                            )}
-                          </p>
-                          <small>
-                            {new Date(it.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                            {d.detail ? ` · ${d.detail}` : ''}
-                          </small>
-                        </div>
-                        {it.delta != null && (
-                          <span className={`hist-delta ${it.delta > 0 ? 'plus' : 'minus'}`}>
-                            {it.delta > 0 ? '+' : '−'}
-                            {Math.abs(it.delta).toLocaleString()}
-                            <small> credit{Math.abs(it.delta) === 1 ? '' : 's'}</small>
-                          </span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ol>
-              </li>
-            ))}
-          </ol>
+          <HistoryList items={items} />
         )}
 
         {(next || before) && (

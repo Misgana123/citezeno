@@ -1,19 +1,23 @@
 import type { Metadata } from 'next';
 import { unstable_cache } from 'next/cache';
 import Link from 'next/link';
-import { BuyButton } from '@/components/billing/BuyButton';
+import { BuyButton, FreePlanButton } from '@/components/billing/BuyButton';
 import { Icon } from '@/components/Icon';
 import { Footer, Nav } from '@/components/Nav';
 import { listPacks, polarEnabled, type CreditPack } from '@/lib/polar';
 import { CREDITS_PER_CLAIM, FREE_MONTHLY_CREDITS } from '@/lib/pricing';
-import { getSession } from '@/lib/session';
+import { JsonLd } from '@/components/JsonLd';
+import { appLd, faqLd, pageMeta } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Pricing',
-  description: 'Pay only for what you trace. One credit finds sources for one claim. Free credits every month.',
-};
+export const metadata: Metadata = pageMeta({
+  title: 'Pricing: free monthly credits, pay only for what you cite',
+  description: `Citezeno is free to start with ${FREE_MONTHLY_CREDITS} credits every month. One credit finds real sources for one claim. Buy credit packs that never expire, with no subscription.`,
+  path: '/pricing',
+});
 
-export const dynamic = 'force-dynamic';
+// Static and refreshed every 5 minutes, so search engines and visitors get it fast.
+// Whether the visitor is signed in is worked out in the browser.
+export const revalidate = 300;
 
 const packs = unstable_cache(listPacks, ['polar-packs'], { revalidate: 300 });
 
@@ -35,10 +39,16 @@ const FAQ = [
 ];
 
 export default async function PricingPage() {
-  const [session, list] = await Promise.all([getSession(), packs()]);
-  const signedIn = Boolean(session);
+  const list = await packs();
   return (
     <>
+      <JsonLd data={faqLd(FAQ as [string, string][])} />
+      <JsonLd
+        data={appLd({
+          freeCredits: FREE_MONTHLY_CREDITS,
+          ...(list.length ? { lowPrice: 0, highPrice: Math.max(...list.map((p) => p.price)) / 100, currency: list[0].currency } : {}),
+        })}
+      />
       <Nav />
       <main className="wrap page">
         <header className="price-head">
@@ -77,15 +87,7 @@ export default async function PricingPage() {
               <li><Icon name="check" /> Word, PDF, BibTeX and RIS export</li>
               <li><Icon name="check" /> Library synced to your account</li>
             </ul>
-            {signedIn ? (
-              <Link className="btn btn-ghost" href="/studio">
-                Open the studio
-              </Link>
-            ) : (
-              <Link className="btn btn-ghost" href="/sign-up">
-                Create a free account
-              </Link>
-            )}
+            <FreePlanButton />
           </section>
 
           {list.map((p) => (
@@ -104,7 +106,7 @@ export default async function PricingPage() {
                 <li><Icon name="check" /> {p.recurring ? 'Unused credits roll over' : 'Credits never expire'}</li>
                 <li><Icon name="check" /> {p.recurring ? 'Cancel any time' : 'No subscription'}</li>
               </ul>
-              <BuyButton productId={p.id} signedIn={signedIn} featured={p.featured} label={p.recurring ? 'Subscribe' : `Buy ${p.credits.toLocaleString()} credits`} />
+              <BuyButton productId={p.id} featured={p.featured} label={p.recurring ? 'Subscribe' : `Buy ${p.credits.toLocaleString()} credits`} />
             </section>
           ))}
         </div>
