@@ -22,7 +22,7 @@ export default async function LibraryPage() {
           <h1 className="h2">Library</h1>
           <p className="lede">Every trace you’ve run, synced to your account. Rename, share a read-only link, or reopen one in the studio.</p>
         </header>
-        <LibraryManager initial={rows.map((r) => ({ ...r, savedAt: new Date(r.savedAt).getTime() }))} />
+        <LibraryManager initial={rows.map((r) => ({ ...r, savedAt: new Date(r.savedAt).getTime() }))} owner={s.user.name || ''} />
       </main>
       <Footer />
     </>

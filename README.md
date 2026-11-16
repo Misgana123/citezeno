@@ -83,6 +83,10 @@ Each button appears only when its keys are set. Register these callback URLs wit
 - **Command menu.** Press `Ctrl K` (or `⌘ K`) to switch style or output, load a sample, change tabs, or toggle the theme. `Ctrl Enter` in the editor traces all claims, or cites the selected passage when the cite box is open.
 - **Light and dark themes.** Your draft, preferences and settings are saved in the browser.
 
+## Features added in v5
+
+- **Share designs.** Sharing now opens a dialog instead of copying a link straight away. Pick one of five designs for the public page (Dossier, Reading Room, Cyanotype, Monograph, Claim Threads), the citation style and the output form, and watch a live preview of the exact page a viewer will see. Nothing is published until **Create link & copy**. Reopen the dialog later to change the design: the link stays the same, and the dialog says when the live page is behind your changes. The designs live in `components/share/themes.tsx` with their styles in `app/share.css`, and the same components render both the public page and the preview. Run `npm run db:migrate` once to add the `shareTheme` column.
+
 ## Features added in v4
 
 - **History** at `/history` is one timeline of everything on the account: traces created, renamed, shared and deleted; every credit spent, returned, bought or granted; sign-ins, password changes and two-step verification changes. It's grouped by day in your own time zone, with filters (traces, credits, sharing, security), paging, CSV download and “Clear history”. Credit records are kept when you clear it.

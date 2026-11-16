@@ -215,17 +215,7 @@
 /* ---------- retraction ---------- */
 .tag.retracted { background: var(--warn-soft); color: var(--warn); font-weight: 750; }
 
-/* ---------- shared trace ---------- */
-.share-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 28px; }
-.share-head > div { max-width: 46em; }
-.share-head .h2 { font-size: clamp(30px, 3.8vw, 46px); margin-top: 8px; }
-.share-head .lede { margin-top: 12px; font-size: 17px; }
-.share-kicker { display: inline-flex; align-items: center; gap: 7px; margin: 0; font-size: 13px; font-weight: 650; color: var(--ink-3); }
-.share-kicker svg { width: 15px; height: 15px; color: var(--verify); }
-.share-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.share-refs { margin-top: 40px; background: var(--sheet); border: 1px solid var(--rule-2); border-radius: var(--r); padding: 28px 32px; }
-.share-refs .h3 { margin-bottom: 16px; }
-.share-refs .sheet .list-title { display: none; }
+/* ---------- shared trace: see share.css ---------- */
 
 /* ---------- library page ---------- */
 .libm-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }

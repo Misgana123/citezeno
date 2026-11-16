@@ -29,6 +29,7 @@ import { StyleNav } from './StyleNav';
 import { Progress, type StepView } from './Progress';
 import { Results, type Tab } from './Results';
 import { SettingsDialog } from './SettingsDialog';
+import { ShareDialog } from '../share/ShareDialog';
 
 const IDLE: StepView = {
   read: { state: 'idle', msg: 'Waiting' },
@@ -58,6 +59,7 @@ export function Studio() {
   const [showProgress, setShowProgress] = useState(false);
   const [tab, setTab] = useState<Tab>('doc');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [doc, setDocRaw] = usePersistent<DocOptions>('doc', DEFAULT_DOC, (d) => ({ ...DEFAULT_DOC, ...d }));
   const [library, setLibrary] = useState<LibItem[]>([]);
   const { data: session } = useSession();
@@ -330,24 +332,10 @@ export function Studio() {
     setShowProgress(false);
     setTimeout(() => resultsEl.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   };
-  /* publish a read-only link to the open trace, in the current style */
-  const shareCurrent = async () => {
+  /* the share dialog: pick a design, preview the public page, then create the link */
+  const openShare = () => {
     if (!result || !entryId) return toast('Trace your draft first, then share it.', true);
-    try {
-      const text = tracedDraft.current;
-      await pushRemote(toSaved(entryId, suggestTitle(text), text, prefs.style, prefs.mode, result));
-      const res = await fetch(`/api/traces/${entryId}/share`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ style: prefs.style, mode: prefs.mode }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Couldn’t create a link.');
-      await navigator.clipboard.writeText(body.url).catch(() => {});
-      toast('Read-only link copied. Turn it off any time in the library.');
-    } catch (e) {
-      toast((e as Error).message, true);
-    }
+    setShareOpen(true);
   };
 
   /* /studio?open=<id> (from the library page) opens that trace */
@@ -401,7 +389,7 @@ export function Studio() {
               {library.length ? <span className="ws-count">{library.length}</span> : null}
             </button>
             {userId && result && (
-              <button className="ws-btn" onClick={shareCurrent} title="Copy a read-only link to this trace">
+              <button className="ws-btn" onClick={openShare} title="Share a read-only link to this trace">
                 <Icon name="globe" />
                 <span>Share</span>
               </button>
@@ -519,6 +507,15 @@ export function Studio() {
       )}
 
       {outOf && <CreditsDialog needed={outOf.needed} have={outOf.have} resetsAt={credits?.resetsAt} onClose={() => setOutOf(null)} />}
+      {shareOpen && result && entryId && (
+        <ShareDialog
+          id={entryId}
+          title={suggestTitle(tracedDraft.current)}
+          owner={session?.user.name || ''}
+          saved={toSaved(entryId, suggestTitle(tracedDraft.current), tracedDraft.current, prefs.style, prefs.mode, result)}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
 
       {settingsOpen && (
         <SettingsDialog

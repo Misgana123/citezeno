@@ -65,6 +65,9 @@ alter table trace add column if not exists "shareMode"   text;
 alter table trace add column if not exists "shareViews"  integer not null default 0;
 alter table trace add column if not exists "titleLocked" boolean not null default false;
 
+-- The design a shared trace is published in (v5); see lib/share-themes.ts
+alter table trace add column if not exists "shareTheme"  text;
+
 -- Admin inbox state (v3)
 alter table contact_message add column if not exists handled boolean not null default false;
 
