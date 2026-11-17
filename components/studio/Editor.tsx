@@ -7,6 +7,7 @@ import { analyse, isEligible, locate, words } from '@/lib/text';
 import type { Analysis } from '@/lib/types';
 import { Icon } from '../Icon';
 import { toast } from '../toast';
+import { DocxPreview, type OriginalDoc } from './DocxPreview';
 
 /* "I'll pick sentences": the picked sentences (by text) and what to do with them. */
 export type PickControls = {
@@ -71,6 +72,10 @@ export function Editor({
   citing,
   api,
   pick,
+  onCheck,
+  checking,
+  original,
+  onOriginal,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -84,7 +89,24 @@ export function Editor({
   api?: MutableRefObject<EditorApi | null>;
   /* set while the user picks sentences by hand */
   pick?: PickControls | null;
+  /* "Check existing citations" */
+  onCheck?: () => void;
+  checking?: boolean;
+  /* the .docx opened this session, for the read-only "Original formatting" tab */
+  original?: OriginalDoc | null;
+  onOriginal?: (doc: OriginalDoc | null) => void;
 }) {
+  const [view, setView] = useState<'edit' | 'original'>('edit');
+  /* the preview is rendered the first time it is shown, then kept */
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    setView('edit');
+    setShown(false);
+  }, [original]);
+  const showView = (v: 'edit' | 'original') => {
+    setView(v);
+    if (v === 'original') setShown(true);
+  };
   const ta = useRef<HTMLTextAreaElement>(null);
   const paper = useRef<HTMLDivElement>(null);
   const measure = useRef<HTMLDivElement>(null);
@@ -161,7 +183,14 @@ export function Editor({
       const text = await readDraftFile(f);
       if (!text.trim()) throw new Error('That file has no text in it.');
       onChange(text);
-      toast(`Opened ${f.name}`);
+      if (/\.docx$/i.test(f.name) && onOriginal) {
+        // kept in memory only, for the formatted preview
+        onOriginal({ name: f.name, data: await f.arrayBuffer() });
+        toast(`Opened ${f.name}. Its original formatting is in the “Original formatting” tab.`);
+      } else {
+        onOriginal?.(null);
+        toast(`Opened ${f.name}`);
+      }
     } catch (e) {
       toast((e as Error).message, true);
     }
@@ -289,6 +318,7 @@ export function Editor({
                     role="menuitem"
                     onClick={() => {
                       onChange(smp.text);
+                      onOriginal?.(null);
                       setSel(null);
                       setMenu(false);
                     }}
@@ -304,8 +334,21 @@ export function Editor({
             )}
           </div>
           {value && (
-            <button className="at-tool" onClick={() => onChange('')} title="Clear the draft" disabled={Boolean(pick)}>
+            <button
+              className="at-tool"
+              onClick={() => {
+                onChange('');
+                onOriginal?.(null);
+              }}
+              title="Clear the draft"
+              disabled={Boolean(pick)}
+            >
               <Icon name="eraser" /> <span>Clear</span>
+            </button>
+          )}
+          {onCheck && value.trim() && (
+            <button className="at-tool" onClick={onCheck} title="Check the references already in your draft (free)" aria-label="Check existing citations">
+              {checking ? <span className="spin" aria-hidden="true" /> : <Icon name="shield" />} <span>Check citations</span>
             </button>
           )}
           <span className="at-tool-sep" aria-hidden="true" />
@@ -316,7 +359,22 @@ export function Editor({
           </label>
         </div>
       </header>
-      {pick && (
+      {original && (
+        <div className="dview-tabs" role="tablist" aria-label="Draft views">
+          <button type="button" role="tab" aria-selected={view === 'edit'} onClick={() => showView('edit')}>
+            <Icon name="doc" /> Editor
+          </button>
+          <button type="button" role="tab" aria-selected={view === 'original'} onClick={() => showView('original')} title={`The formatting of ${original.name}, read-only`}>
+            <Icon name="word" /> Original formatting
+          </button>
+        </div>
+      )}
+      {original && shown && (
+        <div className="dview-original" hidden={view !== 'original'}>
+          <DocxPreview doc={original} />
+        </div>
+      )}
+      {pick && view === 'edit' && (
         <div className="pickbar" role="region" aria-label="Pick sentences">
           <div className="pickbar-txt">
             <b>Pick the sentences to cite</b>
@@ -343,7 +401,7 @@ export function Editor({
           </div>
         </div>
       )}
-      <div className="dview-scroll" ref={scroller} onScroll={onScroll}>
+      <div className="dview-scroll" ref={scroller} onScroll={onScroll} hidden={view !== 'edit'}>
       <div
         ref={paper}
         className={`dpage${drag ? ' drag' : ''}${value.trim() ? '' : ' empty'}${pick ? ' picking' : ''}`}

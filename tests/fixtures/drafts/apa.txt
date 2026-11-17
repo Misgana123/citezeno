@@ -1,0 +1,15 @@
+Urban heat islands make cities warmer than the countryside (Oke, 1982). Street trees cool surfaces by several degrees (Bowler et al., 2010; Santamouris & Kolokotsa, 2015). As Stewart and Oke (2012) showed, local climate zones help compare cities. Some writers claim that cool roofs halve energy use (Garcia, 2021), and the trend began in 1990 (see Nobody, 2003).
+
+References
+
+Bowler, D. E., Buyung-Ali, L., Knight, T. M., & Pullin, A. S. (2010). Urban greening to cool towns and cities: A systematic review of the empirical evidence. Landscape and Urban Planning, 97(3), 147–155. https://doi.org/10.1016/j.landurbplan.2010.05.006
+
+Oke, T. R. (1982). The energetic basis of the urban heat island. Quarterly Journal of the Royal Meteorological Society, 108(455), 1–24.
+
+Santamouris, M., & Kolokotsa, D. (2015). On the impact of urban overheating and extreme climatic conditions on housing, energy, comfort and environmental quality of vulnerable population in Europe. Energy and Buildings, 98, 125–133.
+
+Stewart, I. D., & Oke, T. R. (2012). Local climate zones for urban temperature studies. Bulletin of the American Meteorological Society, 93(12), 1879–1900.
+
+Garcia, M. (2021). Cool roofs and the halving of urban energy demand: A global meta-analysis. Journal of Imaginary Climate Studies, 4(2), 1–19.
+
+Thompson, R. (2018). An unused reference about rooftop gardens. Urban Studies, 55(1), 1–10.

@@ -238,6 +238,61 @@ export async function crossrefDOI(doi: string) {
   return fromCrossref(data.message);
 }
 
+/* ---------- direct lookups by DOI ("Check existing citations") ----------
+   Built on the same getJSON (timeout, retry) as the searches above. A DOI that
+   isn't registered resolves to null; any other failure throws. */
+
+export type UpdateNotice = { kind: 'retraction' | 'correction' | 'concern'; label: string; doi?: string };
+
+const isNotFound = (e: unknown) => /HTTP 404/.test((e as Error)?.message || '');
+
+const NOTICE_KIND: Record<string, UpdateNotice['kind']> = {
+  retraction: 'retraction', withdrawal: 'retraction', removal: 'retraction', 'partial_retraction': 'retraction',
+  correction: 'correction', erratum: 'correction', corrigendum: 'correction', addendum: 'correction', clarification: 'correction',
+  expression_of_concern: 'concern', 'expression-of-concern': 'concern',
+};
+
+/* Crossref's record for a DOI, with any retraction or correction notices the record already carries. */
+export async function crossrefDOIRecord(doi: string, settings?: ApiSettings): Promise<{ source: Source; notices: UpdateNotice[] } | null> {
+  const mail = settings && settings.email ? `?mailto=${encodeURIComponent(settings.email)}` : '';
+  let data: any;
+  try {
+    data = await getJSON(`https://api.crossref.org/works/${encodeURIComponent(doi)}${mail}`);
+  } catch (e) {
+    if (isNotFound(e)) return null;
+    throw e;
+  }
+  const m = data.message || {};
+  const notices: UpdateNotice[] = [];
+  const label = (t: string) => t.replace(/[_-]/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+  // notices issued about this work
+  for (const u of m['updated-by'] || []) {
+    const kind = NOTICE_KIND[String(u.type || '').toLowerCase()];
+    if (kind) notices.push({ kind, label: `${label(String(u.type))} notice`, doi: u.DOI });
+  }
+  // the DOI is itself a notice about another work
+  for (const u of m['update-to'] || []) {
+    const kind = NOTICE_KIND[String(u.type || '').toLowerCase()];
+    if (kind) notices.push({ kind, label: `This DOI is a ${label(String(u.type)).toLowerCase()} notice for another work`, doi: u.DOI });
+  }
+  return { source: fromCrossref(m), notices };
+}
+
+/* OpenAlex's record for a DOI (single-record lookup), including its retracted flag. */
+export async function openalexDOI(doi: string, settings?: ApiSettings): Promise<Source | null> {
+  const sel =
+    'id,doi,display_name,publication_year,publication_date,authorships,primary_location,biblio,cited_by_count,type,open_access,abstract_inverted_index,keywords,is_retracted';
+  const s = settings || {};
+  const tail = `${s.email ? `&mailto=${encodeURIComponent(s.email)}` : ''}${s.openalexKey ? `&api_key=${encodeURIComponent(s.openalexKey)}` : ''}`;
+  try {
+    const w = await getJSON(`https://api.openalex.org/works/doi:${encodeURIComponent(doi)}?select=${sel}${tail}`);
+    return w && w.id ? fromOpenAlex(w) : null;
+  } catch (e) {
+    if (isNotFound(e)) return null;
+    throw e;
+  }
+}
+
 /* ---------- Open Library ---------- */
 function fromOpenLibrary(d: any): Source {
   return {

@@ -17,6 +17,8 @@ import { enrich } from '@/lib/sources';
 import { analyse, chooseClaims, isEligible, locate, topicTokens } from '@/lib/text';
 import { CREDITS_PER_CLAIM } from '@/lib/pricing';
 import { reattach } from '@/lib/reattach';
+import { detectReferences, type RefEntry } from '@/lib/refcheck';
+import { checkAll } from '@/lib/refcheck-run';
 import { emptyHistory, isTextTarget, record, redo, undo, undoKey, type History } from '@/lib/undo';
 import { DEFAULT_PREFS, type ApiSettings, type Mode, type Prefs, type Result, type Source } from '@/lib/types';
 
@@ -30,6 +32,8 @@ import { toast } from '../toast';
 import { usePersistent } from '../usePersistent';
 import { OutOfCredits, refundCredits, spendCredits, useCredits } from '../useCredits';
 import { CreditsDialog } from './CreditsDialog';
+import { CheckPanel, type CheckState } from './CheckPanel';
+import type { OriginalDoc } from './DocxPreview';
 import { EvictDialog } from './EvictDialog';
 import { Controls, MODES } from './Controls';
 import { Editor, type EditorApi } from './Editor';
@@ -478,11 +482,77 @@ export function Studio() {
     return () => window.removeEventListener('keydown', k);
   }, [result, step]);
 
+  /* "Check existing citations": find the references already in the draft and look
+     each one up from the browser. Free, like adding a source by DOI. */
+  const [check, setCheck] = useState<CheckState | null>(null);
+  /* the .docx opened this session, in memory only, for its formatted preview */
+  const [original, setOriginal] = useState<OriginalDoc | null>(null);
+  const [checkOpen, setCheckOpen] = useState(false);
+  const checkToken = useRef(0);
+  const runCheck = useCallback(async () => {
+    const text = draft;
+    const detected = detectReferences(text);
+    const token = ++checkToken.current;
+    setCheck({ detected, verdicts: new Map(), running: detected.entries.length > 0, draft: text });
+    setCheckOpen(true);
+    if (!detected.entries.length) return;
+    await checkAll(
+      detected.entries,
+      settings,
+      (id, v) => token === checkToken.current && setCheck((c) => (c ? { ...c, verdicts: new Map(c.verdicts).set(id, v) } : c)),
+      () => token !== checkToken.current,
+    );
+    if (token === checkToken.current) setCheck((c) => (c ? { ...c, running: false } : c));
+  }, [draft, settings]);
+  const closeCheck = useCallback(() => setCheckOpen(false), []);
+  /* look up again only the references a database didn't answer for */
+  const retryCheck = useCallback(async () => {
+    if (!check || check.running) return;
+    const todo = check.detected.entries.filter((e) => check.verdicts.get(e.id)?.status === 'error');
+    if (!todo.length) return;
+    const token = ++checkToken.current;
+    setCheck((c) => {
+      if (!c) return c;
+      const verdicts = new Map(c.verdicts);
+      todo.forEach((e) => verdicts.delete(e.id));
+      return { ...c, verdicts, running: true };
+    });
+    await checkAll(
+      todo,
+      settings,
+      (id, v) => token === checkToken.current && setCheck((c) => (c ? { ...c, verdicts: new Map(c.verdicts).set(id, v) } : c)),
+      () => token !== checkToken.current,
+    );
+    if (token === checkToken.current) setCheck((c) => (c ? { ...c, running: false } : c));
+  }, [check, settings]);
+
+  /* "Find a real source for this sentence": the existing "Cite this claim" on the
+     sentence that cites a reference that wasn't found (1 credit, as always) */
+  const findFor = async (e: RefEntry) => {
+    if (!check || check.draft !== draft) return toast('Your draft has changed. Check again first.', true);
+    const c = check.detected.intext.find((x) => x.entries.includes(e.id));
+    if (!c) return;
+    const a = analyse(draft);
+    const span = locate(draft, a.sentences).find((sp) => c.start >= sp.start && c.start < sp.end);
+    if (!span) return toast('Couldn’t find the sentence that cites it.', true);
+    // search for what the sentence says, not for the citation in it
+    const said = draft
+      .slice(span.start, span.end)
+      .replace(c.raw, ' ')
+      .replace(/\(\s*[;,]?\s*\)|\[\s*\]/g, ' ')
+      .replace(/\s+([.,;:!?])/g, '$1')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const ok = await citeSelection(said, span.start, span.end, 1);
+    if (ok) setCheckOpen(false);
+  };
+
   /* command palette entries for this page */
   useEffect(() => {
     const cmds: Command[] = [
       { id: 'run', group: 'Studio', label: 'Trace sources', icon: 'search', meta: 'Ctrl Enter', run: () => run() },
       { id: 'settings', group: 'Studio', label: 'Database settings', icon: 'gear', run: () => setSettingsOpen(true) },
+      { id: 'check', group: 'Studio', label: 'Check existing citations', icon: 'shield', keywords: 'verify fake references doi bibliography retracted', run: () => runCheck() },
       { id: 'library', group: 'Studio', label: 'Open the library of recent traces', icon: 'history', keywords: 'history recent saved', run: () => setLibOpen(true) },
       ...Object.entries(SAMPLES).map(([k, s]) => ({
         id: 'sample-' + k, group: 'Studio', label: `Load the sample “${s.label}”`, icon: 'doc' as const, run: () => setDraft(s.text),
@@ -514,7 +584,7 @@ export function Studio() {
       );
     }
     return registerCommands('studio', cmds);
-  }, [run, setPrefs, setDraft, result, step]);
+  }, [run, setPrefs, setDraft, result, step, runCheck]);
 
   const onReplace = (oldId: string, newId: string) => {
     if (!result) return;
@@ -757,6 +827,10 @@ export function Studio() {
             onCite={citeSelection}
             citing={citing}
             api={editorApi}
+            onCheck={runCheck}
+            original={original}
+            onOriginal={setOriginal}
+            checking={Boolean(check?.running)}
             pick={picking ? { picked: pickSet, count: pickedCount, max: MAX_CLAIMS, toggle: togglePick, suggest: suggestPicks, clear: () => setPicks([]), done: () => setClaimMode('auto'), cost } : null}
           />
 
@@ -843,6 +917,22 @@ export function Studio() {
             toast('Deleted from the library');
           }}
           onClose={() => setLibOpen(false)}
+        />
+      )}
+
+      {checkOpen && check && (
+        <CheckPanel
+          state={check}
+          stale={check.draft !== draft}
+          citing={citing}
+          onShow={(start, end) => {
+            setCheckOpen(false);
+            setTimeout(() => editorApi.current?.select(start, end), 40);
+          }}
+          onFind={findFor}
+          onRecheck={runCheck}
+          onRetry={retryCheck}
+          onClose={closeCheck}
         />
       )}
 

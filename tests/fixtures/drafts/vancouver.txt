@@ -1,0 +1,5 @@
+Hand washing reduces infection rates in hospitals (1). See also doi:10.1016/S0140-6736(00)02814-2 for a related trial.
+
+Bibliography
+1. Pittet D, Hugonnet S, Harbarth S, Mourouga P, Sauvan V, Touveneau S, et al. Effectiveness of a hospital-wide programme to improve compliance with hand hygiene. Lancet. 2000;356(9238):1307-12.
+2. World Health Organization. WHO guidelines on hand hygiene in health care. Geneva: WHO; 2009.
