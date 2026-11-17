@@ -1,11 +1,12 @@
 import Link from 'next/link';
-import { HeroThread } from '@/components/HeroThread';
 import { Icon } from '@/components/Icon';
 import { Footer, Nav } from '@/components/Nav';
 import { JsonLd } from '@/components/JsonLd';
-import { Specimens } from '@/components/Specimens';
+import { InView } from '@/components/landing/InView';
+import { StyleWall } from '@/components/landing/StyleWall';
 import { FREE_MONTHLY_CREDITS } from '@/lib/pricing';
 import { STYLE_GUIDES } from '@/lib/style-guides';
+import { STYLES, STYLE_GROUPS } from '@/lib/styles';
 import { SITE, appLd, faqLd, organizationLd, pageMeta, websiteLd } from '@/lib/seo';
 
 export const metadata = pageMeta({
@@ -41,12 +42,35 @@ const FAQ: [string, string][] = [
   ],
 ];
 
-const DBS = [
-  ['OpenAlex', '250M+ scholarly works with abstracts'],
-  ['Crossref', 'The DOI registry publishers deposit to'],
-  ['Open Library', 'Books, editions and ISBNs'],
-  ['Wikipedia', 'Encyclopedia entries, off by default'],
+/* the three records shown in the hero's studio window (real works) */
+const HERO_REFS = [
+  { via: 'OpenAlex · Crossref', ok: 'DOI resolves', who: 'Oke, T. R. (1982).', title: 'The energetic basis of the urban heat island.', where: 'Quarterly Journal of the Royal Meteorological Society, 108', tail: '(455), 1–24.', match: 82 },
+  { via: 'Crossref', ok: 'DOI resolves', who: 'Bowler, D. E., et al. (2010).', title: 'Urban greening to cool towns and cities.', where: 'Landscape and Urban Planning, 97', tail: '(3), 147–155.', match: 71 },
+  { via: 'OpenAlex', ok: 'Not retracted', who: 'Akbari, H., et al. (2009).', title: 'Global cooling: increasing world-wide urban albedos.', where: 'Climatic Change, 94', tail: ', 275–286.', match: 64 },
 ];
+
+/* "Searched live": the databases, and real records they return */
+const DBS = [
+  { name: 'OpenAlex', what: '250M+ scholarly works with abstracts', color: 'var(--c-openalex)' },
+  { name: 'Crossref', what: 'The DOI registry publishers deposit to', color: 'var(--c-crossref)' },
+  { name: 'Open Library', what: 'Books, editions and ISBNs', color: 'var(--c-openlibrary)' },
+  { name: 'Wikipedia', what: 'Encyclopedia entries, off by default', color: 'var(--c-wikipedia)' },
+];
+const RECORDS = [
+  { db: 'OpenAlex', title: 'The energetic basis of the urban heat island', id: '10.1002/qj.49710845502' },
+  { db: 'Crossref', title: 'Deep learning', id: '10.1038/nature14539' },
+  { db: 'Open Library', title: 'The Structure of Scientific Revolutions', id: 'ISBN 978-0226458083' },
+  { db: 'Crossref', title: 'Urban greening to cool towns and cities', id: '10.1016/j.landurbplan.2010.05.006' },
+  { db: 'Wikipedia', title: 'Urban heat island', id: 'en.wikipedia.org' },
+  { db: 'OpenAlex', title: 'Attention is all you need', id: '10.48550/arXiv.1706.03762' },
+];
+/* the generator index: a short name where two styles share one, and the field each serves */
+const GEN_NAME: Record<string, string> = { chicagoad: 'Chicago (author–date)', chicago: 'Chicago (notes)' };
+const GEN_FIELD: Record<string, string> = {
+  apa: 'Social sciences', mla: 'Humanities', harvard: 'Many fields', chicagoad: 'Social sciences', asa: 'Sociology',
+  ieee: 'Engineering', vancouver: 'Medicine', ama: 'Medicine', acs: 'Chemistry', cse: 'Biology', chicago: 'History', turabian: 'History',
+};
+const dbColor = (name: string) => DBS.find((d) => d.name === name)!.color;
 
 const STEPS = [
   {
@@ -72,7 +96,21 @@ const STEPS = [
   {
     title: 'Rank',
     body: 'Each result is scored on how much its title, abstract and keywords overlap the claim. Duplicates across databases merge into one record.',
-    eg: <span>Strong match 72%, found in OpenAlex and Crossref</span>,
+    eg: (
+      <span className="eg-match">
+        <span className="eg-row">
+          <span>Strong match</span>
+          <b>72%</b>
+        </span>
+        <span className="eg-bar">
+          <i style={{ width: '72%' }} />
+        </span>
+        <span className="eg-row">
+          <span>OpenAlex + Crossref</span>
+          <span>1 record</span>
+        </span>
+      </span>
+    ),
   },
   {
     title: 'Format',
@@ -91,42 +129,116 @@ export default function Home() {
       <Nav onBlue />
       <main>
         <section className="hero">
-          <div className="wrap hero-grid">
-            <div>
-              <h1 className="display">
-                Every <span style={{ whiteSpace: 'nowrap' }}>claim<span className="mark" aria-hidden="true">1</span></span> needs a source that exists.
-              </h1>
-              <p className="lede">
-                Paste text from any AI model. Citezeno finds the sentences that state facts, searches live scholarly
-                databases for real published work behind each one, and formats the references in the style you need.
-              </p>
-              <div className="hero-cta">
-                <Link className="btn btn-thread" href="/studio">
-                  Trace sources for my draft
-                </Link>
-                <Link className="btn btn-on-blue" href="#method">
-                  See how it works
-                </Link>
-              </div>
-              <ul className="hero-facts">
-                <li><Icon name="shield" /> Every reference links to a real record</li>
-                <li><Icon name="quote" /> 12 citation styles</li>
-                <li><Icon name="word" /> Download as Word or PDF</li>
-                <li><Icon name="bolt" /> Free credits every month</li>
-              </ul>
+          <div className="wrap hero-in">
+            <Link className="hero-eyebrow rise" href="/studio">
+              <b>New</b> <span className="hero-eyebrow-long">Check the citations already in your draft</span><span className="hero-eyebrow-short">Check your draft’s citations</span> <Icon name="arrow" />
+            </Link>
+            <h1 className="rise">
+              Every claim needs a source <em>that exists.</em>
+              <sup aria-hidden="true">[1]</sup>
+            </h1>
+            <p className="lede rise">
+              Paste text from any AI model. Citezeno finds the sentences that state facts, searches live scholarly
+              databases for real published work behind each one, and formats the references in the style you need.
+            </p>
+            <div className="hero-cta rise">
+              <Link className="btn btn-thread" href="/studio">
+                Trace sources for my draft <Icon name="arrow" />
+              </Link>
+              <Link className="btn btn-on-blue" href="#method">
+                See how it works
+              </Link>
             </div>
-            <HeroThread />
+            <ul className="hero-facts rise">
+              <li><Icon name="shield" /> Every reference links to a real record</li>
+              <li><Icon name="quote" /> 12 citation styles</li>
+              <li><Icon name="word" /> Word, PDF, BibTeX</li>
+              <li><Icon name="bolt" /> Free credits every month</li>
+            </ul>
+
+            {/* the studio itself: a draft whose claims are matched to real records */}
+            <div className="hero-stage" aria-hidden="true">
+              <div className="hero-glow" />
+              <div className="hero-window">
+                <div className="hero-bar">
+                  <i /><i /><i />
+                  <span>citezeno.com/studio</span>
+                </div>
+                <div className="hero-body">
+                  <div className="hero-draft">
+                    <span className="hero-k">Your draft · APA 7</span>
+                    <mark>Cities are several degrees warmer than the countryside around them</mark> (Oke, 1982). Planners
+                    have responded with street trees and reflective roofs. <mark>Urban greening lowers surface temperatures
+                    by up to a few degrees</mark> (Bowler et al., 2010), and <mark className="open">cool roofs cut indoor
+                    cooling demand in hot climates</mark>
+                    <sup>…</sup>
+                  </div>
+                  <div className="hero-refs">
+                    <span className="hero-k">Real records found</span>
+                    {HERO_REFS.map((r) => (
+                      <div className="hero-ref" key={r.who}>
+                        <div className="hero-ref-top">
+                          {r.via}
+                          <span className="hero-ref-ok">
+                            <Icon name="check" /> {r.ok}
+                          </span>
+                        </div>
+                        <p>
+                          {r.who} {r.title} <i>{r.where}</i>
+                          {r.tail}
+                        </p>
+                        <div className="hero-ref-m">
+                          <i style={{ width: `${r.match}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="dbstrip" aria-label="Databases searched">
-          <div className="wrap dbstrip-in">
-            <p className="dbstrip-label">Searched live, every time you trace</p>
-            {DBS.map(([name, what]) => (
-              <div className="dbstrip-item" key={name}>
-                <b>{name}</b>
-                <span>{what}</span>
-              </div>
+        <section className="rivers" aria-labelledby="rivers-title">
+          <div className="wrap rivers-head">
+            <div>
+              <p className="kicker">Searched live, every time you trace</p>
+              <h2 className="rivers-title" id="rivers-title">
+                Four public databases. <em>Zero invented references.</em>
+              </h2>
+            </div>
+            <dl className="rivers-stats">
+              <div><dt>250M+</dt><dd>scholarly works</dd></div>
+              <div><dt>4</dt><dd>databases</dd></div>
+              <div><dt>0</dt><dd>written from memory</dd></div>
+            </dl>
+          </div>
+          {/* each row is drawn twice so the scroll loops without a seam; the copy is hidden from screen readers */}
+          <div className="marquee rivers-names">
+            {[0, 1].map((copy) => (
+              <ul className="marquee-track" key={copy} aria-hidden={copy ? true : undefined}>
+                {DBS.map((d) => (
+                  <li className="river-name" key={d.name}>
+                    <i style={{ background: d.color }} />
+                    <b>{d.name}</b>
+                    <span>{d.what}</span>
+                    <span className="river-sep" aria-hidden="true">✦</span>
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
+          <div className="marquee is-reverse rivers-records" aria-hidden="true">
+            {[0, 1].map((copy) => (
+              <ul className="marquee-track" key={copy}>
+                {RECORDS.map((r) => (
+                  <li className="river-rec" key={r.id}>
+                    <span className="river-db" style={{ background: dbColor(r.db) }}>{r.db}</span>
+                    <em>{r.title}</em>
+                    <code>{r.id}</code>
+                  </li>
+                ))}
+              </ul>
             ))}
           </div>
         </section>
@@ -134,35 +246,49 @@ export default function Home() {
         <section className="section" id="method">
           <div className="wrap">
             <div className="section-head">
-              <h2 className="h2">From draft to reference list in four steps.</h2>
+              <div>
+                <span className="kicker">How it works</span>
+                <h2 className="h2">
+                  From draft to reference list <em className="h2-em">in four steps.</em>
+                </h2>
+              </div>
               <p>
                 Nothing is written from memory. Each step works on records that already exist in a public database, so
                 every reference carries a DOI, ISBN or URL you can open.
               </p>
             </div>
-            <ol className="method" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            <InView as="ol" className="thread">
               {STEPS.map((s, i) => (
-                <li className="step" key={s.title}>
-                  <div className="step-n">{i + 1}</div>
-                  <h3 className="h3">{s.title}</h3>
-                  <p>{s.body}</p>
-                  <div className="eg">{s.eg}</div>
+                <li className="thread-step" key={s.title}>
+                  <span className="thread-node" aria-hidden="true">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <div className="thread-card">
+                    <h3 className="h3">{s.title}</h3>
+                    <p>{s.body}</p>
+                    <div className="thread-eg">{s.eg}</div>
+                  </div>
                 </li>
               ))}
-            </ol>
+            </InView>
+            <p className="thread-foot">
+              <b>Every reference</b> links to a DOI, ISBN or URL you can open.
+            </p>
           </div>
         </section>
 
         <section className="section" style={{ paddingTop: 0 }} id="styles">
           <div className="wrap">
             <div className="section-head">
-              <h2 className="h2">Twelve styles from one set of records.</h2>
-              <p>
-                Choose a style to see the same work typeset its way, with the reference entry and how it is cited in
-                the text.
-              </p>
+              <div>
+                <span className="kicker">Citation styles</span>
+                <h2 className="h2">
+                  Twelve styles from <em className="h2-em">one set of records.</em>
+                </h2>
+              </div>
+              <p>One record, typeset twelve ways. Each card shows the reference entry and how it’s cited in the text.</p>
             </div>
-            <Specimens />
+            <StyleWall />
           </div>
         </section>
 
@@ -203,16 +329,35 @@ export default function Home() {
 
         <section className="section" style={{ paddingTop: 0 }} aria-labelledby="popular">
           <div className="wrap">
-            <h2 className="h3" id="popular" style={{ marginBottom: 14 }}>
-              Citation generators by style
-            </h2>
-            <ul className="sg-links">
-              {Object.entries(STYLE_GUIDES).map(([id, g]) => (
-                <li key={id}>
-                  <Link href={`/styles/${id}`}>{g.label}</Link>
-                </li>
+            <div className="gindex-head">
+              <span className="kicker">Free generators</span>
+              <h2 className="h2" id="popular">
+                Citation generators <em className="h2-em">by style.</em>
+              </h2>
+              <p>Rules, examples and a generator for each of the twelve styles Citezeno supports.</p>
+            </div>
+            <div className="gindex">
+              {STYLE_GROUPS.map(([group, ids]) => (
+                <div className="gindex-col" key={group}>
+                  <h3>
+                    {group}
+                    <span>{ids.length}</span>
+                  </h3>
+                  <ul>
+                    {ids.filter((id) => STYLE_GUIDES[id]).map((id) => (
+                      <li key={id}>
+                        <Link href={`/styles/${id}`} title={`${STYLE_GUIDES[id].label} generator and guide`}>
+                          <b>{GEN_NAME[id] || STYLES[id].name}</b>
+                          <span className="gindex-dots" aria-hidden="true" />
+                          <small>{GEN_FIELD[id]}</small>
+                          <Icon name="arrow" />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         </section>
 
@@ -230,11 +375,29 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="wrap cta-band">
-          <h2 className="h2">Bring a draft. Leave with a reference list you can check.</h2>
-          <Link className="btn btn-thread" href="/studio">
-            Open the studio
-          </Link>
+        <section className="wrap cta-drop-wrap" aria-labelledby="cta-title">
+          <div className="cta-drop-card">
+            <div>
+              <h2 className="cta-drop-title" id="cta-title">
+                Bring a draft. Leave with a reference list <em>you can check.</em>
+              </h2>
+              <ul className="cta-drop-points">
+                <li><Icon name="check" /> Every reference links to a real record</li>
+                <li><Icon name="check" /> 12 styles, Word and PDF downloads</li>
+                <li><Icon name="check" /> {FREE_MONTHLY_CREDITS} free credits every month</li>
+              </ul>
+            </div>
+            <Link className="cta-drop" href="/studio">
+              <span className="cta-drop-ico">
+                <Icon name="upload" />
+              </span>
+              <b>Paste or drop your draft</b>
+              <small>.docx, .txt or .md, or any text from an AI model</small>
+              <span className="btn cta-drop-btn">
+                Open the studio <Icon name="arrow" />
+              </span>
+            </Link>
+          </div>
         </section>
       </main>
       <Footer />
