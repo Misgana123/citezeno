@@ -5,6 +5,7 @@ import { STYLES } from '@/lib/styles';
 import { isEligible } from '@/lib/text';
 import type { Analysis, Kind, Mode, Prefs } from '@/lib/types';
 import { Icon } from '../Icon';
+import type { ClaimMode } from './Studio';
 import { PROVIDER_COLOR } from './SourceCards';
 
 export const MODES: { id: Mode; label: string; hint: string; glyph: (st: (typeof STYLES)[string]) => string }[] = [
@@ -27,6 +28,9 @@ export function Controls({
   set,
   analysis,
   cost,
+  claimMode,
+  setClaimMode,
+  picked,
   onSettings,
   onClose,
 }: {
@@ -35,13 +39,19 @@ export function Controls({
   analysis: Analysis | null;
   /* credits a full trace of the current draft would use */
   cost: number;
+  claimMode: ClaimMode;
+  setClaimMode: (m: ClaimMode) => void;
+  /* sentences picked by hand, in pick mode */
+  picked: number;
   onSettings: () => void;
   onClose: () => void;
 }) {
   const st = STYLES[prefs.style];
   const citable = analysis ? analysis.sentences.filter(isEligible).length : 0;
   const eligible = analysis ? Math.max(1, citable) : 0;
-  const countHint = !eligible
+  const countHint = claimMode === 'pick'
+    ? 'Picked sentences each get at least one source; extra sources go to the strongest matches.'
+    : !eligible
     ? 'Spread across your strongest claims.'
     : prefs.count <= eligible
       ? `One each for your ${prefs.count} strongest claim${prefs.count > 1 ? 's' : ''}.`
@@ -88,12 +98,33 @@ export function Controls({
             <Icon name="bolt" />
             {cost > 0 ? (
               <span>
-                A full trace uses <b>{cost}</b> credit{cost === 1 ? '' : 's'}, one per claim.
+                {claimMode === 'pick' ? 'Tracing your picks uses' : 'A full trace uses'} <b>{cost}</b> credit{cost === 1 ? '' : 's'}, one per claim.
               </span>
             ) : (
               <span>Tracing costs one credit per claim.</span>
             )}
           </p>
+        </section>
+
+        <section className="at-sec">
+          <h3 className="at-h">Claims to cite</h3>
+          <div className="at-opts" role="radiogroup" aria-label="Claims to cite">
+            {(
+              [
+                { id: 'auto', label: 'Let Citezeno choose', hint: 'Default. Your strongest claims, up to “Sources to find”.', glyph: '✦' },
+                { id: 'pick', label: 'I’ll pick sentences', hint: claimMode === 'pick' ? `${picked} picked. Click sentences in your draft.` : 'Click sentences in your draft, then trace those.', glyph: '¶' },
+              ] as const
+            ).map((o) => (
+              <button key={o.id} role="radio" aria-checked={claimMode === o.id} className="at-opt" onClick={() => setClaimMode(o.id)}>
+                <span className="at-opt-glyph serif">{o.glyph}</span>
+                <span className="at-opt-txt">
+                  <b>{o.label}</b>
+                  <small>{o.hint}</small>
+                </span>
+                <span className="at-opt-dot" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
         </section>
 
         <section className="at-sec">

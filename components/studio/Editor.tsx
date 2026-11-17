@@ -3,13 +3,25 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { readDraftFile } from '@/lib/importfile';
 import { SAMPLES } from '@/lib/samples';
-import { isEligible, locate, words } from '@/lib/text';
+import { analyse, isEligible, locate, words } from '@/lib/text';
 import type { Analysis } from '@/lib/types';
 import { Icon } from '../Icon';
 import { toast } from '../toast';
 
+/* "I'll pick sentences": the picked sentences (by text) and what to do with them. */
+export type PickControls = {
+  picked: Set<string>;
+  count: number;
+  max: number;
+  cost: number;
+  toggle: (text: string) => void;
+  suggest: () => void;
+  clear: () => void;
+  done: () => void;
+};
+
 /* Segments for the highlight layer behind the textarea. */
-function useSegments(value: string, analysis: Analysis | null, cited: Set<string>, highlight: boolean) {
+function useSegments(value: string, analysis: Analysis | null, cited: Set<string>, highlight: boolean, picked: Set<string> | null) {
   return useMemo(() => {
     if (!analysis) return [{ t: value, cls: '' }];
     const out: { t: string; cls: string }[] = [];
@@ -18,7 +30,19 @@ function useSegments(value: string, analysis: Analysis | null, cited: Set<string
     const byIndex = new Map(analysis.sentences.map((s) => [s.index, s]));
     for (const sp of spans) {
       const s = byIndex.get(sp.index)!;
-      const cls = cited.has(s.text) ? 'cited' : highlight && isEligible(s) ? ((s.score || 0) > 1.8 ? 'hl-3' : (s.score || 0) > 1.1 ? 'hl-2' : 'hl-1') : '';
+      const cls = picked
+        ? picked.has(s.text)
+          ? 'picked'
+          : 'pickable'
+        : cited.has(s.text)
+          ? 'cited'
+          : highlight && isEligible(s)
+            ? (s.score || 0) > 1.8
+              ? 'hl-3'
+              : (s.score || 0) > 1.1
+                ? 'hl-2'
+                : 'hl-1'
+            : '';
       if (!cls) continue;
       if (sp.start > cursor) out.push({ t: value.slice(cursor, sp.start), cls: '' });
       out.push({ t: value.slice(sp.start, sp.end), cls });
@@ -26,7 +50,7 @@ function useSegments(value: string, analysis: Analysis | null, cited: Set<string
     }
     if (cursor < value.length) out.push({ t: value.slice(cursor), cls: '' });
     return out;
-  }, [value, analysis, cited, highlight]);
+  }, [value, analysis, cited, highlight, picked]);
 }
 
 /* below: there is no room above the selection, so the popover opens under it */
@@ -46,6 +70,7 @@ export function Editor({
   onCite,
   citing,
   api,
+  pick,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -57,6 +82,8 @@ export function Editor({
   onCite: (text: string, start: number, end: number, n: number) => Promise<boolean>;
   citing: boolean;
   api?: MutableRefObject<EditorApi | null>;
+  /* set while the user picks sentences by hand */
+  pick?: PickControls | null;
 }) {
   const ta = useRef<HTMLTextAreaElement>(null);
   const paper = useRef<HTMLDivElement>(null);
@@ -72,7 +99,17 @@ export function Editor({
   const [menu, setMenu] = useState(false);
   const menuBox = useRef<HTMLDivElement>(null);
   const section = useRef<HTMLElement>(null);
-  const segs = useSegments(value, analysis, cited, highlight);
+  const segs = useSegments(value, analysis, cited, highlight, pick ? pick.picked : null);
+
+  /* in pick mode a click (or Enter / Space at the caret) selects the sentence under it */
+  const pickAt = (pos: number) => {
+    if (!pick || !value.trim()) return;
+    // the analysis prop can lag behind the text; picking reads the text as it is now
+    const a = analyse(value);
+    const sp = locate(value, a.sentences).find((x) => pos >= x.start && pos <= x.end);
+    const s = sp && a.sentences.find((x) => x.index === sp.index);
+    if (s) pick.toggle(s.text);
+  };
   const claims = analysis ? analysis.sentences.filter(isEligible).length : 0;
   const citedCount = analysis ? analysis.sentences.filter((s) => cited.has(s.text)).length : 0;
 
@@ -80,7 +117,8 @@ export function Editor({
   useEffect(() => {
     const el = paper.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setPageH(Math.round(el.clientWidth * 1.4142)));
+    // a hidden or collapsed sheet measures 0 wide: keep the last real height
+    const ro = new ResizeObserver(() => el.clientWidth > 0 && setPageH(Math.round(el.clientWidth * 1.4142)));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -90,7 +128,7 @@ export function Editor({
     const el = ta.current;
     if (!el) return;
     el.style.height = '0px';
-    const n = Math.max(1, Math.ceil(el.scrollHeight / pageH));
+    const n = pageH > 0 ? Math.min(500, Math.max(1, Math.ceil(el.scrollHeight / pageH))) : 1;
     el.style.height = n * pageH + 'px';
     setPageCount(n);
   }, [value, pageH]);
@@ -134,6 +172,8 @@ export function Editor({
     const el = ta.current;
     const m = measure.current;
     if (!el || !m) return;
+    // no "Cite this claim" while picking sentences
+    if (pick) return setSel(null);
     const a = el.selectionStart;
     const b = el.selectionEnd;
     const text = value.slice(a, b);
@@ -158,7 +198,7 @@ export function Editor({
       y = mark.offsetTop;
     }
     setSel((s) => ({ start: a, end: b, text, x, y, below, open: s && s.start === a && s.end === b ? s.open : false }));
-  }, [value, citing]);
+  }, [value, citing, pick]);
 
   /* let the claims outline select a sentence here */
   useEffect(() => {
@@ -219,18 +259,24 @@ export function Editor({
           <span className="at-draft-ico"><Icon name="doc" /></span>
           <span>
             <b>Your draft</b>
-            <small>{value.trim() ? 'Click the page to edit. Select a passage to cite just that claim.' : 'Start typing or paste your text on the page below'}</small>
+            <small>
+              {pick
+                ? 'Picking sentences. Editing is paused until you stop picking.'
+                : value.trim()
+                  ? 'Click the page to edit. Select a passage to cite just that claim.'
+                  : 'Start typing or paste your text on the page below'}
+            </small>
           </span>
         </label>
         <div className="at-tools">
-          <button className="at-tool" onClick={pasteClip} title="Paste from the clipboard">
+          <button className="at-tool" onClick={pasteClip} title="Paste from the clipboard" disabled={Boolean(pick)}>
             <Icon name="paste" /> <span>Paste</span>
           </button>
-          <button className="at-tool" onClick={() => fileRef.current?.click()} title="Open a .docx, .txt or .md file">
+          <button className="at-tool" onClick={() => fileRef.current?.click()} title="Open a .docx, .txt or .md file" disabled={Boolean(pick)}>
             <Icon name="upload" /> <span>Open file</span>
           </button>
           <div className="at-menu-wrap" ref={menuBox}>
-            <button className="at-tool" onClick={() => setMenu((o) => !o)} aria-expanded={menu} aria-haspopup="menu" title="Load a sample draft">
+            <button className="at-tool" onClick={() => setMenu((o) => !o)} aria-expanded={menu} aria-haspopup="menu" title="Load a sample draft" disabled={Boolean(pick)}>
               <Icon name="sparkle" /> <span>Samples</span>
               <Icon name="chevron" className="at-tool-chev" />
             </button>
@@ -258,7 +304,7 @@ export function Editor({
             )}
           </div>
           {value && (
-            <button className="at-tool" onClick={() => onChange('')} title="Clear the draft">
+            <button className="at-tool" onClick={() => onChange('')} title="Clear the draft" disabled={Boolean(pick)}>
               <Icon name="eraser" /> <span>Clear</span>
             </button>
           )}
@@ -270,10 +316,37 @@ export function Editor({
           </label>
         </div>
       </header>
+      {pick && (
+        <div className="pickbar" role="region" aria-label="Pick sentences">
+          <div className="pickbar-txt">
+            <b>Pick the sentences to cite</b>
+            <small>Click a sentence to select it, click again to unselect. Any sentence counts, underlined or not.</small>
+          </div>
+          <span className={`pickbar-count${pick.count >= pick.max ? ' full' : ''}`} aria-live="polite">
+            <b>{pick.count}</b> selected{pick.count >= pick.max ? ` (the most per trace)` : ''}
+          </span>
+          <div className="pickbar-btns">
+            <button type="button" className="at-tool" onClick={pick.suggest} title="Add the sentences Citezeno would choose" aria-label="Add suggested sentences">
+              <Icon name="sparkle" /> <span>Add suggested</span>
+            </button>
+            {pick.count > 0 && (
+              <button type="button" className="at-tool" onClick={pick.clear} aria-label="Clear the picked sentences" title="Clear the picked sentences">
+                <Icon name="eraser" /> <span>Clear</span>
+              </button>
+            )}
+            <button type="button" className="at-tool" onClick={pick.done} title="Go back to letting Citezeno choose" aria-label="Stop picking">
+              <Icon name="x" /> <span>Stop picking</span>
+            </button>
+            <button type="button" className="btn btn-thread btn-sm pickbar-go" onClick={onRun} disabled={!pick.count}>
+              <Icon name="search" /> Trace selected{pick.count ? ` · ${pick.cost} credit${pick.cost === 1 ? '' : 's'}` : ''}
+            </button>
+          </div>
+        </div>
+      )}
       <div className="dview-scroll" ref={scroller} onScroll={onScroll}>
       <div
         ref={paper}
-        className={`dpage${drag ? ' drag' : ''}${value.trim() ? '' : ' empty'}`}
+        className={`dpage${drag ? ' drag' : ''}${value.trim() ? '' : ' empty'}${pick ? ' picking' : ''}`}
         onClick={(e) => {
           if (e.target === e.currentTarget) ta.current?.focus();
         }}
@@ -307,7 +380,14 @@ export function Editor({
           className="page-input"
           placeholder=""
           value={value}
-          spellCheck
+          spellCheck={!pick}
+          readOnly={Boolean(pick)}
+          aria-readonly={Boolean(pick)}
+          onClick={(e) => {
+            if (!pick) return;
+            const el = e.currentTarget;
+            if (el.selectionStart === el.selectionEnd) pickAt(el.selectionStart);
+          }}
           onChange={(e) => {
             onChange(e.target.value);
             setSel(null);
@@ -316,6 +396,11 @@ export function Editor({
           onMouseUp={onSelect}
           onKeyUp={onSelect}
           onKeyDown={(e) => {
+            if (pick && (e.key === 'Enter' || e.key === ' ') && !e.metaKey && !e.ctrlKey) {
+              e.preventDefault();
+              pickAt(e.currentTarget.selectionStart);
+              return;
+            }
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
               e.preventDefault();
               if (sel) cite();
@@ -323,7 +408,7 @@ export function Editor({
             }
             if (e.key === 'Escape') setSel(null);
           }}
-          aria-label="Draft text"
+          aria-label={pick ? 'Draft text. Click a sentence, or move the caret to it and press Enter, to pick it' : 'Draft text'}
         />
 
         {!value.trim() && (
@@ -401,7 +486,8 @@ export function Editor({
           <span><b>{analysis ? analysis.wordCount.toLocaleString() : 0}</b> words</span>
           <span><b>{analysis ? analysis.sentences.length : 0}</b> sentences</span>
           <span className="hot"><i className="dot-claim" /> <b>{claims}</b> citable claims</span>
-          {citedCount > 0 && <span className="ok"><i className="dot-cited" /> <b>{citedCount}</b> cited</span>}
+          {citedCount > 0 && !pick && <span className="ok"><i className="dot-cited" /> <b>{citedCount}</b> cited</span>}
+          {pick && <span className="pick"><i className="dot-picked" /> <b>{pick.count}</b> picked</span>}
         </div>
         <span className="at-kbd-hint">
           <span className="kbd">Ctrl</span> <span className="kbd">↵</span> to trace

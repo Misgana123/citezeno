@@ -16,6 +16,8 @@ export type Saved = {
     extra: string[];
     requested: number;
     pins?: Record<string, string>;
+    detached?: Result['detached'];
+    mine?: string[];
   };
 };
 
@@ -52,6 +54,10 @@ export function toSaved(id: string, title: string, draft: string, style: string,
   // keep only works that are cited or are candidates, with shortened abstracts
   const keep = new Set<string>(r.extra);
   r.claims.forEach((c) => c.cands.forEach((x) => keep.add(x.id)));
+  // a claim may cite a work that isn't among its candidates (added by DOI, imported, re-attached)
+  r.claims.forEach((c) => c.ids.forEach((x) => keep.add(x)));
+  (r.detached || []).forEach((c) => [...c.ids, ...c.cands.map((x) => x.id)].forEach((x) => keep.add(x)));
+  (r.mine || []).forEach((x) => keep.add(x));
   const db: [string, Source][] = [];
   r.db.forEach((s, k) => keep.has(k) && db.push([k, { ...s, abstract: (s.abstract || '').slice(0, 500) }]));
   const analysis = {
@@ -63,7 +69,7 @@ export function toSaved(id: string, title: string, draft: string, style: string,
   r.extra.forEach((x) => cited.add(x));
   return {
     id, savedAt: Date.now(), title, draft, style, mode, sources: cited.size,
-    result: { analysis, claims: r.claims, db, extra: r.extra, requested: r.requested, pins: r.pins },
+    result: { analysis, claims: r.claims, db, extra: r.extra, requested: r.requested, pins: r.pins, detached: r.detached, mine: r.mine },
   };
 }
 

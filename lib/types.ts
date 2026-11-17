@@ -65,7 +65,15 @@ export type Result = {
   requested: number;
   /* pinpoint pages per source id, e.g. "437" or "12–15" */
   pins?: Record<string, string>;
+  /* citations whose sentence was reworded or deleted beyond recognition: kept
+     here (with the sentence text they were made for) until the user re-attaches
+     or removes them; they are not rendered or listed */
+  detached?: DetachedClaim[];
+  /* ids of references the user imported (BibTeX/RIS) into this trace: "My sources" */
+  mine?: string[];
 };
+
+export type DetachedClaim = Claim & { was: string };
 
 export type Mode = 'intext' | 'footnotes' | 'endnotes' | 'list' | 'annotated';
 export type Kind = 'any' | 'scholarly' | 'books';

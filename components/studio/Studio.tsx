@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_DOC, suggestTitle, type DocOptions } from '@/lib/docmodel';
 import {
-  TraceError, addSource, attachClaim, citedSet, removeSource, render, replaceSource, sentenceForSelection, trace, traceClaim,
+  MAX_CLAIMS, TraceError, addSource, attachClaim, attachToSentence, citedSet, importReferences, reattachDetached, removeDetached, removeMine, removeSource, render,
+  replaceSource, sentenceForSelection, trace, traceClaim,
   type LogLine, type Step, type StepState,
 } from '@/lib/engine';
 import { useSession } from '@/lib/auth-client';
@@ -15,8 +16,11 @@ import { STYLES, STYLE_GROUPS } from '@/lib/styles';
 import { enrich } from '@/lib/sources';
 import { analyse, chooseClaims, isEligible, locate, topicTokens } from '@/lib/text';
 import { CREDITS_PER_CLAIM } from '@/lib/pricing';
+import { reattach } from '@/lib/reattach';
 import { emptyHistory, isTextTarget, record, redo, undo, undoKey, type History } from '@/lib/undo';
 import { DEFAULT_PREFS, type ApiSettings, type Mode, type Prefs, type Result, type Source } from '@/lib/types';
+
+export type ClaimMode = 'auto' | 'pick';
 import { CreditsPill, RailLink, openPalette } from '../app/AppShell';
 import { registerCommands, type Command } from '../CommandPalette';
 import { Icon, LogoMark, type IconName } from '../Icon';
@@ -32,7 +36,7 @@ import { Editor, type EditorApi } from './Editor';
 import { LibraryDrawer } from './LibraryDrawer';
 import { SidePanel, type OutlineClaim, type SideTab } from './SidePanel';
 import { Progress, type StepView } from './Progress';
-import { Results, type Tab } from './Results';
+import { Results, type SourceEdits, type Tab } from './Results';
 import { SettingsDialog } from './SettingsDialog';
 import { ShareDialog } from '../share/ShareDialog';
 
@@ -51,6 +55,57 @@ const mergePrefs = (p: Prefs): Prefs => ({
   // the old default let too many loose matches through
   minRel: p && typeof p.minRel === 'number' && p.minRel !== 0.15 ? p.minRel : DEFAULT_PREFS.minRel,
 });
+
+/* Beside the trace button: who chooses the sentences to cite. */
+function RunModeMenu({ mode, setMode }: { mode: ClaimMode; setMode: (m: ClaimMode) => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, [open]);
+  const opts: { id: ClaimMode; label: string; hint: string }[] = [
+    { id: 'auto', label: 'Let Citezeno choose', hint: 'Default. Traces your strongest claims.' },
+    { id: 'pick', label: 'I’ll pick sentences', hint: 'Click sentences in your draft, then trace only those.' },
+  ];
+  return (
+    <div className="at-run-mode" ref={box}>
+      <button className="at-run-caret" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} aria-label="Choose which sentences to trace">
+        <Icon name="chevron" />
+      </button>
+      {open && (
+        <div className="at-menu at-run-menu" role="menu">
+          <p>Which sentences to cite</p>
+          {opts.map((o) => (
+            <button
+              key={o.id}
+              role="menuitemradio"
+              aria-checked={mode === o.id}
+              onClick={() => {
+                setMode(o.id);
+                setOpen(false);
+              }}
+            >
+              <span className="at-run-radio" aria-hidden="true" />
+              <span>
+                <b>{o.label}</b>
+                <small>{o.hint}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Studio() {
   const [draft, setDraft] = usePersistent('draft', '');
@@ -167,8 +222,49 @@ export function Studio() {
 
   const deferred = useDeferredValue(draft);
   const analysis = useMemo(() => (deferred.trim() ? analyse(deferred) : null), [deferred]);
-  /* what a full trace of the current draft would cost */
-  const cost = useMemo(() => (analysis ? chooseClaims(analysis.sentences, Math.min(prefs.count, 40)).length * CREDITS_PER_CLAIM : 0), [analysis, prefs.count]);
+
+  /* which sentences get traced: chosen by Citezeno (as always) or picked by the user.
+     Picks are kept by sentence text, so they survive edits elsewhere in the draft. */
+  const [claimMode, setClaimMode] = usePersistent<ClaimMode>('claim-mode', 'auto');
+  const [picks, setPicks] = useState<string[]>([]);
+  const pickSet = useMemo(() => new Set(picks), [picks]);
+  const pickedCount = useMemo(() => (analysis ? analysis.sentences.filter((s) => pickSet.has(s.text)).length : 0), [analysis, pickSet]);
+  // a picked sentence that was edited away is no longer picked (and no longer counts towards the limit)
+  useEffect(() => {
+    // only once the analysis has caught up with the draft
+    if (!picks.length || deferred !== draft) return;
+    const present = new Set(analysis ? analysis.sentences.map((s) => s.text) : []);
+    if (picks.some((t) => !present.has(t))) setPicks((xs) => xs.filter((t) => present.has(t)));
+  }, [analysis, picks, deferred, draft]);
+  const picking = claimMode === 'pick';
+  const togglePick = useCallback(
+    (text: string) =>
+      setPicks((xs) => {
+        if (xs.includes(text)) return xs.filter((x) => x !== text);
+        if (xs.length >= MAX_CLAIMS) {
+          toast(`You can trace up to ${MAX_CLAIMS} sentences at a time. Unselect one to pick another.`, true);
+          return xs;
+        }
+        return [...xs, text];
+      }),
+    [],
+  );
+  const suggestPicks = useCallback(() => {
+    if (!analysis) return;
+    const chosen = chooseClaims(analysis.sentences, Math.min(prefs.count, MAX_CLAIMS)).map((s) => s.text);
+    setPicks((xs) => [...xs, ...chosen.filter((t) => !xs.includes(t))].slice(0, MAX_CLAIMS));
+  }, [analysis, prefs.count]);
+
+  /* what a trace of the current draft would cost: one credit per claim searched */
+  const cost = useMemo(
+    () =>
+      picking
+        ? pickedCount * CREDITS_PER_CLAIM
+        : analysis
+          ? chooseClaims(analysis.sentences, Math.min(prefs.count, MAX_CLAIMS)).length * CREDITS_PER_CLAIM
+          : 0,
+    [analysis, prefs.count, picking, pickedCount],
+  );
 
   const setPrefs = useCallback(
     (p: Partial<Prefs>) =>
@@ -198,6 +294,13 @@ export function Studio() {
 
   const run = useCallback(async () => {
     if (running) return;
+    // "I'll pick sentences": only the picked ones are searched (and charged)
+    let picked: number[] | undefined;
+    if (picking) {
+      picked = analyse(draft).sentences.filter((s) => pickSet.has(s.text)).map((s) => s.index);
+      if (!picked.length) return toast('Click the sentences you want to cite in your draft first.', true);
+      if (picked.length > MAX_CLAIMS) return toast(`Pick at most ${MAX_CLAIMS} sentences per trace.`, true);
+    }
     const token = ++runToken.current;
     setRunning(true);
     setShowProgress(true);
@@ -216,7 +319,7 @@ export function Studio() {
         progress: (f) => token === runToken.current && setProgress(f),
         log: (l) => token === runToken.current && setLog((xs) => [...xs.slice(-20), l]),
         isCancelled: () => token !== runToken.current,
-      });
+      }, picked);
       if (!r || token !== runToken.current) return;
       ok = true;
       annotations.current = {};
@@ -247,30 +350,31 @@ export function Studio() {
       // stopped or failed after paying: give the credits back
       if (spendId && !ok) refundCredits(spendId).then((back) => back && toast('Trace didn’t finish, so its credits were returned'));
     }
-  }, [running, draft, prefs, settings, doc.title, setDoc]);
+  }, [running, draft, prefs, settings, doc.title, setDoc, picking, pickSet]);
+
+  /* where the trace's citations sit in the draft as it is now: on the same
+     sentence, or on the reworded one that replaced it (see lib/reattach.ts) */
+  const placed = useMemo(() => {
+    if (!result || !analysis) return null;
+    return reattach(result.analysis, result.claims.filter((c) => c.ids.length), analysis);
+  }, [result, analysis]);
 
   /* sentences of the draft that already carry a citation */
   const citedTexts = useMemo(() => {
     const set = new Set<string>();
-    if (!result) return set;
-    result.claims.forEach((c) => {
-      if (!c.ids.length) return;
-      const s = result.analysis.sentences.find((x) => x.index === c.sid);
-      if (s) set.add(s.text);
-    });
+    if (!placed || !analysis) return set;
+    const text = new Map(analysis.sentences.map((s) => [s.index, s.text]));
+    placed.claims.forEach((c) => text.has(c.sid) && set.add(text.get(c.sid)!));
     return set;
-  }, [result]);
+  }, [placed, analysis]);
 
   /* every sentence worth citing, for the claims outline */
   const outline = useMemo<OutlineClaim[]>(() => {
     if (!analysis) return [];
     const spans = new Map(locate(deferred, analysis.sentences).map((sp) => [sp.index, sp]));
     const sources = new Map<string, number>();
-    result?.claims.forEach((c) => {
-      if (!c.ids.length) return;
-      const st = result.analysis.sentences.find((x) => x.index === c.sid);
-      if (st) sources.set(st.text, c.ids.length);
-    });
+    const text = new Map(analysis.sentences.map((s) => [s.index, s.text]));
+    placed?.claims.forEach((c) => text.has(c.sid) && sources.set(text.get(c.sid)!, c.ids.length));
     return analysis.sentences
       .filter((st) => sources.has(st.text) || isEligible(st))
       .map((st) => {
@@ -278,7 +382,7 @@ export function Studio() {
         const sc = st.score || 0;
         return { index: st.index, text: st.text, start: sp ? sp.start : -1, end: sp ? sp.end : -1, level: sc > 1.8 ? 3 : sc > 1.1 ? 2 : 1, sources: sources.get(st.text) || 0 };
       });
-  }, [analysis, deferred, result]);
+  }, [analysis, deferred, placed]);
 
   const jumpTo = useCallback((c: OutlineClaim) => {
     if (c.start < 0) return;
@@ -315,6 +419,7 @@ export function Studio() {
           return false;
         }
         const next = attachClaim(result, a, sid, text.trim().replace(/\s+/g, ' '), found, n);
+        const newlyDetached = (next.detached || []).length - (result?.detached || []).length;
         tracedDraft.current = draft;
         // a paid result: earlier steps can't be undone past it
         setHist(emptyHistory());
@@ -324,6 +429,9 @@ export function Studio() {
         setTab('doc');
         setShowProgress(false);
         toast(`${found.ids.length} source${found.ids.length === 1 ? '' : 's'} added for that claim`);
+        if (newlyDetached > 0) {
+          toast(`${newlyDetached} earlier citation${newlyDetached === 1 ? ' was' : 's were'} detached: ${newlyDetached === 1 ? 'its sentence has' : 'their sentences have'} changed too much. Re-attach or remove ${newlyDetached === 1 ? 'it' : 'them'} above the results.`, true);
+        }
         ok = true;
         return true;
       } catch (e) {
@@ -476,6 +584,42 @@ export function Studio() {
     edit(next, 'source added');
     toast(message);
   };
+  /* "My sources" (imported references) and detached citations; all free, all undoable */
+  const edits: SourceEdits = {
+    onImport: (sources) => {
+      if (!result) return { added: 0, duplicates: [] };
+      const { result: next, added, duplicates } = importReferences(result, sources);
+      if (added.length) edit(next, 'references imported');
+      return { added: added.length, duplicates };
+    },
+    onAttachMine: (id, sid) => {
+      if (!result) return;
+      const { result: next, added } = attachToSentence(result, [id], sid);
+      if (!added) return toast('That sentence already cites this source.');
+      edit(next, 'source cited on a sentence');
+      toast(`Cited on sentence ${sid + 1}`);
+    },
+    onListMine: (id) => {
+      if (!result || result.extra.includes(id)) return;
+      edit({ ...result, extra: [...result.extra, id] }, 'source added to the reference list');
+      toast('Added to the reference list');
+    },
+    onRemoveMine: (id) => {
+      if (!result) return;
+      edit(removeMine(result, id), 'imported source removed');
+      toast('Removed from My sources');
+    },
+    onReattach: (k, sid) => {
+      if (!result) return;
+      edit(reattachDetached(result, k, sid), 'citation re-attached');
+      toast(`Re-attached to sentence ${sid + 1}`);
+    },
+    onRemoveDetached: (k) => {
+      if (!result) return;
+      edit(removeDetached(result, k), 'detached citation removed');
+      toast('Detached citation removed');
+    },
+  };
 
   const st = STYLES[prefs.style];
   const dbsOn = Object.values(prefs.providers).filter(Boolean).length;
@@ -543,11 +687,14 @@ export function Studio() {
             <Icon name="stop" /> <span>Stop</span>
           </button>
         ) : (
-          <button className="at-run" onClick={run}>
-            <Icon name="search" /> <span className="at-run-lbl">Trace all claims</span>
-            {cost > 0 && <span className="at-run-cost">{cost} credit{cost === 1 ? '' : 's'}</span>}
-            <span className="kbd">Ctrl ↵</span>
-          </button>
+          <div className={`at-run-group${picking ? ' is-pick' : ''}`}>
+            <button className="at-run" onClick={run} title={picking ? 'Trace only the sentences you picked' : 'Let Citezeno choose the claims to trace'}>
+              <Icon name="search" /> <span className="at-run-lbl">{picking ? 'Trace selected' : 'Trace all claims'}</span>
+              {cost > 0 && <span className="at-run-cost">{cost} credit{cost === 1 ? '' : 's'}</span>}
+              <span className="kbd">Ctrl ↵</span>
+            </button>
+            <RunModeMenu mode={claimMode} setMode={setClaimMode} />
+          </div>
         )}
         <span className="at-top-sep" aria-hidden="true" />
         <ThemeToggle />
@@ -610,6 +757,7 @@ export function Studio() {
             onCite={citeSelection}
             citing={citing}
             api={editorApi}
+            pick={picking ? { picked: pickSet, count: pickedCount, max: MAX_CLAIMS, toggle: togglePick, suggest: suggestPicks, clear: () => setPicks([]), done: () => setClaimMode('auto'), cost } : null}
           />
 
           <div ref={progressEl}>
@@ -632,6 +780,7 @@ export function Studio() {
                 onRemove={onRemove}
                 onAdd={onAdd}
                 onPin={onPin}
+                edits={edits}
                 history={{ canUndo, canRedo, undoLabel: hist.past[hist.past.length - 1]?.label, redoLabel: hist.future[hist.future.length - 1]?.label, onUndo: () => step('undo'), onRedo: () => step('redo') }}
               />
             ) : (
@@ -674,7 +823,7 @@ export function Studio() {
         </div>
       </div>
 
-      <Controls prefs={prefs} set={setPrefs} analysis={analysis} cost={cost} onSettings={() => setSettingsOpen(true)} onClose={() => setDrawer('')} />
+      <Controls prefs={prefs} set={setPrefs} analysis={analysis} cost={cost} claimMode={claimMode} setClaimMode={setClaimMode} picked={pickedCount} onSettings={() => setSettingsOpen(true)} onClose={() => setDrawer('')} />
 
       {drawer && <div className="at-scrim" onClick={() => setDrawer('')} aria-hidden="true" />}
 

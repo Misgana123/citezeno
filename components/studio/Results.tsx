@@ -14,6 +14,8 @@ import { ExportPanel } from './ExportPanel';
 import { Insights } from './Insights';
 import { SourceMap } from './SourceMap';
 import { SourceCards, scoreFor } from './SourceCards';
+import { DetachedList } from './DetachedList';
+import { MySources, type ImportOutcome } from './MySources';
 import { toast } from '../toast';
 
 export type Tab = 'doc' | 'refs' | 'sources' | 'map' | 'insights' | 'export';
@@ -25,6 +27,16 @@ const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: 'insights', label: 'Insights', icon: 'chart' },
   { id: 'export', label: 'Export', icon: 'code' },
 ];
+
+/* imported references ("My sources") and detached citations, from the studio */
+export type SourceEdits = {
+  onImport: (sources: Source[]) => ImportOutcome;
+  onAttachMine: (id: string, sid: number) => void;
+  onListMine: (id: string) => void;
+  onRemoveMine: (id: string) => void;
+  onReattach: (k: number, sid: number) => void;
+  onRemoveDetached: (k: number) => void;
+};
 
 /* undo and redo for source edits, from the studio */
 export type HistoryControls = {
@@ -80,6 +92,7 @@ export function Results({
   doc,
   setDoc,
   history,
+  edits,
 }: {
   result: Result;
   rendered: Rendered;
@@ -95,6 +108,7 @@ export function Results({
   doc: DocOptions;
   setDoc: (p: Partial<DocOptions>) => void;
   history?: HistoryControls;
+  edits: SourceEdits;
 }) {
   const { root, onMouseOver, onMouseOut } = useLinking();
   const [busy, setBusy] = useState<'' | 'word' | 'pdf'>('');
@@ -214,6 +228,8 @@ export function Results({
         </div>
       </header>
 
+      <DetachedList result={result} onReattach={edits.onReattach} onRemove={edits.onRemoveDetached} />
+
       <div className="tabs" role="tablist" aria-label="Result views">
         {TABS.map((t) => (
           <button key={t.id} role="tab" aria-selected={tab === t.id} className="tab" onClick={() => setTab(t.id)}>
@@ -265,7 +281,12 @@ export function Results({
           </>
         )}
 
-        {tab === 'sources' && <SourceCards result={result} rendered={rendered} onReplace={onReplace} onRemove={onRemove} onAdd={onAdd} onPin={onPin} />}
+        {tab === 'sources' && (
+          <>
+            <MySources result={result} onImport={edits.onImport} onAttach={edits.onAttachMine} onToList={edits.onListMine} onRemove={edits.onRemoveMine} />
+            <SourceCards result={result} rendered={rendered} onReplace={onReplace} onRemove={onRemove} onAdd={onAdd} onPin={onPin} />
+          </>
+        )}
 
         {tab === 'map' && (
           <>
