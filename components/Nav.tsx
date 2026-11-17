@@ -34,7 +34,7 @@ export function ThemeToggle() {
   );
 }
 
-export function Nav({ onBlue = false, wide = false }: { onBlue?: boolean; wide?: boolean }) {
+export function Nav({ onBlue = false }: { onBlue?: boolean }) {
   const path = usePathname();
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -48,7 +48,7 @@ export function Nav({ onBlue = false, wide = false }: { onBlue?: boolean; wide?:
 
   return (
     <header className={`nav${onBlue ? ' on-blue' : ''}${scrolled || !onBlue ? ' scrolled' : ''}`}>
-      <div className={`wrap nav-in${wide ? ' ws-wide' : ''}`}>
+      <div className="wrap nav-in">
         <Link className="brand" href="/" aria-label="Citezeno home">
           <LogoMark />
           Citezeno

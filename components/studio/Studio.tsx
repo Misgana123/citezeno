@@ -13,19 +13,22 @@ import { fromSaved, loadLibrary, removeEntry, toSaved, upsert, type Saved } from
 import { SAMPLES } from '@/lib/samples';
 import { STYLES, STYLE_GROUPS } from '@/lib/styles';
 import { enrich } from '@/lib/sources';
-import { analyse, chooseClaims, topicTokens } from '@/lib/text';
+import { analyse, chooseClaims, isEligible, locate, topicTokens } from '@/lib/text';
 import { CREDITS_PER_CLAIM } from '@/lib/pricing';
 import { DEFAULT_PREFS, type ApiSettings, type Mode, type Prefs, type Result, type Source } from '@/lib/types';
+import { CreditsPill, RailLink, openPalette } from '../app/AppShell';
 import { registerCommands, type Command } from '../CommandPalette';
-import { Icon } from '../Icon';
+import { Icon, LogoMark, type IconName } from '../Icon';
+import { ThemeToggle } from '../Nav';
+import { UserMenu } from '../UserMenu';
 import { toast } from '../toast';
 import { usePersistent } from '../usePersistent';
 import { OutOfCredits, refundCredits, spendCredits, useCredits } from '../useCredits';
 import { CreditsDialog } from './CreditsDialog';
 import { Controls, MODES } from './Controls';
-import { Editor } from './Editor';
+import { Editor, type EditorApi } from './Editor';
 import { LibraryDrawer } from './LibraryDrawer';
-import { StyleNav } from './StyleNav';
+import { SidePanel, type OutlineClaim, type SideTab } from './SidePanel';
 import { Progress, type StepView } from './Progress';
 import { Results, type Tab } from './Results';
 import { SettingsDialog } from './SettingsDialog';
@@ -60,6 +63,10 @@ export function Studio() {
   const [tab, setTab] = useState<Tab>('doc');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  /* on narrow screens the side panels open as drawers */
+  const [drawer, setDrawer] = useState<'' | 'nav' | 'insp'>('');
+  const [sideTab, setSideTab] = usePersistent<SideTab>('side-tab', 'style');
+  const editorApi = useRef<EditorApi | null>(null);
   const [doc, setDocRaw] = usePersistent<DocOptions>('doc', DEFAULT_DOC, (d) => ({ ...DEFAULT_DOC, ...d }));
   const [library, setLibrary] = useState<LibItem[]>([]);
   const { data: session } = useSession();
@@ -217,6 +224,39 @@ export function Studio() {
     return set;
   }, [result]);
 
+  /* every sentence worth citing, for the claims outline */
+  const outline = useMemo<OutlineClaim[]>(() => {
+    if (!analysis) return [];
+    const spans = new Map(locate(deferred, analysis.sentences).map((sp) => [sp.index, sp]));
+    const sources = new Map<string, number>();
+    result?.claims.forEach((c) => {
+      if (!c.ids.length) return;
+      const st = result.analysis.sentences.find((x) => x.index === c.sid);
+      if (st) sources.set(st.text, c.ids.length);
+    });
+    return analysis.sentences
+      .filter((st) => sources.has(st.text) || isEligible(st))
+      .map((st) => {
+        const sp = spans.get(st.index);
+        const sc = st.score || 0;
+        return { index: st.index, text: st.text, start: sp ? sp.start : -1, end: sp ? sp.end : -1, level: sc > 1.8 ? 3 : sc > 1.1 ? 2 : 1, sources: sources.get(st.text) || 0 };
+      });
+  }, [analysis, deferred, result]);
+
+  const jumpTo = useCallback((c: OutlineClaim) => {
+    if (c.start < 0) return;
+    setDrawer('');
+    // wait for a drawer to slide away before moving the focus
+    setTimeout(() => editorApi.current?.select(c.start, c.end), 40);
+  }, []);
+
+  useEffect(() => {
+    if (!drawer) return;
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && setDrawer('');
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [drawer]);
+
   /* cite only the passage the user selected */
   const citeSelection = useCallback(
     async (text: string, start: number, end: number, n: number) => {
@@ -361,131 +401,200 @@ export function Studio() {
     toast(message);
   };
 
+  const st = STYLES[prefs.style];
+  const dbsOn = Object.values(prefs.providers).filter(Boolean).length;
+  /* `short` is the caption under the icon when the rail is the phone's bottom bar */
+  const rail = (icon: IconName, label: string, onClick: () => void, opts: { badge?: number; cls?: string; current?: boolean; short?: string } = {}) => (
+    <button className={`at-rb${opts.cls ? ' ' + opts.cls : ''}`} onClick={onClick} aria-label={label} aria-current={opts.current ? 'page' : undefined}>
+      <Icon name={icon} />
+      {opts.badge ? <span className="at-rb-badge">{opts.badge > 99 ? '99+' : opts.badge}</span> : null}
+      <span className="at-rb-lbl" data-short={opts.short}>{label}</span>
+    </button>
+  );
+
   return (
-    <div className="shell">
-      <div className="ws-bar">
-        <div className="ws-bar-in">
-          <div className="ws-title">
-            <input
-              value={doc.title}
-              onChange={(e) => setDoc({ title: e.target.value })}
-              placeholder="Untitled draft"
-              aria-label="Document title"
-              spellCheck={false}
-            />
-            <span className="ws-saved">
-              <Icon name="check" /> {userId ? 'Saved to your account' : 'Saved in this browser'}
-            </span>
-            {credits && (
-              <Link href="/pricing" className={`ws-credits${credits.total < Math.max(cost, 5) ? ' low' : ''}`} title={`${credits.free} free (resets monthly) + ${credits.paid} purchased`}>
-                <Icon name="bolt" /> {credits.total.toLocaleString()} credit{credits.total === 1 ? '' : 's'}
-              </Link>
+    <div className={`at${drawer === 'nav' ? ' is-nav' : ''}${drawer === 'insp' ? ' is-insp' : ''}`}>
+      <nav className="at-rail" aria-label="Studio navigation">
+        <Link className="at-logo" href="/" aria-label="Citezeno home">
+          <LogoMark className="at-logo-mark" />
+        </Link>
+        <div className="at-rail-main">
+          {rail('doc', 'Studio', () => mainEl.current?.scrollTo({ top: 0, behavior: 'smooth' }), { current: true, cls: 'at-hide-phone' })}
+          {rail('history', 'Library', () => setLibOpen(true), { badge: library.length })}
+          {rail('quote', 'Style and claims', () => setDrawer('nav'), { cls: 'at-only-compact', short: 'Style' })}
+          {rail('sliders', 'Trace settings', () => setDrawer('insp'), { cls: 'at-only-compact', short: 'Settings' })}
+          {rail('search', 'Commands', openPalette, { cls: 'at-only-phone', short: 'Search' })}
+          <RailLink href="/history" icon="clock" label="History" cls="at-hide-phone" />
+          <RailLink href="/styles" icon="book" label="Citation styles guide" cls="at-hide-phone" />
+        </div>
+        <div className="at-rail-end">
+          <RailLink href="/#method" icon="help" label="How it works" cls="at-hide-phone" />
+          {rail('gear', 'Database settings', () => setSettingsOpen(true), { short: 'Databases' })}
+        </div>
+      </nav>
+
+      <header className="at-top">
+        <Link className="at-top-logo" href="/" aria-label="Citezeno home">
+          <LogoMark className="at-logo-mark" />
+        </Link>
+        <div className="at-doc">
+          <span className="at-crumb">Studio</span>
+          <span className="at-crumb-sep" aria-hidden="true">/</span>
+          <input value={doc.title} onChange={(e) => setDoc({ title: e.target.value })} placeholder="Untitled draft" aria-label="Document title" spellCheck={false} />
+          <span className="at-saved" title={userId ? 'Saved to your account' : 'Saved in this browser'}>
+            <Icon name="check" /> <span>{userId ? 'Saved to your account' : 'Saved in this browser'}</span>
+          </span>
+        </div>
+        <button className="at-cmdk" onClick={openPalette} aria-label="Open the command menu">
+          <Icon name="search" />
+          <span>Search commands</span>
+          <span className="kbd">Ctrl K</span>
+        </button>
+        <CreditsPill need={cost} />
+        {userId && result && (
+          <button className="at-tbtn" onClick={openShare} title="Share a read-only link to this trace">
+            <Icon name="globe" />
+            <span>Share</span>
+          </button>
+        )}
+        {running ? (
+          <button className="at-run stop" onClick={cancel}>
+            <Icon name="stop" /> <span>Stop</span>
+          </button>
+        ) : (
+          <button className="at-run" onClick={run}>
+            <Icon name="search" /> <span className="at-run-lbl">Trace all claims</span>
+            {cost > 0 && <span className="at-run-cost">{cost} credit{cost === 1 ? '' : 's'}</span>}
+            <span className="kbd">Ctrl ↵</span>
+          </button>
+        )}
+        <span className="at-top-sep" aria-hidden="true" />
+        <ThemeToggle />
+        <UserMenu />
+      </header>
+
+      <SidePanel
+        tab={sideTab}
+        setTab={setSideTab}
+        style={prefs.style}
+        onStyle={(id) => setPrefs({ style: id })}
+        claims={outline}
+        onJump={jumpTo}
+        hasDraft={Boolean(draft.trim())}
+        onClose={() => setDrawer('')}
+      />
+
+      <div className={`at-main${scroll.y > 4 ? ' is-scrolled' : ''}`} ref={mainEl} onScroll={onMainScroll}>
+        <div className="at-progress" aria-hidden="true">
+          <i style={{ transform: `scaleX(${scroll.p})` }} />
+        </div>
+        <div className="at-main-in">
+          <div className="at-context">
+            <button onClick={() => { setSideTab('style'); setDrawer('nav'); }}>
+              <Icon name="quote" />
+              <span>
+                <small>Style</small>
+                <b>{st.name}, {st.edition}</b>
+              </span>
+              <Icon name="chevron" className="at-context-chev" />
+            </button>
+            <button onClick={() => setDrawer('insp')}>
+              <Icon name="sliders" />
+              <span>
+                <small>Trace settings</small>
+                <b>{MODES.find((m) => m.id === prefs.mode)?.label} · {prefs.count} source{prefs.count === 1 ? '' : 's'} · {dbsOn} database{dbsOn === 1 ? '' : 's'}</b>
+              </span>
+              <Icon name="chevron" className="at-context-chev" />
+            </button>
+            {outline.length > 0 && (
+              <button className="at-context-claims" onClick={() => { setSideTab('claims'); setDrawer('nav'); }}>
+                <Icon name="thread" />
+                <span>
+                  <small>Claims</small>
+                  <b>{outline.filter((c) => c.sources).length} of {outline.length} cited</b>
+                </span>
+                <Icon name="chevron" className="at-context-chev" />
+              </button>
             )}
           </div>
-          <div className="ws-actions">
-            <button className="ws-btn" onClick={() => setLibOpen(true)} title="Recent traces">
-              <Icon name="history" />
-              <span>Library</span>
-              {library.length ? <span className="ws-count">{library.length}</span> : null}
-            </button>
-            {userId && result && (
-              <button className="ws-btn" onClick={openShare} title="Share a read-only link to this trace">
-                <Icon name="globe" />
-                <span>Share</span>
-              </button>
-            )}
-            <button className="ws-btn" onClick={() => setSettingsOpen(true)} title="Database settings">
-              <Icon name="gear" />
-              <span>Settings</span>
-            </button>
-            <span className="ws-sep" aria-hidden="true" />
-            {running ? (
-              <button className="btn btn-ghost btn-sm" onClick={cancel}>
-                <Icon name="stop" /> Stop
-              </button>
+
+          <Editor
+            value={draft}
+            onChange={setDraft}
+            analysis={analysis}
+            cited={citedTexts}
+            highlight={highlight}
+            setHighlight={setHighlight}
+            onRun={run}
+            onCite={citeSelection}
+            citing={citing}
+            api={editorApi}
+          />
+
+          <div ref={progressEl}>
+            {showProgress && <Progress steps={steps} log={log} progress={progress} running={running} onCancel={cancel} />}
+          </div>
+
+          <div ref={resultsEl} style={{ scrollMarginTop: 16 }}>
+            {result && rendered ? (
+              <Results
+                result={result}
+                rendered={rendered}
+                prefs={prefs}
+                setPrefs={setPrefs}
+                tab={tab}
+                setTab={setTab}
+                annotations={annotations}
+                onReplace={onReplace}
+                doc={doc}
+                setDoc={setDoc}
+                onRemove={onRemove}
+                onAdd={onAdd}
+                onPin={onPin}
+              />
             ) : (
-              <button className="btn btn-thread btn-sm ws-run" onClick={run}>
-                <Icon name="search" /> Trace all claims
-                {cost > 0 && <span className="ws-cost">{cost} credit{cost === 1 ? '' : 's'}</span>}
-                <span className="kbd">Ctrl ↵</span>
-              </button>
+              !showProgress && (
+                <div className="at-res-empty">
+                  <span className="at-res-empty-ico">
+                    <Icon name="thread" />
+                  </span>
+                  <b>Your cited manuscript will appear here</b>
+                  <p>
+                    Trace all claims, or select a passage in your draft and choose “Cite this claim”. Your cited manuscript,
+                    references, sources and source map will appear here.
+                  </p>
+                  <ul>
+                    <li><Icon name="doc" /> Manuscript</li>
+                    <li><Icon name="list" /> References</li>
+                    <li><Icon name="cards" /> Sources</li>
+                    <li><Icon name="map" /> Map</li>
+                    <li><Icon name="chart" /> Insights</li>
+                    <li><Icon name="code" /> Export</li>
+                  </ul>
+                </div>
+              )
             )}
           </div>
+
+          <button
+            className={`at-to-top${scroll.y > 700 ? ' show' : ''}`}
+            onClick={() => mainEl.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+            aria-label="Back to the top"
+            tabIndex={scroll.y > 700 ? 0 : -1}
+          >
+            <Icon name="chevron" />
+          </button>
+
+          <p className="at-foot">
+            Records come from OpenAlex, Crossref, Open Library and Wikipedia. Open every source and check it before you
+            rely on it.
+          </p>
         </div>
       </div>
 
-      <div className="ws-grid">
-        <StyleNav value={prefs.style} onChange={(id) => setPrefs({ style: id })} />
+      <Controls prefs={prefs} set={setPrefs} analysis={analysis} cost={cost} onSettings={() => setSettingsOpen(true)} onClose={() => setDrawer('')} />
 
-        <div className={`ws-main${scroll.y > 4 ? ' is-scrolled' : ''}`} ref={mainEl} onScroll={onMainScroll}>
-          <div className="ws-progress" aria-hidden="true">
-            <i style={{ transform: `scaleX(${scroll.p})` }} />
-          </div>
-          <div className="ws-main-in">
-            <Editor
-              value={draft}
-              onChange={setDraft}
-              analysis={analysis}
-              cited={citedTexts}
-              highlight={highlight}
-              setHighlight={setHighlight}
-              onRun={run}
-              onCite={citeSelection}
-              citing={citing}
-            />
-
-            <div ref={progressEl}>
-              {showProgress && <Progress steps={steps} log={log} progress={progress} running={running} onCancel={cancel} />}
-            </div>
-
-            <div ref={resultsEl} style={{ scrollMarginTop: 16 }}>
-              {result && rendered ? (
-                <Results
-                  result={result}
-                  rendered={rendered}
-                  prefs={prefs}
-                  setPrefs={setPrefs}
-                  tab={tab}
-                  setTab={setTab}
-                  annotations={annotations}
-                  onReplace={onReplace}
-                  doc={doc}
-                  setDoc={setDoc}
-                  onRemove={onRemove}
-                  onAdd={onAdd}
-                  onPin={onPin}
-                />
-              ) : (
-                !showProgress && (
-                  <div className="res-empty">
-                    <Icon name="thread" />
-                    <p>
-                      Trace all claims, or select a passage in your draft and choose “Cite this claim”. Your cited
-                      manuscript, references, sources and source map will appear here.
-                    </p>
-                  </div>
-                )
-              )}
-            </div>
-
-            <button
-              className={`to-top${scroll.y > 700 ? ' show' : ''}`}
-              onClick={() => mainEl.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-              aria-label="Back to the top"
-              tabIndex={scroll.y > 700 ? 0 : -1}
-            >
-              <Icon name="chevron" />
-            </button>
-
-            <p className="ws-foot">
-              Records come from OpenAlex, Crossref, Open Library and Wikipedia. Open every source and check it before you
-              rely on it.
-            </p>
-          </div>
-        </div>
-
-        <Controls prefs={prefs} set={setPrefs} analysis={analysis} />
-      </div>
+      {drawer && <div className="at-scrim" onClick={() => setDrawer('')} aria-hidden="true" />}
 
       {libOpen && (
         <LibraryDrawer

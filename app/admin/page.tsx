@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ColumnChart } from '@/components/admin/ColumnChart';
 import { GrantCredits, HandledToggle } from '@/components/admin/AdminActions';
-import { Footer, Nav } from '@/components/Nav';
+import { AppShell, PageHead } from '@/components/app/AppShell';
 import { requireAdmin } from '@/lib/admin';
 import { pool } from '@/lib/db';
 import { timeAgo } from '@/lib/library';
@@ -82,110 +82,103 @@ export default async function AdminPage({ searchParams }: Props) {
   ];
 
   return (
-    <>
-      <Nav />
-      <main className="wrap page">
-        <header className="page-head">
-          <h1 className="h2">Admin</h1>
-          <p className="lede">Accounts, usage, revenue and the contact inbox. Revenue counts paid Polar orders before refunds.</p>
-        </header>
+    <AppShell current="admin" title="Admin">
+      <PageHead title="Admin">Accounts, usage, revenue and the contact inbox. Revenue counts paid Polar orders before refunds.</PageHead>
 
-        <section className="adm-tiles" aria-label="Key numbers">
-          {tiles.map(([v, label, sub]) => (
-            <div className="stat" key={label}>
-              <b>{v}</b>
-              <span>{label}</span>
-              {sub && <small>{sub}</small>}
-            </div>
-          ))}
-        </section>
-
-        <section className="adm-charts">
-          <ColumnChart title="New accounts per day" unit="accounts" data={signups} />
-          <ColumnChart title="Credits used per day" unit="credits" data={spent} />
-        </section>
-
-        <section className="panel" id="users">
-          <div className="adm-head">
-            <h2>Users</h2>
-            <form className="adm-search" action="/admin#users">
-              <input className="input" name="q" defaultValue={q} placeholder="Search name or email" aria-label="Search users" />
-              <button className="btn btn-sm">Search</button>
-            </form>
+      <section className="adm-tiles" aria-label="Key numbers">
+        {tiles.map(([v, label, sub]) => (
+          <div className="stat" key={label}>
+            <b>{v}</b>
+            <span>{label}</span>
+            {sub && <small>{sub}</small>}
           </div>
-          <div className="adm-table-wrap">
-            <table className="adm-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Joined</th>
-                  <th>Traces</th>
-                  <th>Credits</th>
+        ))}
+      </section>
+
+      <section className="adm-charts">
+        <ColumnChart title="New accounts per day" unit="accounts" data={signups} />
+        <ColumnChart title="Credits used per day" unit="credits" data={spent} />
+      </section>
+
+      <section className="panel" id="users">
+        <div className="adm-head">
+          <h2>Users</h2>
+          <form className="adm-search" action="/admin#users">
+            <input className="input" name="q" defaultValue={q} placeholder="Search name or email" aria-label="Search users" />
+            <button className="btn btn-sm">Search</button>
+          </form>
+        </div>
+        <div className="adm-table-wrap">
+          <table className="adm-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Joined</th>
+                <th>Traces</th>
+                <th>Credits</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td>
+                    <b>{u.name || '—'}</b>
+                    <small>
+                      {u.email} {u.emailVerified ? '' : '· not confirmed'}
+                    </small>
+                  </td>
+                  <td>{timeAgo(new Date(u.createdAt).getTime())}</td>
+                  <td>{Number(u.traces).toLocaleString()}</td>
+                  <td>
+                    <GrantCredits userId={u.id} total={u.total ?? 0} />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <td>
-                      <b>{u.name || '—'}</b>
-                      <small>
-                        {u.email} {u.emailVerified ? '' : '· not confirmed'}
-                      </small>
-                    </td>
-                    <td>{timeAgo(new Date(u.createdAt).getTime())}</td>
-                    <td>{Number(u.traces).toLocaleString()}</td>
-                    <td>
-                      <GrantCredits userId={u.id} total={u.total ?? 0} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!users.length && <p className="small">No user matches “{q}”.</p>}
-          </div>
-        </section>
-
-        <section className="panel" id="inbox" style={{ marginTop: 22 }}>
-          <div className="adm-head">
-            <h2>Contact inbox</h2>
-            <nav className="seg" aria-label="Inbox filter">
-              <Link href="/admin#inbox" aria-current={inbox === 'open' ? 'true' : undefined} className={inbox === 'open' ? 'on' : ''}>
-                Open
-              </Link>
-              <Link href="/admin?inbox=all#inbox" aria-current={inbox === 'all' ? 'true' : undefined} className={inbox === 'all' ? 'on' : ''}>
-                All
-              </Link>
-            </nav>
-          </div>
-          {!messages.length ? (
-            <p className="small">Inbox zero. Nothing waiting for a reply.</p>
-          ) : (
-            <ul className="adm-inbox">
-              {messages.map((m) => (
-                <li key={m.id}>
-                  <div className="adm-msg-head">
-                    <span>
-                      <b>{m.name}</b> · {m.topic}
-                      <small>
-                        {m.email} · {timeAgo(new Date(m.createdAt).getTime())}
-                        {m.delivered ? '' : ' · not emailed'}
-                      </small>
-                    </span>
-                    <span className="adm-msg-actions">
-                      <a className="btn btn-ghost btn-sm" href={`mailto:${encodeURIComponent(m.email)}?subject=${encodeURIComponent(`Re: ${m.topic}`)}`}>
-                        Reply
-                      </a>
-                      <HandledToggle id={m.id} handled={m.handled} />
-                    </span>
-                  </div>
-                  <p>{m.message}</p>
-                </li>
               ))}
-            </ul>
-          )}
-        </section>
-      </main>
-      <Footer />
-    </>
+            </tbody>
+          </table>
+          {!users.length && <p className="small">No user matches “{q}”.</p>}
+        </div>
+      </section>
+
+      <section className="panel" id="inbox" style={{ marginTop: 22 }}>
+        <div className="adm-head">
+          <h2>Contact inbox</h2>
+          <nav className="seg" aria-label="Inbox filter">
+            <Link href="/admin#inbox" aria-current={inbox === 'open' ? 'true' : undefined} className={inbox === 'open' ? 'on' : ''}>
+              Open
+            </Link>
+            <Link href="/admin?inbox=all#inbox" aria-current={inbox === 'all' ? 'true' : undefined} className={inbox === 'all' ? 'on' : ''}>
+              All
+            </Link>
+          </nav>
+        </div>
+        {!messages.length ? (
+          <p className="small">Inbox zero. Nothing waiting for a reply.</p>
+        ) : (
+          <ul className="adm-inbox">
+            {messages.map((m) => (
+              <li key={m.id}>
+                <div className="adm-msg-head">
+                  <span>
+                    <b>{m.name}</b> · {m.topic}
+                    <small>
+                      {m.email} · {timeAgo(new Date(m.createdAt).getTime())}
+                      {m.delivered ? '' : ' · not emailed'}
+                    </small>
+                  </span>
+                  <span className="adm-msg-actions">
+                    <a className="btn btn-ghost btn-sm" href={`mailto:${encodeURIComponent(m.email)}?subject=${encodeURIComponent(`Re: ${m.topic}`)}`}>
+                      Reply
+                    </a>
+                    <HandledToggle id={m.id} handled={m.handled} />
+                  </span>
+                </div>
+                <p>{m.message}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </AppShell>
   );
 }

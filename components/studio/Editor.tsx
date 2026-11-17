@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { readDraftFile } from '@/lib/importfile';
 import { SAMPLES } from '@/lib/samples';
 import { isEligible, locate, words } from '@/lib/text';
@@ -29,7 +29,11 @@ function useSegments(value: string, analysis: Analysis | null, cited: Set<string
   }, [value, analysis, cited, highlight]);
 }
 
-type Sel = { start: number; end: number; text: string; x: number; y: number; open: boolean };
+/* below: there is no room above the selection, so the popover opens under it */
+type Sel = { start: number; end: number; text: string; x: number; y: number; open: boolean; below: boolean };
+
+/* What the studio can ask the editor to do: select a passage and bring it into view. */
+export type EditorApi = { select: (start: number, end: number) => void };
 
 export function Editor({
   value,
@@ -41,6 +45,7 @@ export function Editor({
   onRun,
   onCite,
   citing,
+  api,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -51,6 +56,7 @@ export function Editor({
   onRun: () => void;
   onCite: (text: string, start: number, end: number, n: number) => Promise<boolean>;
   citing: boolean;
+  api?: MutableRefObject<EditorApi | null>;
 }) {
   const ta = useRef<HTMLTextAreaElement>(null);
   const paper = useRef<HTMLDivElement>(null);
@@ -63,6 +69,9 @@ export function Editor({
   const [pageCount, setPageCount] = useState(1);
   const [pageNow, setPageNow] = useState(1);
   const [n, setN] = useState(2);
+  const [menu, setMenu] = useState(false);
+  const menuBox = useRef<HTMLDivElement>(null);
+  const section = useRef<HTMLElement>(null);
   const segs = useSegments(value, analysis, cited, highlight);
   const claims = analysis ? analysis.sentences.filter(isEligible).length : 0;
   const citedCount = analysis ? analysis.sentences.filter((s) => cited.has(s.text)).length : 0;
@@ -138,9 +147,59 @@ export function Editor({
     mark.textContent = '​';
     m.append(mark);
     const x = Math.max(16, Math.min(mark.offsetLeft - 12, m.clientWidth - 316));
-    const y = mark.offsetTop;
-    setSel((s) => ({ start: a, end: b, text, x, y, open: s && s.start === a && s.end === b ? s.open : false }));
+    let y = mark.offsetTop;
+    const v = scroller.current;
+    const below = v ? mark.getBoundingClientRect().top - v.getBoundingClientRect().top < 270 : false;
+    if (below) {
+      // no room above: hang the popover under the last line of the selection instead
+      m.textContent = '';
+      m.append(document.createTextNode(value.slice(0, b)));
+      m.append(mark);
+      y = mark.offsetTop;
+    }
+    setSel((s) => ({ start: a, end: b, text, x, y, below, open: s && s.start === a && s.end === b ? s.open : false }));
   }, [value, citing]);
+
+  /* let the claims outline select a sentence here */
+  useEffect(() => {
+    if (!api) return;
+    api.current = {
+      select: (start, end) => {
+        const el = ta.current;
+        const m = measure.current;
+        const v = scroller.current;
+        if (!el || !m || !v) return;
+        el.focus({ preventScroll: true });
+        el.setSelectionRange(start, end);
+        m.textContent = '';
+        m.append(document.createTextNode(value.slice(0, start)));
+        const mark = document.createElement('span');
+        mark.textContent = '\u200b';
+        m.append(mark);
+        const top = mark.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop;
+        v.scrollTo({ top: Math.max(0, top - Math.max(290, v.clientHeight * 0.4)), behavior: 'smooth' });
+        section.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        onSelect();
+      },
+    };
+    return () => {
+      api.current = null;
+    };
+  }, [api, value, onSelect]);
+
+  /* the samples menu closes on an outside click or Escape */
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !menuBox.current?.contains(e.target as Node)) setMenu(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, [menu]);
 
   const cite = async () => {
     if (!sel) return;
@@ -149,38 +208,72 @@ export function Editor({
   };
 
   return (
-    <section className="doc" aria-label="Your draft">
-      <div
-        className="page-head"
+    <section className="at-card at-draft" aria-label="Your draft" ref={section}>
+      <header
+        className="at-draft-bar"
         onClick={(e) => {
           if (e.target === e.currentTarget) ta.current?.focus();
         }}
       >
-        <label htmlFor="draft-input" className="page-head-l">
-          <span className="page-head-ico"><Icon name="doc" /></span>
+        <label htmlFor="draft-input" className="at-draft-title">
+          <span className="at-draft-ico"><Icon name="doc" /></span>
           <span>
             <b>Your draft</b>
-            <small>{value.trim() ? 'Click anywhere on the page to edit' : 'Start typing or paste your text on the page below'}</small>
+            <small>{value.trim() ? 'Click the page to edit. Select a passage to cite just that claim.' : 'Start typing or paste your text on the page below'}</small>
           </span>
         </label>
-        <div className="page-head-r">
-          <button className="doc-btn" onClick={pasteClip}>
-            <Icon name="copy" /> Paste
+        <div className="at-tools">
+          <button className="at-tool" onClick={pasteClip} title="Paste from the clipboard">
+            <Icon name="paste" /> <span>Paste</span>
           </button>
-          <button className="doc-btn" onClick={() => fileRef.current?.click()}>
-            <Icon name="upload" /> Open file
+          <button className="at-tool" onClick={() => fileRef.current?.click()} title="Open a .docx, .txt or .md file">
+            <Icon name="upload" /> <span>Open file</span>
           </button>
+          <div className="at-menu-wrap" ref={menuBox}>
+            <button className="at-tool" onClick={() => setMenu((o) => !o)} aria-expanded={menu} aria-haspopup="menu" title="Load a sample draft">
+              <Icon name="sparkle" /> <span>Samples</span>
+              <Icon name="chevron" className="at-tool-chev" />
+            </button>
+            {menu && (
+              <div className="at-menu" role="menu">
+                <p>Load a sample draft</p>
+                {Object.entries(SAMPLES).map(([k, smp]) => (
+                  <button
+                    key={k}
+                    role="menuitem"
+                    onClick={() => {
+                      onChange(smp.text);
+                      setSel(null);
+                      setMenu(false);
+                    }}
+                  >
+                    <Icon name="doc" />
+                    <span>
+                      <b>{smp.label}</b>
+                      <small>{words(smp.text).length} words</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {value && (
-            <button className="doc-btn" onClick={() => onChange('')}>
-              <Icon name="eraser" /> Clear
+            <button className="at-tool" onClick={() => onChange('')} title="Clear the draft">
+              <Icon name="eraser" /> <span>Clear</span>
             </button>
           )}
+          <span className="at-tool-sep" aria-hidden="true" />
+          <label className="at-toggle" title="Underline the sentences worth citing">
+            <input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} />
+            <span className="at-switch" aria-hidden="true" />
+            <span>Mark claims</span>
+          </label>
         </div>
-      </div>
+      </header>
       <div className="dview-scroll" ref={scroller} onScroll={onScroll}>
       <div
         ref={paper}
-        className={`page${drag ? ' drag' : ''}${value.trim() ? '' : ' empty'}`}
+        className={`dpage${drag ? ' drag' : ''}${value.trim() ? '' : ' empty'}`}
         onClick={(e) => {
           if (e.target === e.currentTarget) ta.current?.focus();
         }}
@@ -259,7 +352,7 @@ export function Editor({
         {drag && <div className="page-drop"><Icon name="upload" /> Drop to open this file</div>}
 
         {sel && (
-          <div className={`selpop${sel.open ? ' open' : ''}`} style={{ left: sel.x, top: sel.y }} onMouseDown={(e) => e.preventDefault()}>
+          <div className={`selpop${sel.open ? ' open' : ''}${sel.below ? ' below' : ''}`} style={{ left: sel.x, top: sel.y }} onMouseDown={(e) => e.preventDefault()}>
             {!sel.open ? (
               <button className="selpop-pill" onClick={() => setSel({ ...sel, open: true })}>
                 <Icon name="quote" /> Cite this claim
@@ -302,21 +395,17 @@ export function Editor({
 
       </div>
 
-      <footer className="doc-bar">
-        <div className="doc-stats">
-          <span className="doc-page">Page <b>{pageNow}</b> of <b>{pageCount}</b></span>
-          <span><b>{analysis ? analysis.wordCount : 0}</b> words</span>
+      <footer className="at-draft-foot">
+        <div className="at-stats">
+          <span className="at-stat-page">Page <b>{pageNow}</b> of <b>{pageCount}</b></span>
+          <span><b>{analysis ? analysis.wordCount.toLocaleString() : 0}</b> words</span>
           <span><b>{analysis ? analysis.sentences.length : 0}</b> sentences</span>
           <span className="hot"><i className="dot-claim" /> <b>{claims}</b> citable claims</span>
           {citedCount > 0 && <span className="ok"><i className="dot-cited" /> <b>{citedCount}</b> cited</span>}
         </div>
-        <div className="doc-tools">
-          <label className="mini-switch">
-            <input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} />
-            <span className="sw" aria-hidden="true" />
-            Mark claims
-          </label>
-        </div>
+        <span className="at-kbd-hint">
+          <span className="kbd">Ctrl</span> <span className="kbd">↵</span> to trace
+        </span>
         <input
           ref={fileRef}
           type="file"

@@ -3,7 +3,8 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import { AccountPanels } from '@/components/account/AccountPanels';
 import { BillingPanel } from '@/components/billing/BillingPanel';
-import { Footer, Nav } from '@/components/Nav';
+import { AppShell, PageHead } from '@/components/app/AppShell';
+import { Icon } from '@/components/Icon';
 import { auth, enabledProviders } from '@/lib/auth';
 import { getBalance, history } from '@/lib/credits';
 import { pool } from '@/lib/db';
@@ -34,44 +35,34 @@ export default async function AccountPage() {
 
   const u = session.user;
   return (
-    <>
-      <Nav />
-      <main className="wrap page">
-        <header className="page-head">
-          <h1 className="h2">Your account</h1>
-          <p className="lede">
-            Manage your profile, sign-in methods and devices. Your traces live in the{' '}
-            <Link href="/studio" style={{ color: 'var(--ink)', fontWeight: 650 }}>
-              studio
-            </Link>{' '}
-            library.
-            {isAdmin(u) && (
-              <>
-                {' '}
-                <Link href="/admin" style={{ color: 'var(--ink)', fontWeight: 650 }}>
-                  Open the admin dashboard →
-                </Link>
-              </>
-            )}
-          </p>
-        </header>
-        <AccountPanels
-          user={{ id: u.id, name: u.name, email: u.email, image: u.image ?? null, emailVerified: u.emailVerified, createdAt: new Date(u.createdAt).getTime(), twoFactorEnabled: Boolean((u as { twoFactorEnabled?: boolean | null }).twoFactorEnabled) }}
-          currentToken={session.session.token}
-          providers={accounts.map((a) => a.providerId)}
-          available={enabledProviders}
-          sessions={sessions.map((s) => ({
-            token: s.token,
-            userAgent: s.userAgent ?? '',
-            ipAddress: s.ipAddress ?? '',
-            createdAt: new Date(s.createdAt).getTime(),
-            expiresAt: new Date(s.expiresAt).getTime(),
-          }))}
-          billing={<BillingPanel initial={balance} history={ledger} polar={polarEnabled} />}
-          stats={{ traces: Number(stats.n) || 0, sources: Number(stats.sources) || 0, last: stats.last ? new Date(stats.last).getTime() : null }}
-        />
-      </main>
-      <Footer />
-    </>
+    <AppShell current="account" title="Account">
+      <PageHead
+        title="Your account"
+        actions={
+          isAdmin(u) ? (
+            <Link className="btn btn-ghost btn-sm" href="/admin">
+              <Icon name="chart" /> Admin dashboard
+            </Link>
+          ) : undefined
+        }
+      >
+        Manage your profile, credits, sign-in methods and devices. Your traces live in the <Link href="/library">library</Link>.
+      </PageHead>
+      <AccountPanels
+        user={{ id: u.id, name: u.name, email: u.email, image: u.image ?? null, emailVerified: u.emailVerified, createdAt: new Date(u.createdAt).getTime(), twoFactorEnabled: Boolean((u as { twoFactorEnabled?: boolean | null }).twoFactorEnabled) }}
+        currentToken={session.session.token}
+        providers={accounts.map((a) => a.providerId)}
+        available={enabledProviders}
+        sessions={sessions.map((s) => ({
+          token: s.token,
+          userAgent: s.userAgent ?? '',
+          ipAddress: s.ipAddress ?? '',
+          createdAt: new Date(s.createdAt).getTime(),
+          expiresAt: new Date(s.expiresAt).getTime(),
+        }))}
+        billing={<BillingPanel initial={balance} history={ledger} polar={polarEnabled} />}
+        stats={{ traces: Number(stats.n) || 0, sources: Number(stats.sources) || 0, last: stats.last ? new Date(stats.last).getTime() : null }}
+      />
+    </AppShell>
   );
 }

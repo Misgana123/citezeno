@@ -47,6 +47,9 @@ const PATHS: Record<string, string> = {
   lock: 'M6 11h12v10H6zM8.5 11V7.5a3.5 3.5 0 0 1 7 0V11',
   device: 'M3 5h18v11H3zM8 20h8M12 16v4',
   clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3 2',
+  help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM9.6 9.4a2.5 2.5 0 1 1 3.7 2.2c-.8.5-1.3 1-1.3 2M12 16.8h.01',
+  sliders: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4',
+  paste: 'M9 3h6v4H9zM9 5H6v16h12V5h-3M9 12h6M9 16h4',
 };
 
 export type IconName = keyof typeof PATHS;

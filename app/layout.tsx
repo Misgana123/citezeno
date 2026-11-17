@@ -8,6 +8,7 @@ import './globals.css';
 import './studio.css';
 import './site.css';
 import './share.css';
+import './atelier.css';
 
 const ui = Schibsted_Grotesk({ subsets: ['latin'], variable: '--font-ui', display: 'swap' });
 const read = Newsreader({ subsets: ['latin'], style: ['normal', 'italic'], variable: '--font-read', display: 'swap' });

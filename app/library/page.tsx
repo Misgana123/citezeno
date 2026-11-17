@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { LibraryManager, type LibRow } from '@/components/library/LibraryManager';
-import { Footer, Nav } from '@/components/Nav';
+import Link from 'next/link';
+import { AppShell, PageHead } from '@/components/app/AppShell';
+import { Icon } from '@/components/Icon';
 import { pool } from '@/lib/db';
 import { requireSession } from '@/lib/session';
 
@@ -15,16 +17,18 @@ export default async function LibraryPage() {
     [s.user.id],
   );
   return (
-    <>
-      <Nav />
-      <main className="wrap page">
-        <header className="page-head">
-          <h1 className="h2">Library</h1>
-          <p className="lede">Every trace you’ve run, synced to your account. Rename, share a read-only link, or reopen one in the studio.</p>
-        </header>
-        <LibraryManager initial={rows.map((r) => ({ ...r, savedAt: new Date(r.savedAt).getTime() }))} owner={s.user.name || ''} />
-      </main>
-      <Footer />
-    </>
+    <AppShell current="library" title="Library">
+      <PageHead
+        title="Library"
+        actions={
+          <Link className="btn btn-thread btn-sm" href="/studio">
+            <Icon name="plus" /> New trace
+          </Link>
+        }
+      >
+        Every trace you’ve run, synced to your account. Rename, share a read-only link, or reopen one in the studio.
+      </PageHead>
+      <LibraryManager initial={rows.map((r) => ({ ...r, savedAt: new Date(r.savedAt).getTime() }))} owner={s.user.name || ''} />
+    </AppShell>
   );
 }
