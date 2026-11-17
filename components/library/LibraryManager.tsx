@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { timeAgo } from '@/lib/library';
+import { ACCOUNT_MAX, ACCOUNT_NOTICE, timeAgo } from '@/lib/library';
+import { formatExpiry, isExpired } from '@/lib/share-access';
 import { STYLES } from '@/lib/styles';
 import { Icon } from '../Icon';
 import { ShareDialog } from '../share/ShareDialog';
+import { DownloadAll, LibraryNearlyFull } from './DownloadAll';
 import { toast } from '../toast';
 
 export type LibRow = {
@@ -18,6 +20,9 @@ export type LibRow = {
   savedAt: number;
   shareToken: string | null;
   shareViews: number;
+  /* ms since epoch, or null when the link never expires */
+  shareExpiresAt: number | null;
+  shareLocked: boolean;
 };
 
 type Sort = 'new' | 'old' | 'title' | 'sources';
@@ -81,7 +86,7 @@ export function LibraryManager({ initial, owner }: { initial: LibRow[]; owner: s
   const unshare = async (r: LibRow) => {
     try {
       await call(`/api/traces/${r.id}/share`, 'DELETE');
-      patch(r.id, { shareToken: null, shareViews: 0 });
+      patch(r.id, { shareToken: null, shareViews: 0, shareExpiresAt: null, shareLocked: false });
       toast('Link turned off');
     } catch (e) {
       toast((e as Error).message, true);
@@ -102,6 +107,7 @@ export function LibraryManager({ initial, owner }: { initial: LibRow[]; owner: s
 
   return (
     <div className="libm">
+      {rows.length >= ACCOUNT_NOTICE && <LibraryNearlyFull count={rows.length} max={ACCOUNT_MAX} />}
       <div className="libm-bar">
         <label className="libm-search">
           <Icon name="search" />
@@ -121,6 +127,7 @@ export function LibraryManager({ initial, owner }: { initial: LibRow[]; owner: s
           <option value="title">Title A–Z</option>
           <option value="sources">Most sources</option>
         </select>
+        <DownloadAll items={rows} />
       </div>
       <p className="small" style={{ margin: '0 0 12px' }}>
         {shown.length} of {rows.length} trace{rows.length === 1 ? '' : 's'} · {rows.reduce((n, r) => n + r.sources, 0)} sources in all
@@ -160,6 +167,16 @@ export function LibraryManager({ initial, owner }: { initial: LibRow[]; owner: s
                     <Icon name="globe" /> Shared · {r.shareViews} view{r.shareViews === 1 ? '' : 's'}
                   </span>
                 )}
+                {r.shareToken && r.shareExpiresAt != null && (
+                  <span className={isExpired(r.shareExpiresAt) ? 'expired' : 'expires'} title="Change it in Link settings" suppressHydrationWarning>
+                    <Icon name="clock" /> {isExpired(r.shareExpiresAt) ? 'Link expired' : 'Expires'} {formatExpiry(r.shareExpiresAt)}
+                  </span>
+                )}
+                {r.shareToken && r.shareLocked && (
+                  <span className="locked" title="Viewers need a password. Change or remove it in Link settings.">
+                    <Icon name="lock" /> Password
+                  </span>
+                )}
               </span>
               {r.snippet && <span className="lib-snip serif">{r.snippet}…</span>}
             </div>
@@ -172,7 +189,7 @@ export function LibraryManager({ initial, owner }: { initial: LibRow[]; owner: s
                   <a className="btn btn-ghost btn-sm" href={`/s/${r.shareToken}`} target="_blank" rel="noopener">
                     <Icon name="external" /> View
                   </a>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setSharing(r)} title="Change the design, style or output, or turn the link off">
+                  <button className="btn btn-ghost btn-sm" onClick={() => setSharing(r)} title="Change the design, style, expiry or password, or turn the link off">
                     <Icon name="globe" /> Link settings
                   </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => unshare(r)}>
@@ -215,7 +232,14 @@ export function LibraryManager({ initial, owner }: { initial: LibRow[]; owner: s
           title={sharing.title}
           owner={owner}
           onClose={() => setSharing(null)}
-          onChange={(s) => patch(sharing.id, { shareToken: s?.token ?? null, shareViews: s?.views ?? 0 })}
+          onChange={(s) =>
+            patch(sharing.id, {
+              shareToken: s?.token ?? null,
+              shareViews: s?.views ?? 0,
+              shareExpiresAt: s?.expiresAt ? Date.parse(s.expiresAt) : null,
+              shareLocked: Boolean(s?.hasPassword),
+            })
+          }
         />
       )}
     </div>

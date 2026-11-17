@@ -77,6 +77,8 @@ body:has(.at-frame) { overflow: hidden; }
 .at-doc input::placeholder { color: var(--ink-3); font-weight: 600; }
 .at-saved { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px 0 7px; border-radius: 999px; background: var(--verify-soft); color: var(--verify); font-size: 12px; font-weight: 650; white-space: nowrap; }
 .at-saved svg { width: 13px; height: 13px; stroke-width: 2.6; }
+.at-saved.is-off { border: 0; cursor: pointer; background: var(--warn-soft); color: var(--warn); font-family: inherit; }
+.at-saved.is-off:hover { box-shadow: 0 0 0 1px currentColor; }
 
 .at-cmdk {
   flex: 0 6 290px; min-width: 150px; display: inline-flex; align-items: center; gap: 9px; height: 36px; padding: 0 8px 0 12px; border-radius: 10px;
@@ -363,6 +365,12 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 .at .res-tools { gap: 10px; }
 .at .res-tools .field { min-width: 176px; font-size: 12px; gap: 4px; }
 .at .res-tools .select { min-height: 36px; font-size: 13.5px; border-width: 1px; }
+.at .res-tools { align-items: flex-end; }
+.res-undo { display: inline-flex; align-self: flex-end; gap: 2px; padding: 2px; border: 1px solid var(--rule-2); border-radius: 11px; background: var(--card); }
+.res-undo .icon-btn { width: 32px; height: 32px; border-radius: 8px; border: 0; color: var(--ink-2); }
+.res-undo .icon-btn svg { width: 16px; height: 16px; }
+.res-undo .icon-btn:hover:not(:disabled) { background: var(--sheet); color: var(--ink); box-shadow: var(--shadow-sm); }
+.res-undo .icon-btn:disabled { opacity: 0.38; cursor: default; }
 .at .tabs { gap: 2px; padding: 4px; border: 1px solid var(--rule-2); border-radius: 13px; background: var(--card); }
 .at .tab { padding: 8px 13px; border-radius: 9px; font-size: 13.5px; transition: color 0.15s, background 0.15s, box-shadow 0.15s; }
 .at .tab svg { width: 15px; height: 15px; }
@@ -398,6 +406,7 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
   .at .ins, .at .addsrc, .at .xp-go, .at .xp-fields { grid-template-columns: 1fr; }
   .at .ins-wide { grid-column: auto; }
   .at .res-tools, .at .res-tools .field { width: 100%; }
+  .at .res-tools .res-undo { width: auto; }
   .at .tab { flex: 0 0 auto; }
 }
 

@@ -5,6 +5,7 @@ import { fetchRemote, pushRemote } from '@/lib/cloud';
 import { fromSaved, type Saved } from '@/lib/library';
 import { DEFAULT_THEME, MODE_LABEL, SHARE_MODES, SHARE_THEMES, isShareMode, isShareTheme, themeMeta, type ShareTheme } from '@/lib/share-themes';
 import { buildShareView } from '@/lib/share-view';
+import { EXPIRY_PRESETS, PASSWORD_MAX, endOfDay, formatExpiry, passwordProblem, type ExpiryPreset } from '@/lib/share-access';
 import { STYLES, STYLE_GROUPS } from '@/lib/styles';
 import type { Mode } from '@/lib/types';
 import { Icon } from '../Icon';
@@ -12,7 +13,18 @@ import { toast } from '../toast';
 import { SharePreview } from './SharePreview';
 import { ThemeThumb } from './ThemeThumb';
 
-export type ShareState = { token: string; url: string; theme: ShareTheme; style: string; mode: Mode; views: number };
+export type ShareState = {
+  token: string; url: string; theme: ShareTheme; style: string; mode: Mode; views: number;
+  /* ISO date-time, or null for a link that never expires */
+  expiresAt: string | null; expired: boolean; hasPassword: boolean;
+};
+
+/* 'keep' leaves an existing expiry date as it is */
+type ExpiryChoice = 'keep' | ExpiryPreset | 'custom';
+type PasswordChoice = 'keep' | 'set' | 'remove';
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const isoDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 type Props = {
   id: string;
@@ -49,6 +61,10 @@ export function ShareDialog({ id, title, owner, saved, onClose, onChange }: Prop
   const [theme, setTheme] = useState<ShareTheme>(DEFAULT_THEME);
   const [style, setStyleRaw] = useState(saved && STYLES[saved.style] ? saved.style : 'apa');
   const [mode, setMode] = useState<Mode>(saved && isShareMode(saved.mode) ? saved.mode : 'intext');
+  const [expiry, setExpiry] = useState<ExpiryChoice>('never');
+  const [customDate, setCustomDate] = useState('');
+  const [pwChoice, setPwChoice] = useState<PasswordChoice>('keep');
+  const [password, setPassword] = useState('');
 
   /* sync the latest copy to the account, then learn whether a link already exists */
   useEffect(() => {
@@ -67,6 +83,7 @@ export function ShareDialog({ id, title, owner, saved, onClose, onChange }: Prop
           setTheme(st.theme);
           setStyleRaw(st.style);
           setMode(st.mode);
+          setExpiry(st.expiresAt ? 'keep' : 'never');
         } else {
           let last: string | null = null;
           try {
@@ -114,7 +131,24 @@ export function ShareDialog({ id, title, owner, saved, onClose, onChange }: Prop
     [data, name, owner, style, mode],
   );
 
-  const dirty = Boolean(live && (live.theme !== theme || live.style !== style || live.mode !== mode));
+  /* the expiry and password changes to send; nothing when they're unchanged */
+  const access = useMemo((): { expires?: string; password?: string | null; error?: string } => {
+    const out: { expires?: string; password?: string | null; error?: string } = {};
+    if (expiry === 'custom') {
+      const iso = endOfDay(customDate);
+      if (!iso || Date.parse(iso) <= Date.now()) out.error = 'Pick a future date for the link to expire.';
+      else out.expires = iso;
+    } else if (expiry !== 'keep' && !(expiry === 'never' && !live?.expiresAt)) out.expires = expiry;
+    if (pwChoice === 'set') {
+      const problem = passwordProblem(password);
+      if (problem) out.error = out.error || `Password: ${problem}`;
+      else out.password = password;
+    } else if (pwChoice === 'remove' && live?.hasPassword) out.password = null;
+    return out;
+  }, [expiry, customDate, pwChoice, password, live]);
+  const accessDirty = access.expires !== undefined || access.password !== undefined || Boolean(access.error);
+  const designDirty = Boolean(live && (live.theme !== theme || live.style !== style || live.mode !== mode));
+  const dirty = Boolean(live && (designDirty || accessDirty));
 
   const copyText = async (text: string) => {
     try {
@@ -126,10 +160,15 @@ export function ShareDialog({ id, title, owner, saved, onClose, onChange }: Prop
   };
 
   const publish = async () => {
+    if (access.error) return toast(access.error, true);
     setBusy(true);
     try {
-      const st = await call<ShareState>(`/api/traces/${id}/share`, 'POST', { theme, style, mode });
+      const { error: _e, ...changes } = access;
+      const st = await call<ShareState>(`/api/traces/${id}/share`, 'POST', { theme, style, mode, ...changes });
       setLive(st);
+      setExpiry(st.expiresAt ? 'keep' : 'never');
+      setPwChoice('keep');
+      setPassword('');
       onChange?.(st);
       try {
         localStorage.setItem(LAST_THEME, theme);
@@ -158,6 +197,9 @@ export function ShareDialog({ id, title, owner, saved, onClose, onChange }: Prop
     try {
       await call(`/api/traces/${id}/share`, 'DELETE');
       setLive(null);
+      setExpiry('never');
+      setPwChoice('keep');
+      setPassword('');
       onChange?.(null);
       toast('Link turned off');
     } catch (e) {
@@ -181,8 +223,8 @@ export function ShareDialog({ id, title, owner, saved, onClose, onChange }: Prop
           </div>
           <div className="shd-head-end">
             {live && (
-              <span className="shd-live">
-                <i /> Live · {live.views} view{live.views === 1 ? '' : 's'}
+              <span className={`shd-live${live.expired ? ' is-expired' : ''}`}>
+                <i /> {live.expired ? 'Expired' : 'Live'} · {live.views} view{live.views === 1 ? '' : 's'}
               </span>
             )}
             <button type="button" className="icon-btn" onClick={onClose} aria-label="Close" autoFocus>
@@ -241,6 +283,94 @@ export function ShareDialog({ id, title, owner, saved, onClose, onChange }: Prop
             </section>
             {notes && mode === 'intext' && <p className="shd-note">{STYLES[style].name} cites with notes, so footnotes are shown.</p>}
             <p className="shd-hint">Viewers can switch the citation style themselves and download BibTeX. The design is yours to choose.</p>
+            {ready && (
+            <section className="shd-access">
+              <h3 className="shd-lbl">Access</h3>
+              <label className="field">
+                Link expires
+                <select className="select" value={expiry} onChange={(e) => setExpiry(e.target.value as ExpiryChoice)}>
+                  {live?.expiresAt && (
+                    <option value="keep">
+                      {live.expired ? 'Expired on' : 'Keep:'} {formatExpiry(live.expiresAt)}
+                    </option>
+                  )}
+                  {EXPIRY_PRESETS.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.days ? `${p.label} from now` : p.label}
+                    </option>
+                  ))}
+                  <option value="custom">On a date…</option>
+                </select>
+              </label>
+              {expiry === 'custom' && (
+                <label className="field">
+                  Last day the link works
+                  <input
+                    className="input"
+                    type="date"
+                    value={customDate}
+                    min={isoDay(new Date())}
+                    onChange={(e) => setCustomDate(e.target.value)}
+                  />
+                </label>
+              )}
+              {live?.expired && expiry === 'keep' && (
+                <p className="shd-note">
+                  <Icon name="clock" /> This link has expired. Pick a new expiry to open it again.
+                </p>
+              )}
+
+              {live?.hasPassword && pwChoice !== 'set' ? (
+                <div className="shd-pw">
+                  <span className={pwChoice === 'remove' ? 'is-off' : ''}>
+                    <Icon name="lock" /> {pwChoice === 'remove' ? 'Password will be removed' : 'Password protected'}
+                  </span>
+                  {pwChoice === 'remove' ? (
+                    <button type="button" className="shd-mini" onClick={() => setPwChoice('keep')}>
+                      Keep it
+                    </button>
+                  ) : (
+                    <>
+                      <button type="button" className="shd-mini" onClick={() => setPwChoice('set')}>
+                        Change
+                      </button>
+                      <button type="button" className="shd-mini" onClick={() => setPwChoice('remove')}>
+                        Remove
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={pwChoice === 'set'}
+                    onChange={(e) => {
+                      setPwChoice(e.target.checked ? 'set' : 'keep');
+                      if (!e.target.checked) setPassword('');
+                    }}
+                  />
+                  {live?.hasPassword ? 'Set a new password' : 'Require a password'}
+                </label>
+              )}
+              {pwChoice === 'set' && (
+                <label className="field">
+                  <span className="sr-only">Password for the link</span>
+                  <input
+                    className="input"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="At least 4 characters"
+                    value={password}
+                    maxLength={PASSWORD_MAX}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoFocus
+                  />
+                  <small className="shd-hint">Viewers enter it before they can read the trace. Share it separately from the link.</small>
+                </label>
+              )}
+            </section>
+            )}
           </aside>
 
           <main className="shd-main">
@@ -265,7 +395,24 @@ export function ShareDialog({ id, title, owner, saved, onClose, onChange }: Prop
           </div>
           {dirty && live && (
             <p className="shd-dirty">
-              <Icon name="alert" /> The live link still shows {themeMeta(live.theme).name} in {STYLES[live.style]?.name || live.style}. Update it to publish these changes.
+              <Icon name="alert" />{' '}
+              {designDirty
+                ? `The live link still shows ${themeMeta(live.theme).name} in ${STYLES[live.style]?.name || live.style}. Update it to publish these changes.`
+                : 'Update the link to apply the new access settings.'}
+            </p>
+          )}
+          {live && (live.expiresAt || live.hasPassword) && !dirty && (
+            <p className="shd-access-sum">
+              {live.expiresAt && (
+                <span>
+                  <Icon name="clock" /> {live.expired ? 'Expired' : 'Expires'} {formatExpiry(live.expiresAt)}
+                </span>
+              )}
+              {live.hasPassword && (
+                <span>
+                  <Icon name="lock" /> Password
+                </span>
+              )}
             </p>
           )}
           <div className="shd-actions">

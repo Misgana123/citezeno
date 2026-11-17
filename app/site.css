@@ -210,6 +210,17 @@
 /* ---------- library page ---------- */
 .libm-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
 .libm-bar .select { width: auto; }
+.libm-bar .btn { min-height: 44px; }
+.lib-full { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: var(--thread-soft); color: var(--ink-2); font-size: 13.5px; line-height: 1.5; }
+.lib-full svg { flex: none; width: 17px; height: 17px; margin-top: 1px; color: var(--thread); }
+.lib-full b { color: var(--ink); }
+.drawer .lib-full { margin: 12px 12px 0; }
+.drawer-tools { display: flex; justify-content: flex-end; padding: 10px 12px 0; }
+.evict-item { display: grid; gap: 3px; padding: 12px 14px; border: 1px solid var(--rule-2); border-radius: 12px; background: var(--card); }
+.evict-item b { font-size: 15px; color: var(--ink); line-height: 1.35; overflow-wrap: anywhere; }
+.evict-item span { font-size: 12.5px; color: var(--ink-3); }
+.dialog p.evict-hint { margin: 14px 0 0; font-size: 13.5px; }
+.evict .dialog-actions { flex-wrap: wrap; }
 .libm-search { position: relative; flex: 1 1 280px; }
 .libm-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--ink-3); }
 .libm-search .input { padding-left: 36px; }
@@ -221,6 +232,9 @@
 .libm-actions { display: flex; align-items: center; gap: 6px; flex: none; }
 .lib-meta .shared { background: var(--verify-soft) !important; color: var(--verify) !important; display: inline-flex; align-items: center; gap: 4px; }
 .lib-meta .shared svg { width: 12px; height: 12px; }
+.lib-meta .expires, .lib-meta .locked, .lib-meta .expired { display: inline-flex; align-items: center; gap: 4px; }
+.lib-meta .expires svg, .lib-meta .locked svg, .lib-meta .expired svg { width: 12px; height: 12px; }
+.lib-meta .expired { background: var(--warn-soft) !important; color: var(--warn) !important; }
 .lib-empty { text-align: center; padding: 64px 16px; display: grid; justify-items: center; gap: 10px; color: var(--ink-2); }
 .lib-empty svg { width: 36px; height: 36px; color: var(--thread); }
 .lib-empty p { margin: 0 0 8px; }

@@ -68,6 +68,11 @@ alter table trace add column if not exists "titleLocked" boolean not null defaul
 -- The design a shared trace is published in (v5); see lib/share-themes.ts
 alter table trace add column if not exists "shareTheme"  text;
 
+-- Share link expiry and optional password (v6). Both null = the link works as before.
+-- "sharePassword" holds a scrypt hash (the same hashing as account passwords), never the password.
+alter table trace add column if not exists "shareExpiresAt" timestamptz;
+alter table trace add column if not exists "sharePassword"  text;
+
 -- Admin inbox state (v3)
 alter table contact_message add column if not exists handled boolean not null default false;
 
@@ -95,7 +100,7 @@ async function main() {
     console.log('Auth tables are up to date.');
   }
   await pool.query(APP_SQL);
-  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, activity).');
+  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity).');
 }
 
 main()

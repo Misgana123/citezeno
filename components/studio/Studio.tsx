@@ -9,12 +9,13 @@ import {
 } from '@/lib/engine';
 import { useSession } from '@/lib/auth-client';
 import { deleteRemote, fetchRemote, pushRemote, syncLibrary, type LibItem } from '@/lib/cloud';
-import { fromSaved, loadLibrary, removeEntry, toSaved, upsert, type Saved } from '@/lib/library';
+import { ACCOUNT_MAX, ACCOUNT_NOTICE, LOCAL_MAX, evictionFor, fromSaved, loadLibrary, removeEntry, toSaved, upsert, type Saved } from '@/lib/library';
 import { SAMPLES } from '@/lib/samples';
 import { STYLES, STYLE_GROUPS } from '@/lib/styles';
 import { enrich } from '@/lib/sources';
 import { analyse, chooseClaims, isEligible, locate, topicTokens } from '@/lib/text';
 import { CREDITS_PER_CLAIM } from '@/lib/pricing';
+import { emptyHistory, isTextTarget, record, redo, undo, undoKey, type History } from '@/lib/undo';
 import { DEFAULT_PREFS, type ApiSettings, type Mode, type Prefs, type Result, type Source } from '@/lib/types';
 import { CreditsPill, RailLink, openPalette } from '../app/AppShell';
 import { registerCommands, type Command } from '../CommandPalette';
@@ -25,6 +26,7 @@ import { toast } from '../toast';
 import { usePersistent } from '../usePersistent';
 import { OutOfCredits, refundCredits, spendCredits, useCredits } from '../useCredits';
 import { CreditsDialog } from './CreditsDialog';
+import { EvictDialog } from './EvictDialog';
 import { Controls, MODES } from './Controls';
 import { Editor, type EditorApi } from './Editor';
 import { LibraryDrawer } from './LibraryDrawer';
@@ -55,6 +57,12 @@ export function Studio() {
   const [prefs, setPrefsRaw] = usePersistent<Prefs>('prefs', DEFAULT_PREFS, mergePrefs);
   const [settings, setSettings] = usePersistent<ApiSettings>('settings', {});
   const [result, setResult] = useState<Result | null>(null);
+  /* undo/redo for source edits; it starts again with each new trace */
+  const [hist, setHist] = useState<History<Result>>(emptyHistory);
+  const resultRef = useRef(result);
+  resultRef.current = result;
+  const histRef = useRef(hist);
+  histRef.current = hist;
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState<StepView>(IDLE);
   const [log, setLog] = useState<LogLine[]>([]);
@@ -69,6 +77,16 @@ export function Studio() {
   const editorApi = useRef<EditorApi | null>(null);
   const [doc, setDocRaw] = usePersistent<DocOptions>('doc', DEFAULT_DOC, (d) => ({ ...DEFAULT_DOC, ...d }));
   const [library, setLibrary] = useState<LibItem[]>([]);
+  const libraryRef = useRef(library);
+  libraryRef.current = library;
+  /* whether the account's list has been loaded, so its size is known */
+  const accountKnown = useRef(false);
+  /* saving a new trace into a full library asks first (see EvictDialog) */
+  const [evict, setEvict] = useState<{ victim: LibItem; entryId: string } | null>(null);
+  const evictOk = useRef<string | null>(null);
+  const [unsaved, setUnsaved] = useState<string | null>(null);
+  const [saveTick, setSaveTick] = useState(0);
+  const nearFullTold = useRef(false);
   const { data: session } = useSession();
   const userId = session?.user.id;
   const syncWarned = useRef(false);
@@ -97,10 +115,15 @@ export function Studio() {
   useEffect(() => {
     const local = loadLibrary();
     setLibrary(local);
+    accountKnown.current = false;
     if (!userId) return;
     let live = true;
     syncLibrary(local)
-      .then((list) => live && setLibrary(list))
+      .then((list) => {
+        if (!live) return;
+        accountKnown.current = true;
+        setLibrary(list);
+      })
       .catch(() => live && toast('Couldn’t reach your account library. Showing traces in this browser.', true));
     return () => {
       live = false;
@@ -110,13 +133,26 @@ export function Studio() {
 
   /* keep the library entry for the open trace up to date */
   useEffect(() => {
-    if (!result || !entryId) return;
+    if (!result || !entryId || unsaved === entryId) return;
     const t = setTimeout(() => {
+      const lib = libraryRef.current;
+      const isNew = !lib.some((x) => x.id === entryId);
+      // a full library loses its oldest trace: ask before that happens
+      if (isNew && evictOk.current !== entryId) {
+        const cap = userId ? (accountKnown.current ? ACCOUNT_MAX : Infinity) : LOCAL_MAX;
+        const victim = evictionFor(lib, entryId, cap);
+        if (victim) return setEvict({ victim, entryId });
+      }
       const text = tracedDraft.current;
       const entry = toSaved(entryId, suggestTitle(text), text, prefs.style, prefs.mode, result);
       const local = upsert(entry);
       if (!userId) return setLibrary(local);
-      setLibrary((prev) => [entry, ...prev.filter((x) => x.id !== entry.id)]);
+      // the account keeps its newest ACCOUNT_MAX traces
+      setLibrary((prev) => [entry, ...prev.filter((x) => x.id !== entry.id)].sort((a, b) => b.savedAt - a.savedAt).slice(0, ACCOUNT_MAX));
+      if (isNew && accountKnown.current && lib.length + 1 >= ACCOUNT_NOTICE && !nearFullTold.current) {
+        nearFullTold.current = true;
+        toast(`Your library holds ${Math.min(lib.length + 1, ACCOUNT_MAX)} of ${ACCOUNT_MAX} traces. Download or delete old ones to make room.`);
+      }
       pushRemote(entry).then(
         () => (syncWarned.current = false),
         (e: Error) => {
@@ -127,7 +163,7 @@ export function Studio() {
       );
     }, 400);
     return () => clearTimeout(t);
-  }, [result, entryId, prefs.style, prefs.mode, userId]);
+  }, [result, entryId, prefs.style, prefs.mode, userId, unsaved, saveTick]);
 
   const deferred = useDeferredValue(draft);
   const analysis = useMemo(() => (deferred.trim() ? analyse(deferred) : null), [deferred]);
@@ -185,6 +221,7 @@ export function Studio() {
       ok = true;
       annotations.current = {};
       tracedDraft.current = draft;
+      setHist(emptyHistory());
       setEntryId(`t${Date.now().toString(36)}`);
       if (!doc.title.trim()) setDoc({ title: suggestTitle(draft) });
       setResult(r);
@@ -279,6 +316,8 @@ export function Studio() {
         }
         const next = attachClaim(result, a, sid, text.trim().replace(/\s+/g, ' '), found, n);
         tracedDraft.current = draft;
+        // a paid result: earlier steps can't be undone past it
+        setHist(emptyHistory());
         if (!entryId) setEntryId(`t${Date.now().toString(36)}`);
         if (!doc.title.trim()) setDoc({ title: suggestTitle(draft) });
         setResult(next);
@@ -298,6 +337,38 @@ export function Studio() {
     },
     [citing, running, draft, prefs, settings, result, entryId, doc.title, setDoc],
   );
+
+  /* apply a source edit, remembering the previous result for undo */
+  const edit = (next: Result, label: string, key?: string) => {
+    const prev = resultRef.current;
+    if (!prev) return;
+    setHist((h) => record(h, prev, label, key));
+    setResult(next);
+  };
+  const step = useCallback((dir: 'undo' | 'redo') => {
+    const r = resultRef.current;
+    if (!r) return;
+    const s = (dir === 'undo' ? undo : redo)(histRef.current, r);
+    if (!s) return;
+    setHist(s.history);
+    setResult(s.value);
+    toast(`${dir === 'undo' ? 'Undone' : 'Redone'}: ${s.label}`);
+  }, []);
+  const canUndo = hist.past.length > 0;
+  const canRedo = hist.future.length > 0;
+
+  /* Ctrl+Z / Ctrl+Shift+Z (Cmd on a Mac), unless the focus is in a text field */
+  useEffect(() => {
+    if (!result) return;
+    const k = (e: KeyboardEvent) => {
+      const a = undoKey(e);
+      if (!a || isTextTarget(e.target)) return;
+      e.preventDefault();
+      step(a);
+    };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [result, step]);
 
   /* command palette entries for this page */
   useEffect(() => {
@@ -329,17 +400,19 @@ export function Studio() {
     }
     if (result) {
       cmds.push(
+        { id: 'undo', group: 'Results', label: 'Undo the last source change', icon: 'undo' as const, meta: 'Ctrl Z', keywords: 'undo revert back', run: () => step('undo') },
+        { id: 'redo', group: 'Results', label: 'Redo the source change', icon: 'redo' as const, meta: 'Ctrl Shift Z', keywords: 'redo again forward', run: () => step('redo') },
         { id: 'dl-doc', group: 'Results', label: 'Download as Word or PDF', icon: 'download', keywords: 'export docx pdf print word', run: () => { setTab('export'); resultsEl.current?.scrollIntoView({ behavior: 'smooth' }); } },
       );
     }
     return registerCommands('studio', cmds);
-  }, [run, setPrefs, setDraft, result]);
+  }, [run, setPrefs, setDraft, result, step]);
 
   const onReplace = (oldId: string, newId: string) => {
     if (!result) return;
     const next = replaceSource(result, oldId, newId);
     if (!next) return toast('That work is already in your list.');
-    setResult(next);
+    edit(next, 'source replaced');
     toast('Source replaced');
     const s = next.db.get(newId);
     if (s && s.doi && (!s.pages || !s.volume)) {
@@ -347,7 +420,8 @@ export function Studio() {
     }
   };
   const onPin = (id: string, pin: string) => {
-    setResult((r) => (r ? { ...r, pins: { ...(r.pins || {}), [id]: pin } } : r));
+    if (!result) return;
+    edit({ ...result, pins: { ...(result.pins || {}), [id]: pin } }, 'page number changed', `pin:${id}`);
   };
   const openEntry = async (item: LibItem) => {
     let it: Saved;
@@ -362,6 +436,7 @@ export function Studio() {
     }
     annotations.current = {};
     tracedDraft.current = it.draft;
+    setHist(emptyHistory());
     setDraft(it.draft);
     setPrefs({ style: it.style, mode: it.mode as Mode });
     setResult(fromSaved(it));
@@ -375,6 +450,7 @@ export function Studio() {
   /* the share dialog: pick a design, preview the public page, then create the link */
   const openShare = () => {
     if (!result || !entryId) return toast('Trace your draft first, then share it.', true);
+    if (unsaved === entryId) return toast('Save this trace to your library first (“Save” at the top), then share it.', true);
     setShareOpen(true);
   };
 
@@ -391,13 +467,13 @@ export function Studio() {
 
   const onRemove = (id: string) => {
     if (!result) return;
-    setResult(removeSource(result, id));
+    edit(removeSource(result, id), 'source removed');
     toast('Source removed');
   };
   const onAdd = (s: Source, ci: number) => {
     if (!result) return;
     const { result: next, message } = addSource(result, s, ci);
-    setResult(next);
+    edit(next, 'source added');
     toast(message);
   };
 
@@ -425,7 +501,6 @@ export function Studio() {
           {rail('sliders', 'Trace settings', () => setDrawer('insp'), { cls: 'at-only-compact', short: 'Settings' })}
           {rail('search', 'Commands', openPalette, { cls: 'at-only-phone', short: 'Search' })}
           <RailLink href="/history" icon="clock" label="History" cls="at-hide-phone" />
-          <RailLink href="/styles" icon="book" label="Citation styles guide" cls="at-hide-phone" />
         </div>
         <div className="at-rail-end">
           <RailLink href="/#method" icon="help" label="How it works" cls="at-hide-phone" />
@@ -441,9 +516,15 @@ export function Studio() {
           <span className="at-crumb">Studio</span>
           <span className="at-crumb-sep" aria-hidden="true">/</span>
           <input value={doc.title} onChange={(e) => setDoc({ title: e.target.value })} placeholder="Untitled draft" aria-label="Document title" spellCheck={false} />
-          <span className="at-saved" title={userId ? 'Saved to your account' : 'Saved in this browser'}>
-            <Icon name="check" /> <span>{userId ? 'Saved to your account' : 'Saved in this browser'}</span>
-          </span>
+          {entryId && unsaved === entryId ? (
+            <button className="at-saved is-off" onClick={() => setUnsaved(null)} title="This trace isn’t in your library. Click to save it.">
+              <Icon name="alert" /> <span>Not saved · Save</span>
+            </button>
+          ) : (
+            <span className="at-saved" title={userId ? 'Saved to your account' : 'Saved in this browser'}>
+              <Icon name="check" /> <span>{userId ? 'Saved to your account' : 'Saved in this browser'}</span>
+            </span>
+          )}
         </div>
         <button className="at-cmdk" onClick={openPalette} aria-label="Open the command menu">
           <Icon name="search" />
@@ -551,6 +632,7 @@ export function Studio() {
                 onRemove={onRemove}
                 onAdd={onAdd}
                 onPin={onPin}
+                history={{ canUndo, canRedo, undoLabel: hist.past[hist.past.length - 1]?.label, redoLabel: hist.future[hist.future.length - 1]?.label, onUndo: () => step('undo'), onRedo: () => step('redo') }}
               />
             ) : (
               !showProgress && (
@@ -612,6 +694,25 @@ export function Studio() {
             toast('Deleted from the library');
           }}
           onClose={() => setLibOpen(false)}
+        />
+      )}
+
+      {evict && (
+        <EvictDialog
+          victim={evict.victim}
+          cap={userId ? ACCOUNT_MAX : LOCAL_MAX}
+          signedIn={Boolean(userId)}
+          onContinue={() => {
+            evictOk.current = evict.entryId;
+            setEvict(null);
+            setUnsaved(null);
+            setSaveTick((n) => n + 1);
+          }}
+          onCancel={() => {
+            setUnsaved(evict.entryId);
+            setEvict(null);
+            toast('Not saved to your library. Use “Save” at the top when you want to keep it.');
+          }}
         />
       )}
 

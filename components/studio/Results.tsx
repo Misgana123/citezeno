@@ -26,6 +26,18 @@ const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: 'export', label: 'Export', icon: 'code' },
 ];
 
+/* undo and redo for source edits, from the studio */
+export type HistoryControls = {
+  canUndo: boolean;
+  canRedo: boolean;
+  undoLabel?: string;
+  redoLabel?: string;
+  onUndo: () => void;
+  onRedo: () => void;
+};
+
+const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
 const TITLES: Record<Mode, string> = {
   intext: 'Your cited manuscript',
   footnotes: 'Your manuscript with footnotes',
@@ -67,6 +79,7 @@ export function Results({
   onPin,
   doc,
   setDoc,
+  history,
 }: {
   result: Result;
   rendered: Rendered;
@@ -81,6 +94,7 @@ export function Results({
   onPin: (id: string, pin: string) => void;
   doc: DocOptions;
   setDoc: (p: Partial<DocOptions>) => void;
+  history?: HistoryControls;
 }) {
   const { root, onMouseOver, onMouseOut } = useLinking();
   const [busy, setBusy] = useState<'' | 'word' | 'pdf'>('');
@@ -151,6 +165,28 @@ export function Results({
           </ul>
         </div>
         <div className="res-tools">
+          {history && (
+            <div className="res-undo" role="group" aria-label="Undo and redo source changes">
+              <button
+                className="icon-btn"
+                onClick={history.onUndo}
+                disabled={!history.canUndo}
+                aria-label={history.canUndo ? `Undo: ${history.undoLabel}` : 'Nothing to undo'}
+                title={history.canUndo ? `Undo: ${history.undoLabel} (${MAC ? '⌘Z' : 'Ctrl+Z'})` : 'Nothing to undo'}
+              >
+                <Icon name="undo" />
+              </button>
+              <button
+                className="icon-btn"
+                onClick={history.onRedo}
+                disabled={!history.canRedo}
+                aria-label={history.canRedo ? `Redo: ${history.redoLabel}` : 'Nothing to redo'}
+                title={history.canRedo ? `Redo: ${history.redoLabel} (${MAC ? '⇧⌘Z' : 'Ctrl+Shift+Z'})` : 'Nothing to redo'}
+              >
+                <Icon name="redo" />
+              </button>
+            </div>
+          )}
           <label className="field">
             Style
             <select className="select" value={prefs.style} onChange={(e) => setPrefs({ style: e.target.value })}>

@@ -76,12 +76,20 @@ Each button appears only when its keys are set. Register these callback URLs wit
 - **12 citation styles.** APA 7, MLA 9, Chicago 17 (notes and author-date), Turabian 9, Harvard, ASA 7, IEEE, Vancouver, AMA 11, ACS, CSE 9.
 - **5 output forms.** In-text citations, footnotes, endnotes, bibliography only, or an annotated bibliography with editable annotations.
 - **Word and PDF downloads.** A real .docx (with genuine Word footnotes, hanging-indent references, clickable links and page numbers) or a print-ready PDF. Set the title, author, paper size (A4 or US Letter), text size and line spacing, and choose the full manuscript or the reference list only. A live first-page preview shows the result.
-- **Library.** Every trace is saved in your browser so you can reopen it later, with its sources and edits. It also syncs to your account, so it follows you to any device.
+- **Library.** Every trace is saved in your browser so you can reopen it later, with its sources and edits. If you're signed in, your drafts and results are also saved to your account, so they follow you to any device.
 - **Open a file.** Load a draft from .docx, .txt or .md, by button or by dropping the file on the editor.
 - **Other matches.** Each source card lists the other works that matched its claim; pick one to replace it. Copy any single reference in the current style.
 - **Six result views.** Manuscript, References, Sources (replace, copy, remove, or add your own by DOI or ISBN), Map (claims tied to sources by threads weighted by match strength), Insights (coverage, match strength, databases, publication years), and Export (Word, PDF, BibTeX, RIS, CSL-JSON, plain text, HTML).
 - **Command menu.** Press `Ctrl K` (or `⌘ K`) to switch style or output, load a sample, change tabs, or toggle the theme. `Ctrl Enter` in the editor traces all claims, or cites the selected passage when the cite box is open.
 - **Light and dark themes.** Your draft, preferences and settings are saved in the browser.
+
+## Features added in v6
+
+- **Undo and redo for sources.** Swapping in another match, removing a source, adding one by DOI or ISBN and changing a cited page number can all be undone and redone (at least 50 steps per trace) with the buttons beside the Style menu, the command menu, or `Ctrl Z` / `Ctrl Shift Z` (`⌘` on a Mac) when the focus isn't in a text field. Typing a page number counts as one step. The history starts again with each new trace, each "Cite this claim" and each trace opened from the library. Logic in `lib/undo.ts`.
+- **No more silent library deletions.** Before a new trace would push the oldest one out of a full library (200 traces in an account, 12 in a browser), the studio names that trace and offers **Download it first**, **Continue** or **Cancel**. Cancel leaves the new trace unsaved, with a "Not saved · Save" button in the top bar. From 190 traces the library page and the studio's library drawer show a notice.
+- **Download all drafts.** A button on the library page and in the studio's library drawer builds a .zip in the browser with, for every trace, the draft (.txt), the bibliography in that trace's style (.txt) and the full trace data (.json), named by date and title (`lib/export-all.ts`).
+- **Share link expiry and password.** In the share dialog, set a link to expire never (the default), after 1, 7 or 30 days, or on a date, and optionally require a password. Passwords are hashed with the same scrypt hashing Better Auth uses for account passwords; the public page only reads a fingerprint of the hash. Wrong passwords are limited to 5 a minute per address and link, in Better Auth's `rateLimit` table. Expired links show "This link has expired"; protected links ask for the password first and remember it in that browser for 12 hours (until the password changes). The library page shows each link's expiry and password status. Turning a link off clears both. Run `npm run db:migrate` once to add the `shareExpiresAt` and `sharePassword` columns.
+- **Clearer privacy wording.** The trace settings panel now says: "Searches run in your browser. If you're signed in, your drafts and results are saved to your account so you can find them later."
 
 ## Features added in v5
 

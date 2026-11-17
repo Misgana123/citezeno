@@ -3,9 +3,10 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import type { LibItem } from '@/lib/cloud';
-import { timeAgo } from '@/lib/library';
+import { ACCOUNT_MAX, ACCOUNT_NOTICE, timeAgo } from '@/lib/library';
 import { STYLES } from '@/lib/styles';
 import { Icon } from '../Icon';
+import { DownloadAll, LibraryNearlyFull } from '../library/DownloadAll';
 
 export function LibraryDrawer({
   items,
@@ -48,6 +49,12 @@ export function LibraryDrawer({
             <Icon name="x" />
           </button>
         </header>
+        {items.length > 0 && (
+          <div className="drawer-tools">
+            <DownloadAll items={items} />
+          </div>
+        )}
+        {signedIn && items.length >= ACCOUNT_NOTICE && <LibraryNearlyFull count={items.length} max={ACCOUNT_MAX} />}
         {items.length === 0 ? (
           <div className="drawer-empty">
             <Icon name="history" />

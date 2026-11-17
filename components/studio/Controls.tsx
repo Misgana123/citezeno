@@ -210,7 +210,7 @@ export function Controls({
         </details>
 
         <p className="at-note">
-          <Icon name="shield" /> Searches go straight from your browser to the public databases. Nothing is stored on a server.
+          <Icon name="shield" /> Searches run in your browser. If you’re signed in, your drafts and results are saved to your account so you can find them later.
         </p>
         <div className="at-callout">
           <b>Check before you cite</b>

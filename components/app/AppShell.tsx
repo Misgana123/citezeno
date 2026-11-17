@@ -62,7 +62,6 @@ export function AppShell({ current, title, children }: { current: AppSection; ti
                 Commands
               </span>
             </button>
-            <RailLink href="/styles" icon="book" label="Citation styles guide" cls="at-hide-phone" />
             {current === 'admin' && <RailLink href="/admin" icon="chart" label="Admin" current cls="at-hide-phone" />}
           </div>
           <div className="at-rail-end">

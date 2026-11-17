@@ -20,7 +20,13 @@ export type Saved = {
 };
 
 const KEY = 'cz:library';
-const MAX = 12;
+/* traces kept in this browser */
+export const LOCAL_MAX = 12;
+/* traces kept in an account (the API drops the oldest beyond this) */
+export const ACCOUNT_MAX = 200;
+/* from here on the library page and drawer say the account library is nearly full */
+export const ACCOUNT_NOTICE = 190;
+const MAX = LOCAL_MAX;
 
 export function loadLibrary(): Saved[] {
   try {
@@ -69,6 +75,13 @@ export function upsert(entry: Saved): Saved[] {
   const list = [entry, ...loadLibrary().filter((x) => x.id !== entry.id)].slice(0, MAX);
   write(list);
   return list;
+}
+
+/* The trace that saving `newId` would push out of a library holding at most
+   `cap` traces: the oldest one, when `newId` is new and the library is full. */
+export function evictionFor<T extends { id: string; savedAt: number }>(items: T[], newId: string, cap: number): T | null {
+  if (!items.length || !Number.isFinite(cap) || items.length < cap || items.some((x) => x.id === newId)) return null;
+  return items.reduce((old, x) => (x.savedAt < old.savedAt ? x : old));
 }
 
 export function removeEntry(id: string): Saved[] {

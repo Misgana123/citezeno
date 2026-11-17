@@ -11,8 +11,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function LibraryPage() {
   const s = await requireSession('/library');
-  const { rows } = await pool.query<LibRow & { savedAt: Date }>(
-    `select id, title, style, mode, sources, snippet, "savedAt", "shareToken", "shareViews" from trace
+  const { rows } = await pool.query<Omit<LibRow, 'savedAt' | 'shareExpiresAt'> & { savedAt: Date; shareExpiresAt: Date | null }>(
+    `select id, title, style, mode, sources, snippet, "savedAt", "shareToken", "shareViews", "shareExpiresAt", ("sharePassword" is not null) as "shareLocked" from trace
      where "userId" = $1 order by "savedAt" desc limit 500`,
     [s.user.id],
   );
@@ -28,7 +28,7 @@ export default async function LibraryPage() {
       >
         Every trace you’ve run, synced to your account. Rename, share a read-only link, or reopen one in the studio.
       </PageHead>
-      <LibraryManager initial={rows.map((r) => ({ ...r, savedAt: new Date(r.savedAt).getTime() }))} owner={s.user.name || ''} />
+      <LibraryManager initial={rows.map((r) => ({ ...r, savedAt: new Date(r.savedAt).getTime(), shareExpiresAt: r.shareExpiresAt ? new Date(r.shareExpiresAt).getTime() : null }))} owner={s.user.name || ''} />
     </AppShell>
   );
 }
