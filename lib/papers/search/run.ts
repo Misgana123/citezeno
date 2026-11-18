@@ -1,11 +1,20 @@
 import type { OpenAlexClient } from '../openalex/client';
 import { keywordSearch } from './keyword';
-import type { SearchRequest } from './request';
+import type { SearchMode, SearchRequest } from './request';
+import { semanticSearch } from './semantic';
+import { smartSearch } from './smart';
 import type { PaperListResult } from './types';
 
-/* Picks the search for the request's mode.
-   Semantic and Smart modes arrive in the next phase; until then they run keyword search
-   (the returned list says mode "keyword"). */
-export async function runSearch(client: OpenAlexClient, req: SearchRequest): Promise<PaperListResult> {
-  return keywordSearch(client, req);
+const SEARCHES: Record<SearchMode, (client: OpenAlexClient, req: SearchRequest) => Promise<PaperListResult>> = {
+  keyword: keywordSearch,
+  semantic: semanticSearch,
+  smart: smartSearch,
+};
+
+/* Picks the search for the request's mode. */
+export function runSearch(client: OpenAlexClient, req: SearchRequest): Promise<PaperListResult> {
+  return SEARCHES[req.mode](client, req);
 }
+
+/* How many searches a mode spends (for per-user limits): Smart runs two. */
+export const searchesFor = (mode: SearchMode) => (mode === 'smart' ? 2 : 1);
