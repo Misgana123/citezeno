@@ -6,7 +6,9 @@ import type { ShelfItem } from '@/lib/shelf/types';
 import { Icon } from '../../Icon';
 import { authorsShort } from '../../papers/format';
 import { ShelfApiError, shelfFetch } from '../api';
+import { savedToast } from '../dup-hint';
 import { markSaved } from '../saved-store';
+import type { DupSummary } from '@/lib/shelf/api/saved-response';
 import type { ManualDraft } from './ManualForm';
 
 type Lookup = { via: 'doi' | 'link' | 'title'; papers: Paper[]; saved: Record<string, string> };
@@ -39,7 +41,8 @@ export function LookupTab({ projectId, onAdded, onManual }: { projectId: string 
     if (!result) return;
     setAdding(p.id);
     try {
-      const r = await shelfFetch<{ item: ShelfItem }>('/api/shelf/papers', { method: 'POST', body: { via: result.via, paperId: p.openalexId, projectId } });
+      const r = await shelfFetch<{ item: ShelfItem; possibleDuplicates: DupSummary[] }>('/api/shelf/papers', { method: 'POST', body: { via: result.via, paperId: p.openalexId, projectId } });
+      savedToast('Added to your shelf', r.possibleDuplicates);
       markSaved(p.openalexId, r.item.id);
       setResult({ ...result, saved: { ...result.saved, [p.openalexId]: r.item.id } });
       onAdded(r.item);

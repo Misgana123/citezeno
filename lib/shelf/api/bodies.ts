@@ -56,3 +56,6 @@ export const bulkBody = z.discriminatedUnion('action', [
   z.object({ action: z.literal('delete'), ids: IDS }),
 ]);
 export type BulkBody = z.infer<typeof bulkBody>;
+
+/* POST /api/shelf/duplicates */
+export const duplicateBody = z.object({ action: z.enum(['merge', 'keep_both']), a: ID, b: ID });

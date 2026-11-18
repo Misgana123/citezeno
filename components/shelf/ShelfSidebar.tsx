@@ -9,14 +9,14 @@ import type { ShelfFilters } from './shelf-state';
 import { useDismiss } from './useDismiss';
 import type { GroupsApi } from './useShelfGroups';
 
-export type ViewPick = Partial<Pick<ShelfFilters, 'project' | 'folder' | 'tag' | 'retracted'>>;
+export type ViewPick = Partial<Pick<ShelfFilters, 'project' | 'folder' | 'tag' | 'retracted' | 'dups'>>;
 
 /* The shelf's views: all papers, Unsorted, each project (with its folders) and
    each tag. Projects, folders and tags are created, renamed and deleted here. */
 export function ShelfSidebar({ open, groups, filters, onPick }: { open: boolean; groups: GroupsApi; filters: ShelfFilters; onPick: (p: ViewPick) => void }) {
   const [editing, setEditing] = useState<string | null>(null); // "new-project", "new-tag", "new-folder:<projectId>", "<id>"
-  const go = (p: ViewPick) => onPick({ project: '', folder: '', tag: '', retracted: false, ...p });
-  const isAll = !filters.project && !filters.folder && !filters.tag && !filters.retracted;
+  const go = (p: ViewPick) => onPick({ project: '', folder: '', tag: '', retracted: false, dups: false, ...p });
+  const isAll = !filters.project && !filters.folder && !filters.tag && !filters.retracted && !filters.dups;
   const foldersOf = (projectId: string) => groups.folders.filter((f) => f.projectId === projectId);
 
   const removeProject = async (p: Project) => {
@@ -31,6 +31,9 @@ export function ShelfSidebar({ open, groups, filters, onPick }: { open: boolean;
         <ViewLink icon="list" label="Unsorted" count={groups.counts.unsorted} active={filters.project === 'unsorted'} onClick={() => go({ project: 'unsorted' })} />
         {groups.counts.retracted > 0 && (
           <ViewLink icon="alert" label="Retracted" count={groups.counts.retracted} active={filters.retracted && !filters.project} onClick={() => go({ retracted: true })} warn />
+        )}
+        {(groups.counts.duplicates > 0 || filters.dups) && (
+          <ViewLink icon="swap" label="Possible duplicates" count={groups.counts.duplicates} active={filters.dups} onClick={() => go({ dups: true })} />
         )}
       </ul>
 
@@ -152,7 +155,7 @@ export function ShelfSidebar({ open, groups, filters, onPick }: { open: boolean;
   );
 }
 
-function ViewLink({ icon, label, count, active, onClick, warn = false }: { icon: 'layers' | 'list' | 'alert'; label: string; count: number; active: boolean; onClick: () => void; warn?: boolean }) {
+function ViewLink({ icon, label, count, active, onClick, warn = false }: { icon: 'layers' | 'list' | 'alert' | 'swap'; label: string; count: number; active: boolean; onClick: () => void; warn?: boolean }) {
   return (
     <li>
       <button type="button" className={`sh-view${warn ? ' is-warn' : ''}`} aria-current={active ? 'true' : undefined} onClick={onClick}>

@@ -1,5 +1,6 @@
 import { json } from '@/lib/http';
 import { saveBody } from '@/lib/shelf/api/bodies';
+import { savedResponse } from '@/lib/shelf/api/saved-response';
 import { parseListRequest } from '@/lib/shelf/api/list-request';
 import { shelfRoute } from '@/lib/shelf/route';
 import { saveManualPaper } from '@/lib/shelf/service/save-manual';
@@ -20,8 +21,9 @@ export const GET = shelfRoute(async ({ req, db, userId }) => {
 export const POST = shelfRoute(async (ctx) => {
   const body = await ctx.body(saveBody);
   if (body.via === 'manual') {
-    return json({ item: await saveManualPaper(ctx.db, ctx.userId, body.details, body.projectId), pending: false }, 201);
+    const item = await saveManualPaper(ctx.db, ctx.userId, body.details, body.projectId);
+    return json(await savedResponse(ctx.db, ctx.userId, item), 201);
   }
-  const result = await saveOpenAlexPaper({ db: ctx.db, client: ctx.openalex() }, ctx.userId, body);
-  return json(result, 201);
+  const { item, pending } = await saveOpenAlexPaper({ db: ctx.db, client: ctx.openalex() }, ctx.userId, body);
+  return json(await savedResponse(ctx.db, ctx.userId, item, pending), 201);
 });

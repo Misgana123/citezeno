@@ -15,9 +15,11 @@ export type ShelfFilters = {
   retracted: boolean;
   pdf: boolean;
   sort: ListSort;
+  /* the possible-duplicates view instead of a list */
+  dups: boolean;
 };
 
-export const EMPTY_FILTERS: ShelfFilters = { q: '', project: '', folder: '', tag: '', status: '', from: '', to: '', oa: false, retracted: false, pdf: false, sort: 'added_desc' };
+export const EMPTY_FILTERS: ShelfFilters = { q: '', project: '', folder: '', tag: '', status: '', from: '', to: '', oa: false, retracted: false, pdf: false, sort: 'added_desc', dups: false };
 
 const one = (v: string | null) => (v ?? '').trim();
 
@@ -37,6 +39,7 @@ export function filtersFromParams(p: URLSearchParams): ShelfFilters {
     retracted: p.get('retracted') === '1',
     pdf: p.get('pdf') === '1',
     sort: (LIST_SORTS as readonly string[]).includes(sort) ? (sort as ListSort) : 'added_desc',
+    dups: p.get('dups') === '1',
   };
 }
 
@@ -54,6 +57,7 @@ export function filtersToParams(f: ShelfFilters, extra: Record<string, string | 
   if (f.retracted) p.set('retracted', '1');
   if (f.pdf) p.set('pdf', '1');
   if (f.sort !== 'added_desc') p.set('sort', f.sort);
+  if (f.dups) p.set('dups', '1');
   for (const [k, v] of Object.entries(extra)) p.set(k, String(v));
   return p;
 }

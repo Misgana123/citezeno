@@ -24,7 +24,7 @@ export default async function ShelfPage({ searchParams }: Props) {
       <PageHead
         title="My shelf"
         actions={
-          <Link className="btn btn-thread btn-sm" href="/papers">
+          <Link className="btn btn-ghost btn-sm" href="/papers">
             <Icon name="search" /> Find papers
           </Link>
         }

@@ -9,9 +9,9 @@ import { shelfFetch } from './api';
 /* The user's projects, folders, tags and totals, for the sidebar and pickers,
    with the calls that change them. Every change reloads the lot (they are small). */
 
-export type Groups = { projects: Project[]; folders: Folder[]; tags: Tag[]; counts: ShelfCounts };
+export type Groups = { projects: Project[]; folders: Folder[]; tags: Tag[]; counts: ShelfCounts & { duplicates: number } };
 
-const EMPTY: Groups = { projects: [], folders: [], tags: [], counts: { all: 0, unsorted: 0, retracted: 0 } };
+const EMPTY: Groups = { projects: [], folders: [], tags: [], counts: { all: 0, unsorted: 0, retracted: 0, duplicates: 0 } };
 
 export type GroupsApi = Groups & {
   loaded: boolean;

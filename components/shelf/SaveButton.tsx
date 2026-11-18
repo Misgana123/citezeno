@@ -6,7 +6,9 @@ import type { Project } from '@/lib/shelf/types';
 import { Icon } from '../Icon';
 import { toast } from '../toast';
 import { ShelfApiError, shelfFetch, shelfItemHref } from './api';
+import { savedToast } from './dup-hint';
 import { markSaved, useSavedItem } from './saved-store';
+import type { DupSummary } from '@/lib/shelf/api/saved-response';
 import './save-button.css';
 
 /* Save a Find Papers result to the shelf in one click (it goes to Unsorted),
@@ -29,12 +31,12 @@ export function SaveButton({ paper, menuAlign = 'right' }: { paper: Paper; menuA
     setMenu(false);
     setBusy(true);
     try {
-      const r = await shelfFetch<{ item: { id: string }; pending: boolean }>('/api/shelf/papers', {
+      const r = await shelfFetch<{ item: { id: string }; pending: boolean; possibleDuplicates: DupSummary[] }>('/api/shelf/papers', {
         method: 'POST',
         body: { via: 'search', paperId: paper.openalexId, paper, projectId: project?.id ?? null },
       });
       markSaved(paper.openalexId, r.item.id);
-      toast(project ? `Saved to ${project.name}` : 'Saved to your shelf');
+      savedToast(project ? `Saved to ${project.name}` : 'Saved to your shelf', r.possibleDuplicates);
     } catch (e) {
       const err = e as ShelfApiError;
       if (err.code === 'duplicate' && err.itemId) {

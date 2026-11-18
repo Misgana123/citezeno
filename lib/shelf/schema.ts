@@ -89,4 +89,13 @@ create table if not exists shelf_item_tag (
   primary key ("itemId", "tagId")
 );
 create index if not exists shelf_item_tag_t on shelf_item_tag ("tagId");
+
+-- Pairs of papers the user said are not duplicates ("Keep both"). itemA < itemB.
+create table if not exists shelf_not_duplicate (
+  "userId" text not null references "user"(id) on delete cascade,
+  "itemA"  text not null references shelf_item(id) on delete cascade,
+  "itemB"  text not null references shelf_item(id) on delete cascade,
+  primary key ("userId", "itemA", "itemB"),
+  check ("itemA" < "itemB")
+);
 `;

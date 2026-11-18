@@ -5,6 +5,8 @@ import type { ShelfItem } from '@/lib/shelf/types';
 import { Icon } from '../../Icon';
 import { toast } from '../../toast';
 import { ShelfApiError, shelfFetch } from '../api';
+import { savedToast } from '../dup-hint';
+import type { DupSummary } from '@/lib/shelf/api/saved-response';
 import type { GroupsApi } from '../useShelfGroups';
 import { LookupTab } from './LookupTab';
 import { emptyDraft, ManualForm, type ManualDraft } from './ManualForm';
@@ -63,9 +65,9 @@ export function AddPapersDialog({
           submitLabel="Add paper"
           onSubmit={async (details) => {
             try {
-              const r = await shelfFetch<{ item: ShelfItem }>('/api/shelf/papers', { method: 'POST', body: { via: 'manual', details, projectId: c.projectId } });
+              const r = await shelfFetch<{ item: ShelfItem; possibleDuplicates: DupSummary[] }>('/api/shelf/papers', { method: 'POST', body: { via: 'manual', details, projectId: c.projectId } });
               c.onAdded(r.item);
-              toast('Added to your shelf');
+              savedToast('Added to your shelf', r.possibleDuplicates);
               setDraft(emptyDraft());
               return null;
             } catch (e) {

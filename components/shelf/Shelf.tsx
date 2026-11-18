@@ -10,6 +10,7 @@ import { toast } from '../toast';
 import { AddPapersDialog } from './add/AddPapersDialog';
 import { shelfFetch } from './api';
 import { BulkBar, type DistributiveOmit } from './BulkBar';
+import { DuplicatesView } from './DuplicatesView';
 import { runBulk } from './bulk';
 import { ItemDrawer } from './ItemDrawer';
 import { markSaved } from './saved-store';
@@ -166,91 +167,103 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
           </button>
         </div>
 
-        <div className="sh-tools">
-          <div className="seg sh-seg" role="group" aria-label="Reading status">
-            <button type="button" aria-pressed={!filters.status} onClick={() => patchFilters({ status: '' })}>
-              All
-            </button>
-            {READING_STATUSES.map((s) => (
-              <button key={s} type="button" aria-pressed={filters.status === s} onClick={() => patchFilters({ status: s })}>
-                {STATUS_LABELS[s]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="fp-results-head">
-          <p className="fp-count" role="status">
-            {list.status === 'loading' ? 'Loading…' : `${formatCount(list.total)} paper${list.total === 1 ? '' : 's'}`}
-          </p>
-          <label className="fp-sort">
-            Sort
-            <select className="select" value={filters.sort} onChange={(e) => patchFilters({ sort: e.target.value as ListSort })}>
-              {Object.entries(SORT_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        {selected.size > 0 && (
-          <BulkBar
-            count={selected.size}
-            groups={groups}
-            viewProjectId={filters.project && filters.project !== 'unsorted' ? filters.project : null}
-            busy={busy}
-            onRun={bulk}
-            onDelete={bulkDelete}
-            onClear={() => setSelected(new Set())}
-            onSelectAll={selected.size < list.items.length ? () => setSelected(new Set(list.items.map((i) => i.id))) : undefined}
+        {filters.dups ? (
+          <DuplicatesView
+            onChanged={(removedId) => {
+              list.reload();
+              void groups.reload();
+              if (removedId) setOpen((o) => (o?.id === removedId ? null : o));
+            }}
           />
-        )}
-
-        {list.status === 'loading' ? (
-          <div className="fp-loading" role="status" aria-label="Loading your shelf">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="hist-loading fp-skel" />
-            ))}
-          </div>
-        ) : list.status === 'error' && !list.items.length ? (
-          <div className="fp-error" role="alert">
-            <Icon name="alert" />
-            <p>{list.error?.message}</p>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={list.reload}>
-              Try again
-            </button>
-          </div>
-        ) : !list.items.length ? (
-          <EmptyView everything={!query || query === `sort=${filters.sort}`} onShowAll={() => setFilters(filtersFromParams(new URLSearchParams()))} />
         ) : (
           <>
-            <ol className="fp-list">
-              {list.items.map((item) => (
-                <ShelfCard
-                  key={item.id}
-                  item={item}
-                  tags={tagMap}
-                  active={open?.id === item.id}
-                  selected={selected.has(item.id)}
-                  onSelect={select}
-                  onOpen={setOpen}
-                  onStatus={setStatus}
-                  onRemove={remove}
-                />
-              ))}
-            </ol>
-            {list.hasMore && (
-              <div className="fp-more">
-                <button type="button" className="btn btn-ghost" onClick={list.loadMore} disabled={list.status === 'more'}>
-                  {list.status === 'more' ? <span className="spin" aria-hidden="true" /> : <Icon name="plus" />}
-                  {list.status === 'more' ? 'Loading…' : 'Load more'}
+            <div className="sh-tools">
+              <div className="seg sh-seg" role="group" aria-label="Reading status">
+                <button type="button" aria-pressed={!filters.status} onClick={() => patchFilters({ status: '' })}>
+                  All
                 </button>
-                <span className="small">
-                  Showing {formatCount(list.items.length)} of {formatCount(list.total)}
-                </span>
+                {READING_STATUSES.map((s) => (
+                  <button key={s} type="button" aria-pressed={filters.status === s} onClick={() => patchFilters({ status: s })}>
+                    {STATUS_LABELS[s]}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            <div className="fp-results-head">
+              <p className="fp-count" role="status">
+                {list.status === 'loading' ? 'Loading…' : `${formatCount(list.total)} paper${list.total === 1 ? '' : 's'}`}
+              </p>
+              <label className="fp-sort">
+                Sort
+                <select className="select" value={filters.sort} onChange={(e) => patchFilters({ sort: e.target.value as ListSort })}>
+                  {Object.entries(SORT_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {selected.size > 0 && (
+              <BulkBar
+                count={selected.size}
+                groups={groups}
+                viewProjectId={filters.project && filters.project !== 'unsorted' ? filters.project : null}
+                busy={busy}
+                onRun={bulk}
+                onDelete={bulkDelete}
+                onClear={() => setSelected(new Set())}
+                onSelectAll={selected.size < list.items.length ? () => setSelected(new Set(list.items.map((i) => i.id))) : undefined}
+              />
+            )}
+
+            {list.status === 'loading' ? (
+              <div className="fp-loading" role="status" aria-label="Loading your shelf">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="hist-loading fp-skel" />
+                ))}
+              </div>
+            ) : list.status === 'error' && !list.items.length ? (
+              <div className="fp-error" role="alert">
+                <Icon name="alert" />
+                <p>{list.error?.message}</p>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={list.reload}>
+                  Try again
+                </button>
+              </div>
+            ) : !list.items.length ? (
+              <EmptyView everything={!query || query === `sort=${filters.sort}`} onShowAll={() => setFilters(filtersFromParams(new URLSearchParams()))} />
+            ) : (
+              <>
+                <ol className="fp-list">
+                  {list.items.map((item) => (
+                    <ShelfCard
+                      key={item.id}
+                      item={item}
+                      tags={tagMap}
+                      active={open?.id === item.id}
+                      selected={selected.has(item.id)}
+                      onSelect={select}
+                      onOpen={setOpen}
+                      onStatus={setStatus}
+                      onRemove={remove}
+                    />
+                  ))}
+                </ol>
+                {list.hasMore && (
+                  <div className="fp-more">
+                    <button type="button" className="btn btn-ghost" onClick={list.loadMore} disabled={list.status === 'more'}>
+                      {list.status === 'more' ? <span className="spin" aria-hidden="true" /> : <Icon name="plus" />}
+                      {list.status === 'more' ? 'Loading…' : 'Load more'}
+                    </button>
+                    <span className="small">
+                      Showing {formatCount(list.items.length)} of {formatCount(list.total)}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -279,6 +292,7 @@ function viewTitle(f: ShelfFilters, g: ReturnType<typeof useShelfGroups>): strin
   if (f.project) return g.projects.find((x) => x.id === f.project)?.name ?? 'Project';
   if (f.tag) return `#${g.tags.find((x) => x.id === f.tag)?.name ?? 'tag'}`;
   if (f.retracted) return 'Retracted papers';
+  if (f.dups) return 'Possible duplicates';
   return 'All papers';
 }
 
