@@ -6,6 +6,7 @@ import { Icon, LogoMark, type IconName } from '../Icon';
 import { ThemeToggle } from '../Nav';
 import { UserMenu } from '../UserMenu';
 import { useCredits } from '../useCredits';
+import { useShelfNotices } from '../shelf/useShelfNotices';
 
 /* The workspace frame shared by the studio and the signed-in pages around it
    (library, history, account, admin): a navigation rail and a top bar, with the
@@ -14,10 +15,11 @@ import { useCredits } from '../useCredits';
 export type AppSection = 'library' | 'history' | 'papers' | 'shelf' | 'account' | 'admin' | null;
 
 /* One destination in the rail. `short` is its caption when the rail is the phone's bottom bar. */
-export function RailLink({ href, icon, label, short, current, cls }: { href: string; icon: IconName; label: string; short?: string; current?: boolean; cls?: string }) {
+export function RailLink({ href, icon, label, short, current, cls, badge }: { href: string; icon: IconName; label: string; short?: string; current?: boolean; cls?: string; badge?: number }) {
   return (
-    <Link className={`at-rb${cls ? ' ' + cls : ''}`} href={href} aria-label={label} aria-current={current ? 'page' : undefined}>
+    <Link className={`at-rb${cls ? ' ' + cls : ''}`} href={href} aria-label={badge ? `${label} (${badge} new)` : label} aria-current={current ? 'page' : undefined}>
       <Icon name={icon} />
+      {badge ? <span className="at-rb-badge">{badge > 99 ? '99+' : badge}</span> : null}
       <span className="at-rb-lbl" data-short={short}>
         {label}
       </span>
@@ -45,6 +47,7 @@ export function CreditsPill({ need = 5 }: { need?: number }) {
 export const openPalette = () => window.dispatchEvent(new Event('citezeno:palette'));
 
 export function AppShell({ current, title, children }: { current: AppSection; title: string; children: ReactNode }) {
+  const shelfNotices = useShelfNotices();
   return (
     <div className="at-frame">
       <div className="at at-page">
@@ -57,7 +60,7 @@ export function AppShell({ current, title, children }: { current: AppSection; ti
             <RailLink href="/library" icon="history" label="Library" current={current === 'library'} />
             <RailLink href="/history" icon="clock" label="History" current={current === 'history'} />
             <RailLink href="/papers" icon="book" label="Find papers" short="Papers" current={current === 'papers'} />
-            <RailLink href="/shelf" icon="layers" label="My shelf" short="Shelf" current={current === 'shelf'} />
+            <RailLink href="/shelf" icon="layers" label="My shelf" short="Shelf" current={current === 'shelf'} badge={shelfNotices} />
             <button className="at-rb at-only-phone" onClick={openPalette} aria-label="Commands">
               <Icon name="search" />
               <span className="at-rb-lbl" data-short="Search">

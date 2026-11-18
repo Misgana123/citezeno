@@ -181,4 +181,20 @@ create index if not exists shelf_item_tsv on shelf_item using gin (tsv);
 alter table shelf_pdf add column if not exists tsv tsvector;
 update shelf_pdf set tsv = to_tsvector('simple', left("text", 400000)) where "text" is not null and tsv is null;
 create index if not exists shelf_pdf_tsv on shelf_pdf using gin (tsv);
+
+-- Keeping saved papers up to date (v12): when each shared record was last
+-- refreshed from OpenAlex, and notices for papers retracted since they were saved.
+alter table shelf_paper add column if not exists "refreshedAt" timestamptz;
+create index if not exists shelf_paper_refresh on shelf_paper ("refreshDue" desc, "refreshedAt" nulls first) where "ownerId" is null;
+
+create table if not exists shelf_notice (
+  id          text        primary key,
+  "userId"    text        not null references "user"(id) on delete cascade,
+  kind        text        not null check (kind in ('retracted')),
+  "itemId"    text        references shelf_item(id) on delete cascade,
+  title       text        not null,
+  "createdAt" timestamptz not null default now(),
+  "readAt"    timestamptz
+);
+create index if not exists shelf_notice_unread on shelf_notice ("userId", "createdAt" desc) where "readAt" is null;
 `;

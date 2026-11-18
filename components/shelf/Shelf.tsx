@@ -19,6 +19,7 @@ import { ItemDrawer } from './ItemDrawer';
 import { markSaved } from './saved-store';
 import { ShelfCard } from './ShelfCard';
 import { ExportMenu } from './export/ExportMenu';
+import { RetractionNotices } from './RetractionNotices';
 import { ShelfSearch } from './ShelfSearch';
 import { ShelfSidebar, type ViewPick } from './ShelfSidebar';
 import { filtersFromParams, filtersToParams, SORT_LABELS, STATUS_LABELS, type ShelfFilters } from './shelf-state';
@@ -67,13 +68,16 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
   // a new view starts with nothing selected
   useEffect(() => setSelected(new Set()), [query]);
 
-  // arriving from a "Saved" link: open that paper
-  useEffect(() => {
-    if (!focusItem) return;
-    shelfFetch<ShelfItem>(`/api/shelf/papers/${encodeURIComponent(focusItem)}`)
+  const openItem = useCallback((id: string) => {
+    shelfFetch<ShelfItem>(`/api/shelf/papers/${encodeURIComponent(id)}`)
       .then(setOpen)
       .catch((e) => toast((e as Error).message, true));
-  }, [focusItem]);
+  }, []);
+
+  // arriving from a "Saved" link: open that paper
+  useEffect(() => {
+    if (focusItem) openItem(focusItem);
+  }, [focusItem, openItem]);
 
   const patchFilters = (p: Partial<ShelfFilters>) => setFilters((f) => ({ ...f, ...p }));
   const closeDrawer = useCallback(() => setOpen(null), []);
@@ -179,6 +183,7 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
       />
 
       <section className="sh-main" aria-label={title}>
+        <RetractionNotices onOpen={openItem} onRead={() => window.dispatchEvent(new Event('citezeno:shelf-notices'))} />
         <div className="sh-head">
           <h2 className="h3">{title}</h2>
           <button type="button" className="btn btn-thread btn-sm sh-add-btn" onClick={() => setAdding(true)}>

@@ -81,3 +81,6 @@ export const importBody = z.object({
   projectId: ID.nullish(),
   newProject: NAME.nullish(),
 });
+
+/* POST /api/shelf/notices: mark notices read (all of them without ids). */
+export const noticesReadBody = z.object({ ids: z.array(ID).max(100).optional() });

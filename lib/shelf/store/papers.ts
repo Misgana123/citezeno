@@ -62,10 +62,10 @@ const SELECT = `select id, "ownerId", "openalexId", doi, origin, data from shelf
 export async function putShared(q: Queryable, paper: Paper): Promise<ShelfPaper> {
   const s = stored(paper);
   const { rows } = await q.query<PaperRow>(
-    `insert into shelf_paper (id, "ownerId", "openalexId", doi, title, year, "citedByCount", "isOpenAccess", "isRetracted", origin, data, "refreshDue", "searchText")
-     values ($1, null, $1, $2, $3, $4, $5, $6, $7, 'openalex', $8, false, $9)
+    `insert into shelf_paper (id, "ownerId", "openalexId", doi, title, year, "citedByCount", "isOpenAccess", "isRetracted", origin, data, "refreshDue", "searchText", "refreshedAt")
+     values ($1, null, $1, $2, $3, $4, $5, $6, $7, 'openalex', $8, false, $9, now())
      on conflict (id) do update set doi = excluded.doi, title = excluded.title, year = excluded.year, "citedByCount" = excluded."citedByCount",
-       "isOpenAccess" = excluded."isOpenAccess", "isRetracted" = excluded."isRetracted", data = excluded.data, "refreshDue" = false, "searchText" = excluded."searchText", "updatedAt" = now()
+       "isOpenAccess" = excluded."isOpenAccess", "isRetracted" = excluded."isRetracted", data = excluded.data, "refreshDue" = false, "searchText" = excluded."searchText", "refreshedAt" = now(), "updatedAt" = now()
      returning id, "ownerId", "openalexId", doi, origin, data`,
     [paper.openalexId, s.doi, s.title, s.year, s.citedByCount, s.isOpenAccess, s.isRetracted, s.data, s.searchText],
   );

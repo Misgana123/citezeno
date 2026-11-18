@@ -223,3 +223,10 @@
 .sh-export-all { border-top: 1px solid var(--rule-2) !important; border-radius: 0 0 9px 9px !important; margin-top: 4px; }
 .sh-bulk .sh-export .btn { box-shadow: none; }
 .sh-bulk .sh-export-menu { left: 0; right: auto; }
+
+/* ---------- retraction notices ---------- */
+.sh-notices { align-items: flex-start; margin: 0; }
+.sh-notices > div { flex: 1; display: grid; gap: 6px; min-width: 0; }
+.sh-notices ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.sh-notice-link { padding: 0; border: 0; background: none; font: inherit; color: var(--ink); text-align: left; text-decoration: underline; text-decoration-color: var(--warn); text-underline-offset: 3px; cursor: pointer; }
+.sh-notices .btn { flex: none; background: var(--sheet); }

@@ -6,6 +6,8 @@
      SHELF_UPLOADS_PER_DAY     PDF uploads per user per day (default 50)
      SHELF_IMPORT_MAX_MB       largest .bib / .ris file (default 4; Vercel caps request bodies at 4.5 MB)
      SHELF_IMPORT_MAX_ENTRIES  most references one import may hold (default 10000)
+     SHELF_REFRESH_DAYS        recheck saved papers with OpenAlex this often (default 7)
+     SHELF_REFRESH_BATCHES     batches of 50 papers rechecked per background run (default 2)
 
    Title searches (add by title, PDFs without a DOI) count toward the same daily
    search limit as Find Papers (PAPERS_DAILY_SEARCHES). */
@@ -18,6 +20,8 @@ export type ShelfConfig = {
   uploadsPerDay: number;
   importMaxBytes: number;
   importMaxEntries: number;
+  refreshDays: number;
+  refreshBatches: number;
 };
 
 const MB = 1024 * 1024;
@@ -34,5 +38,7 @@ export function shelfConfig(env: Env = process.env): ShelfConfig {
     uploadsPerDay: Math.floor(positive(env.SHELF_UPLOADS_PER_DAY, 50)),
     importMaxBytes: Math.floor(Math.min(4.4, positive(env.SHELF_IMPORT_MAX_MB, 4)) * MB),
     importMaxEntries: Math.floor(positive(env.SHELF_IMPORT_MAX_ENTRIES, 10_000)),
+    refreshDays: positive(env.SHELF_REFRESH_DAYS, 7),
+    refreshBatches: Math.floor(positive(env.SHELF_REFRESH_BATCHES, 2)),
   };
 }

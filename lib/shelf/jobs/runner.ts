@@ -1,6 +1,8 @@
 import type { OpenAlexClient } from '@/lib/papers/openalex/client';
 import type { Db } from '../db';
+import { shelfConfig } from '../config';
 import { runImportSlice } from '../service/import-run';
+import { refreshPapers } from '../service/refresh';
 import { emptyTrash } from '../service/trash';
 import type { FileStore } from '../storage/types';
 import { deleteOldImports } from '../store/imports';
@@ -11,8 +13,8 @@ import { deleteAbandoned } from '../store/pdfs';
 
    1. imports  — work through waiting imports, oldest first
    2. storage  — remove deleted PDFs from storage
-   3. cleanup  — forget unfinished uploads and old import summaries
-   (more steps are added by later features) */
+   3. refresh  — recheck saved papers with OpenAlex (citations, retractions)
+   4. cleanup  — forget unfinished uploads and old import summaries */
 
 export type RunnerDeps = { db: Db; client: () => OpenAlexClient; store: FileStore | null; now?: () => number };
 export type RunnerStep = (deps: RunnerDeps, deadline: number) => Promise<Record<string, number | string>>;
@@ -31,6 +33,12 @@ export const importStep: RunnerStep = async (deps, deadline) => {
 export const storageStep: RunnerStep = async (deps) => {
   const { removed, failed } = await emptyTrash(deps.db, deps.store, 50);
   return { filesRemoved: removed, filesFailed: failed };
+};
+
+export const refreshStep: RunnerStep = async (deps, deadline) => {
+  const config = shelfConfig();
+  const r = await refreshPapers(deps.db, deps.client(), { olderThanDays: config.refreshDays, batches: config.refreshBatches, deadline, now: deps.now });
+  return { papersRefreshed: r.refreshed, newlyRetracted: r.newlyRetracted, retractionNotices: r.notices, papersMissing: r.missing };
 };
 
 export const cleanupStep: RunnerStep = async (deps) => ({ abandonedUploads: await deleteAbandoned(deps.db), oldImports: await deleteOldImports(deps.db) });
@@ -52,7 +60,8 @@ export async function runShelfJobs(deps: RunnerDeps, budgetMs: number, steps: { 
 }
 
 export const DEFAULT_STEPS = [
-  { name: 'imports', share: 0.6, run: importStep },
+  { name: 'imports', share: 0.5, run: importStep },
   { name: 'storage', share: 0.15, run: storageStep },
+  { name: 'refresh', share: 0.2, run: refreshStep },
   { name: 'cleanup', share: 0.1, run: cleanupStep },
 ];
