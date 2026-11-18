@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { iso, type Queryable } from '../db';
-import type { AddedVia, ReadingStatus, ShelfItem } from '../types';
+import type { AddedVia, ReadingStatus, ShelfItem, ShelfPdf } from '../types';
 import { buildListQuery, type ListQuery } from './list-query';
 import { deleteOrphanedPrivate, PAPER_COLUMNS, paperFromPrefixed } from './papers';
 
@@ -11,7 +11,9 @@ export const ITEM_SELECT = `
   select i.id, i."addedAt", i."addedVia", i."readingStatus", i.note, ${PAPER_COLUMNS},
     array(select "projectId" from shelf_item_project where "itemId" = i.id order by "projectId") as "projectIds",
     array(select "folderId" from shelf_item_folder where "itemId" = i.id order by "folderId") as "folderIds",
-    array(select "tagId" from shelf_item_tag where "itemId" = i.id order by "tagId") as "tagIds"
+    array(select "tagId" from shelf_item_tag where "itemId" = i.id order by "tagId") as "tagIds",
+    coalesce((select json_agg(json_build_object('id', f.id, 'fileName', f."fileName", 'sizeBytes', f."sizeBytes", 'pageCount', f."pageCount", 'textStatus', f."textStatus") order by f."uploadedAt")
+      from shelf_pdf f where f."itemId" = i.id and f.status = 'ready'), '[]'::json) as pdfs
   from shelf_item i join shelf_paper p on p.id = i."paperId"`;
 
 export function toItem(r: Record<string, unknown>): ShelfItem {
@@ -25,6 +27,7 @@ export function toItem(r: Record<string, unknown>): ShelfItem {
     projectIds: (r.projectIds as string[]) ?? [],
     folderIds: (r.folderIds as string[]) ?? [],
     tagIds: (r.tagIds as string[]) ?? [],
+    pdfs: ((r.pdfs as ShelfPdf[]) ?? []).map((f) => ({ ...f, sizeBytes: Number(f.sizeBytes) })),
   };
 }
 

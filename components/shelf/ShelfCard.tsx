@@ -52,6 +52,11 @@ export function ShelfCard({
           {p.isOpenAccess && <span className="tag oa fp-tag">Open access</span>}
           {p.origin === 'manual' && <span className="tag fp-tag">Added manually</span>}
           {p.origin === 'import' && <span className="tag fp-tag">Imported</span>}
+          {item.pdfs.length > 0 && (
+            <span className="tag fp-tag" title={item.pdfs.some((f) => f.textStatus === 'none') ? 'Your PDF (scanned: text not available for search)' : 'Your PDF'}>
+              <Icon name="pdf" /> PDF
+            </span>
+          )}
           {badges}
         </span>
         {p.origin === 'openalex' && (

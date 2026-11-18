@@ -98,4 +98,38 @@ create table if not exists shelf_not_duplicate (
   primary key ("userId", "itemA", "itemB"),
   check ("itemA" < "itemB")
 );
+
+-- Uploaded PDFs (v9). A PDF waits with no item until the user confirms which
+-- paper it is. Several PDFs may belong to one item (a merge keeps them all).
+create table if not exists shelf_pdf (
+  id            text        primary key,
+  "userId"      text        not null references "user"(id) on delete cascade,
+  "itemId"      text        references shelf_item(id) on delete cascade,
+  "storageKey"  text        not null unique,
+  "fileName"    text        not null,
+  "sizeBytes"   bigint      not null default 0,
+  "pageCount"   integer,
+  status        text        not null default 'uploading' check (status in ('uploading', 'ready')),
+  "textStatus"  text        not null default 'pending' check ("textStatus" in ('pending', 'done', 'none', 'failed')),
+  "text"        text,
+  found         jsonb,
+  "uploadedAt"  timestamptz not null default now()
+);
+create index if not exists shelf_pdf_user on shelf_pdf ("userId", "uploadedAt" desc);
+create index if not exists shelf_pdf_item on shelf_pdf ("itemId");
+
+-- Files to remove from storage. Every deleted PDF row lands here (also when an
+-- item or a whole account is deleted), and a background job empties it.
+create table if not exists shelf_storage_trash (
+  key         text        primary key,
+  "createdAt" timestamptz not null default now(),
+  attempts    integer     not null default 0
+);
+create or replace function shelf_pdf_to_trash() returns trigger language plpgsql as $$
+begin
+  insert into shelf_storage_trash (key) values (old."storageKey") on conflict do nothing;
+  return old;
+end $$;
+drop trigger if exists shelf_pdf_trash on shelf_pdf;
+create trigger shelf_pdf_trash after delete on shelf_pdf for each row execute function shelf_pdf_to_trash();
 `;

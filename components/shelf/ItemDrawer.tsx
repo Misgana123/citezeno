@@ -7,6 +7,7 @@ import { Icon } from '../Icon';
 import { authorsShort, citationLabel, doiHref, languageName, openalexHref, typeLabel } from '../papers/format';
 import { toast } from '../toast';
 import { emptyDraft, ManualForm } from './add/ManualForm';
+import { PdfSection } from './pdf/PdfSection';
 import { ShelfApiError, shelfFetch } from './api';
 import type { DistributiveOmit } from './BulkBar';
 import { runBulk } from './bulk';
@@ -216,6 +217,8 @@ export function ItemDrawer({
             </section>
 
             <NoteEditor key={item.id} item={item} onSaved={onChange} />
+
+            <PdfSection item={item} onChange={onChange} />
 
             {children}
 

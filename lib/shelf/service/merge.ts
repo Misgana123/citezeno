@@ -3,6 +3,7 @@ import { completeness, fillDetails, furtherStatus, joinNotes } from '../dedupe/m
 import { ShelfError } from '../errors';
 import { deleteItems, getItem } from '../store/items';
 import { updatePrivate } from '../store/papers';
+import { movePdfs } from '../store/pdfs';
 import type { ShelfItem } from '../types';
 
 /* Merge two shelf items that are the same paper. The one with the more
@@ -33,6 +34,7 @@ export async function mergeItems(db: Db, userId: string, x: string, y: string): 
       await q.query(`insert into ${table} ("itemId", ${col}) select $1, ${col} from ${table} where "itemId" = $2 on conflict do nothing`, [keep.id, drop.id]);
     }
 
+    await movePdfs(q, userId, drop.id, keep.id);
     await q.query(
       `update shelf_item set note = $3, "readingStatus" = $4, "addedAt" = least("addedAt", $5::timestamptz), "updatedAt" = now() where "userId" = $1 and id = $2`,
       [userId, keep.id, joinNotes(keep.note, drop.note), furtherStatus(keep.readingStatus, drop.readingStatus), drop.addedAt],

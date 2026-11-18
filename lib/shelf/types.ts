@@ -30,7 +30,12 @@ export type ShelfItem = {
   projectIds: string[];
   folderIds: string[];
   tagIds: string[];
+  pdfs: ShelfPdf[];
 };
+
+/* "pending": text not read yet; "none": a scanned PDF, no text to search. */
+export type PdfTextStatus = 'pending' | 'done' | 'none' | 'failed';
+export type ShelfPdf = { id: string; fileName: string; sizeBytes: number; pageCount: number | null; textStatus: PdfTextStatus };
 
 export type Project = { id: string; name: string; createdAt: string; count: number };
 export type Folder = { id: string; projectId: string; name: string; createdAt: string; count: number };

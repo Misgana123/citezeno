@@ -6,11 +6,11 @@ import { shelve } from './shelve';
 
 /* A paper the user typed in. It gets its own private record ("Added manually"),
    and a DOI, when given, still blocks an exact duplicate. */
-export async function saveManualPaper(db: Db, userId: string, input: ManualPaperInput, projectId?: string | null): Promise<ShelfItem> {
+export async function saveManualPaper(db: Db, userId: string, input: ManualPaperInput, projectId?: string | null, via: 'manual' | 'upload' = 'manual'): Promise<ShelfItem> {
   const details = manualDetails(input);
   return shelve(db, userId, {
     keys: { doi: details.doi },
-    via: 'manual',
+    via,
     projectId,
     paper: (q) => createPrivate(q, userId, details, 'manual'),
   });

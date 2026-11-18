@@ -8,6 +8,8 @@ import { Icon } from '../Icon';
 import { formatCount } from '../papers/format';
 import { toast } from '../toast';
 import { AddPapersDialog } from './add/AddPapersDialog';
+import { FilesDialog } from './pdf/FilesDialog';
+import { PdfUploadTab } from './pdf/PdfUploadTab';
 import { shelfFetch } from './api';
 import { BulkBar, type DistributiveOmit } from './BulkBar';
 import { DuplicatesView } from './DuplicatesView';
@@ -34,6 +36,8 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
   const [busy, setBusy] = useState(false);
   const [sideOpen, setSideOpen] = useState(false); // phones: the views list is folded away
   const [adding, setAdding] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(false);
+  const closeFiles = useCallback(() => setFilesOpen(false), []);
   const closeAdd = useCallback(() => setAdding(false), []);
   const tagMap = useMemo(() => new Map(groups.tags.map((t) => [t.id, t])), [groups.tags]);
 
@@ -150,6 +154,7 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
         <Icon name="chevron" className="sh-side-chev" />
       </button>
       <ShelfSidebar
+        onFiles={() => setFilesOpen(true)}
         open={sideOpen}
         groups={groups}
         filters={filters}
@@ -278,8 +283,18 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
             list.reload();
             void groups.reload();
           }}
+          extraTabs={[
+            {
+              key: 'pdf',
+              label: 'Upload PDFs',
+              icon: 'upload',
+              render: (c) => <PdfUploadTab projectId={c.projectId} onAdded={c.onAdded} onManageFiles={() => setFilesOpen(true)} />,
+            },
+          ]}
         />
       )}
+
+      {filesOpen && <FilesDialog onClose={closeFiles} onDeleted={list.reload} />}
 
       {open && <ItemDrawer item={open} groups={groups} onChange={changed} onRemove={remove} onClose={closeDrawer} />}
     </div>

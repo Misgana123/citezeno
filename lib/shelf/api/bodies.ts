@@ -59,3 +59,17 @@ export type BulkBody = z.infer<typeof bulkBody>;
 
 /* POST /api/shelf/duplicates */
 export const duplicateBody = z.object({ action: z.enum(['merge', 'keep_both']), a: ID, b: ID });
+
+/* POST /api/shelf/pdfs: about to upload one PDF (optionally onto an item). */
+export const pdfBeginBody = z.object({
+  fileName: z.string().trim().min(1).max(300),
+  sizeBytes: z.number().int().min(1, 'This file is empty.'),
+  itemId: ID.nullish(),
+});
+
+/* POST /api/shelf/pdfs/:id/confirm: which paper the PDF is. */
+export const pdfConfirmBody = z.union([
+  z.object({ paperId: z.string().trim().min(1).max(60), projectId: ID.nullish() }),
+  z.object({ itemId: ID }),
+  z.object({ details: manualPaperSchema, projectId: ID.nullish() }),
+]);

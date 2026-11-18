@@ -18,6 +18,7 @@ export type ListQuery = {
   yearTo?: number;
   openAccess?: boolean;
   retracted?: boolean;
+  hasPdf?: boolean;
   sort: ListSort;
   page: number;
   perPage: number;
@@ -56,6 +57,7 @@ export function buildListQuery(userId: string, query: ListQuery): BuiltQuery {
   if (query.yearTo != null) where.push(`p.year <= ${param(query.yearTo)}`);
   if (query.openAccess != null) where.push(`p."isOpenAccess" = ${param(query.openAccess)}`);
   if (query.retracted != null) where.push(`p."isRetracted" = ${param(query.retracted)}`);
+  if (query.hasPdf != null) where.push(`${query.hasPdf ? '' : 'not '}exists (select 1 from shelf_pdf f where f."itemId" = i.id and f.status = 'ready')`);
 
   const perPage = Math.min(100, Math.max(1, Math.floor(query.perPage)));
   const page = Math.max(1, Math.floor(query.page));

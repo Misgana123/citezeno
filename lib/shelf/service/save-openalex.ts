@@ -20,7 +20,7 @@ import { alreadySaved, shelve } from './shelve';
      kept for now and the record is refreshed later ("pending"). */
 
 export type SaveDeps = { db: Db; client: OpenAlexClient };
-export type SaveOpenAlexInput = { paperId: string; via?: Extract<AddedVia, 'search' | 'doi' | 'link' | 'title'>; paper?: unknown; projectId?: string | null };
+export type SaveOpenAlexInput = { paperId: string; via?: Exclude<AddedVia, 'manual'>; paper?: unknown; projectId?: string | null };
 export type SaveResult = { item: ShelfItem; pending: boolean };
 
 const OUTAGE = new Set(['unavailable', 'busy', 'budget']);

@@ -13,7 +13,7 @@ export type ViewPick = Partial<Pick<ShelfFilters, 'project' | 'folder' | 'tag' |
 
 /* The shelf's views: all papers, Unsorted, each project (with its folders) and
    each tag. Projects, folders and tags are created, renamed and deleted here. */
-export function ShelfSidebar({ open, groups, filters, onPick }: { open: boolean; groups: GroupsApi; filters: ShelfFilters; onPick: (p: ViewPick) => void }) {
+export function ShelfSidebar({ open, groups, filters, onPick, onFiles }: { open: boolean; groups: GroupsApi; filters: ShelfFilters; onPick: (p: ViewPick) => void; onFiles: () => void }) {
   const [editing, setEditing] = useState<string | null>(null); // "new-project", "new-tag", "new-folder:<projectId>", "<id>"
   const go = (p: ViewPick) => onPick({ project: '', folder: '', tag: '', retracted: false, dups: false, ...p });
   const isAll = !filters.project && !filters.folder && !filters.tag && !filters.retracted && !filters.dups;
@@ -149,6 +149,16 @@ export function ShelfSidebar({ open, groups, filters, onPick }: { open: boolean;
             </li>
           ))}
           {groups.loaded && !groups.tags.length && editing !== 'new-tag' && <li className="sh-side-empty">Label papers “methods”, “important”…</li>}
+        </ul>
+      </div>
+      <div className="sh-side-sec">
+        <ul className="sh-views">
+          <li>
+            <button type="button" className="sh-view" onClick={onFiles}>
+              <Icon name="pdf" />
+              <span className="sh-view-name">Your PDFs</span>
+            </button>
+          </li>
         </ul>
       </div>
     </nav>

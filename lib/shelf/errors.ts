@@ -9,7 +9,8 @@ export type ShelfErrorCode =
   | 'too_large' // a file is over the size limit
   | 'storage_full' // the user's storage is full
   | 'user_limit' // a per-user daily limit was reached
-  | 'invalid_file'; // not a real PDF / not a reference file
+  | 'invalid_file' // not a real PDF / not a reference file
+  | 'unavailable'; // a service the feature needs is not set up or not reachable
 
 export class ShelfError extends Error {
   constructor(
@@ -33,6 +34,7 @@ export const SHELF_STATUS: Record<ShelfErrorCode, number> = {
   storage_full: 413,
   user_limit: 429,
   invalid_file: 415,
+  unavailable: 503,
 };
 
 /* Postgres unique violation → name_taken. */
