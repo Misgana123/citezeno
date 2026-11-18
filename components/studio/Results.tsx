@@ -14,6 +14,8 @@ import { ExportPanel } from './ExportPanel';
 import { Insights } from './Insights';
 import { SourceMap } from './SourceMap';
 import { SourceCards, scoreFor } from './SourceCards';
+import { DetachedList } from './DetachedList';
+import { MySources, type ImportOutcome } from './MySources';
 import { toast } from '../toast';
 
 export type Tab = 'doc' | 'refs' | 'sources' | 'map' | 'insights' | 'export';
@@ -25,6 +27,28 @@ const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: 'insights', label: 'Insights', icon: 'chart' },
   { id: 'export', label: 'Export', icon: 'code' },
 ];
+
+/* imported references ("My sources") and detached citations, from the studio */
+export type SourceEdits = {
+  onImport: (sources: Source[]) => ImportOutcome;
+  onAttachMine: (id: string, sid: number) => void;
+  onListMine: (id: string) => void;
+  onRemoveMine: (id: string) => void;
+  onReattach: (k: number, sid: number) => void;
+  onRemoveDetached: (k: number) => void;
+};
+
+/* undo and redo for source edits, from the studio */
+export type HistoryControls = {
+  canUndo: boolean;
+  canRedo: boolean;
+  undoLabel?: string;
+  redoLabel?: string;
+  onUndo: () => void;
+  onRedo: () => void;
+};
+
+const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 const TITLES: Record<Mode, string> = {
   intext: 'Your cited manuscript',
@@ -67,6 +91,8 @@ export function Results({
   onPin,
   doc,
   setDoc,
+  history,
+  edits,
 }: {
   result: Result;
   rendered: Rendered;
@@ -81,6 +107,8 @@ export function Results({
   onPin: (id: string, pin: string) => void;
   doc: DocOptions;
   setDoc: (p: Partial<DocOptions>) => void;
+  history?: HistoryControls;
+  edits: SourceEdits;
 }) {
   const { root, onMouseOver, onMouseOut } = useLinking();
   const [busy, setBusy] = useState<'' | 'word' | 'pdf'>('');
@@ -151,6 +179,28 @@ export function Results({
           </ul>
         </div>
         <div className="res-tools">
+          {history && (
+            <div className="res-undo" role="group" aria-label="Undo and redo source changes">
+              <button
+                className="icon-btn"
+                onClick={history.onUndo}
+                disabled={!history.canUndo}
+                aria-label={history.canUndo ? `Undo: ${history.undoLabel}` : 'Nothing to undo'}
+                title={history.canUndo ? `Undo: ${history.undoLabel} (${MAC ? '⌘Z' : 'Ctrl+Z'})` : 'Nothing to undo'}
+              >
+                <Icon name="undo" />
+              </button>
+              <button
+                className="icon-btn"
+                onClick={history.onRedo}
+                disabled={!history.canRedo}
+                aria-label={history.canRedo ? `Redo: ${history.redoLabel}` : 'Nothing to redo'}
+                title={history.canRedo ? `Redo: ${history.redoLabel} (${MAC ? '⇧⌘Z' : 'Ctrl+Shift+Z'})` : 'Nothing to redo'}
+              >
+                <Icon name="redo" />
+              </button>
+            </div>
+          )}
           <label className="field">
             Style
             <select className="select" value={prefs.style} onChange={(e) => setPrefs({ style: e.target.value })}>
@@ -177,6 +227,8 @@ export function Results({
           </label>
         </div>
       </header>
+
+      <DetachedList result={result} onReattach={edits.onReattach} onRemove={edits.onRemoveDetached} />
 
       <div className="tabs" role="tablist" aria-label="Result views">
         {TABS.map((t) => (
@@ -229,7 +281,12 @@ export function Results({
           </>
         )}
 
-        {tab === 'sources' && <SourceCards result={result} rendered={rendered} onReplace={onReplace} onRemove={onRemove} onAdd={onAdd} onPin={onPin} />}
+        {tab === 'sources' && (
+          <>
+            <MySources result={result} onImport={edits.onImport} onAttach={edits.onAttachMine} onToList={edits.onListMine} onRemove={edits.onRemoveMine} />
+            <SourceCards result={result} rendered={rendered} onReplace={onReplace} onRemove={onRemove} onAdd={onAdd} onPin={onPin} />
+          </>
+        )}
 
         {tab === 'map' && (
           <>

@@ -20,14 +20,16 @@ export default function PrivacyPage() {
           <h1 className="h2">Privacy policy</h1>
         </header>
         <article className="prose">
-          <p className="updated">Last updated 5 November 2026</p>
+          <p className="updated">Last updated 17 November 2026</p>
           <p>This page explains what Citezeno stores about you, why, and what you can do about it.</p>
 
           <h2>How searching works</h2>
           <p>
-            Your draft, settings and a copy of your recent traces are saved in your own browser (local storage). To find
-            sources, your browser sends short search phrases taken from your draft directly to OpenAlex, Crossref, Open
-            Library and, if you switch it on, Wikipedia. Their own privacy policies apply to those requests.
+            Searches run in your browser: to find sources, it sends short search phrases taken from your draft directly
+            to OpenAlex, Crossref, Open Library and, if you switch it on, Wikipedia. Their own privacy policies apply to
+            those requests. Your draft, settings and a copy of your recent traces are also kept in your own browser (local
+            storage). If you’re signed in, your drafts and results are saved to your account so you can find them later
+            (see “Saved traces” below).
           </p>
 
           <h2>Your account</h2>
@@ -39,6 +41,10 @@ export default function PrivacyPage() {
             <li>
               <b>Saved traces:</b> the drafts you trace while signed in, their results and the sources cited, so your library
               is available on every device.
+            </li>
+            <li>
+              <b>Shared links:</b> if you share a trace, its link settings: design, style, expiry date and, if you set one, a
+              securely hashed password (never the password itself).
             </li>
             <li>
               <b>Sessions:</b> for each device you sign in on, its IP address, browser type and sign-in time. This lets you see

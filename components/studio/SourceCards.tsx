@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { citedSet, shorten, type Rendered } from '@/lib/engine';
+import { citedSet, sharedWith, shorten, type Rendered } from '@/lib/engine';
 import { plain } from '@/lib/styles';
 import { copyText } from '../Specimens';
 import { crossrefDOI, openlibraryISBN } from '@/lib/sources';
@@ -14,6 +14,7 @@ export const PROVIDER_COLOR: Record<string, string> = {
   'Open Library': '#7a5aa8',
   Wikipedia: '#6b7686',
   Manual: '#2e7d5b',
+  Imported: '#2e7d5b',
 };
 export const TYPE_LABEL: Record<string, string> = {
   article: 'Article', book: 'Book', chapter: 'Chapter', web: 'Encyclopedia', preprint: 'Preprint',
@@ -128,7 +129,12 @@ export function SourceCards({
                         {p}
                       </span>
                     ))}
-                    <span className="tag">{TYPE_LABEL[s.type] || 'Work'}</span>
+                    <span className="tag">{s.type === 'web' && s.provider !== 'Wikipedia' ? 'Web page' : TYPE_LABEL[s.type] || 'Work'}</span>
+                    {sharedWith(result, s.id!) > 1 && (
+                      <span className="tag shared" title={`Cited for ${sharedWith(result, s.id!)} claims. It appears once in the reference list.`}>
+                        Also cited for another claim
+                      </span>
+                    )}
                     {s.oa && <span className="tag oa">Open access</span>}
                     {s.retracted && (
                       <span className="tag retracted" title="OpenAlex lists this work as retracted. Don’t cite it.">

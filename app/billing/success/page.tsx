@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Nav } from '@/components/Nav';
+import { AppShell } from '@/components/app/AppShell';
 import { PurchaseWatcher } from '@/components/billing/PurchaseWatcher';
 import { getBalance } from '@/lib/credits';
 import { requireSession } from '@/lib/session';
@@ -12,13 +12,12 @@ export default async function SuccessPage() {
   const s = await requireSession('/billing/success');
   const b = await getBalance(s.user.id);
   return (
-    <>
-      <Nav />
-      <main className="auth-page">
+    <AppShell current={null} title="Purchase">
+      <div className="at-center">
         <div className="auth-card">
           <PurchaseWatcher startPaid={b.paid} />
         </div>
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }

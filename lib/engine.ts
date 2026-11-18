@@ -2,7 +2,11 @@
 import { analyse, chooseClaims, keywordsFor, locate, relevance, tokens, topicTokens, words } from './text';
 import { PROVIDERS, PROVIDER_KEYS, enrich, keyOf, merge, pool, search, type SearchOpts } from './sources';
 import { STYLES, disambiguate, esc, numericMarker, plain, sortKey, bibtex, ris, csljson, type Ctx, type Style } from './styles';
-import type { Analysis, ApiSettings, Candidate, Claim, Mode, Prefs, ProviderKey, Result, Source } from './types';
+import { reattach } from './reattach';
+import type { Analysis, ApiSettings, Candidate, Claim, Mode, Prefs, ProviderKey, Result, Sentence, Source } from './types';
+
+/* the most claims one trace searches, chosen automatically or picked by hand */
+export const MAX_CLAIMS = 40;
 
 /* ------------------------------------------------------------------ */
 /* Pipeline                                                            */
@@ -25,18 +29,37 @@ export class TraceError extends Error {}
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function trace(text: string, prefs: Prefs, settings: ApiSettings, ev: TraceEvents): Promise<Result | null> {
-  const active = PROVIDER_KEYS.filter((k) => prefs.providers[k]);
-  if (words(text).length < 12) throw new TraceError('Paste at least two full sentences first.');
-  if (!active.length) throw new TraceError('Switch on at least one database.');
+/* The sentences the user picked by hand (by index), ready to search. A picked
+   sentence the claim scorer gave no keywords gets the same keywords "Cite this
+   claim" would use; one with no searchable words at all is left out. */
+export function pickedClaims(analysis: Analysis, picked: number[]): Sentence[] {
+  const want = new Set(picked);
+  return analysis.sentences
+    .filter((s) => want.has(s.index))
+    .map((s) => ((s.keywords || []).length ? s : { ...s, keywords: keywordsFor(s.text) }))
+    .filter((s) => (s.keywords || []).length > 0);
+}
 
-  ev.step('read', 'active', 'Finding citable claims');
+/* `picked`: sentence indexes chosen by the user ("I'll pick sentences");
+   left out, Citezeno chooses the claims as it always has. */
+export async function trace(text: string, prefs: Prefs, settings: ApiSettings, ev: TraceEvents, picked?: number[]): Promise<Result | null> {
+  const active = PROVIDER_KEYS.filter((k) => prefs.providers[k]);
+  if (!picked && words(text).length < 12) throw new TraceError('Paste at least two full sentences first.');
+  if (!active.length) throw new TraceError('Switch on at least one database.');
+  if (picked && !picked.length) throw new TraceError('Pick at least one sentence to trace.');
+  if (picked && picked.length > MAX_CLAIMS) throw new TraceError(`Pick at most ${MAX_CLAIMS} sentences per trace.`);
+
+  ev.step('read', 'active', picked ? 'Reading the sentences you picked' : 'Finding citable claims');
   const analysis = analyse(text);
-  const claims = chooseClaims(analysis.sentences, Math.min(prefs.count, 40));
-  if (!claims.length) throw new TraceError('No sentence in this draft makes a claim that can be cited.');
+  const claims = picked ? pickedClaims(analysis, picked) : chooseClaims(analysis.sentences, Math.min(prefs.count, MAX_CLAIMS));
+  if (!claims.length) {
+    throw new TraceError(picked ? 'None of the sentences you picked has words that can be searched.' : 'No sentence in this draft makes a claim that can be cited.');
+  }
+  // picked by hand, every chosen sentence should be able to get a source
+  const wanted = picked ? Math.max(prefs.count, claims.length) : prefs.count;
   if (ev.charge) await ev.charge(claims.length);
   await wait(280);
-  ev.step('read', 'done', `${claims.length} of ${analysis.sentences.length} sentences chosen`);
+  ev.step('read', 'done', `${claims.length} of ${analysis.sentences.length} sentences ${picked ? 'picked' : 'chosen'}`);
 
   const opts: SearchOpts = { yearFrom: prefs.yearFrom, yearTo: prefs.yearTo, oaOnly: prefs.oaOnly, kind: prefs.kind, settings };
   const tasks: { ci: number; p: ProviderKey }[] = [];
@@ -117,7 +140,7 @@ export async function trace(text: string, prefs: Prefs, settings: ApiSettings, e
       .sort((a, b) => b.score - a.score),
   );
 
-  const assigned = assign(cands, prefs.count);
+  const assigned = assignSources(cands, wanted, prefs.minRel);
   const total = assigned.reduce((n, a) => n + a.length, 0);
   let retracted = 0;
   db.forEach((s) => s.retracted && retracted++);
@@ -132,7 +155,7 @@ export async function trace(text: string, prefs: Prefs, settings: ApiSettings, e
     claims: claims.map((c, ci) => ({ sid: c.index, text: c.text, ids: assigned[ci], cands: cands[ci] })),
     db,
     extra: [],
-    requested: prefs.count,
+    requested: wanted,
   };
 }
 
@@ -204,14 +227,12 @@ export function attachClaim(prev: Result | null, analysis: Analysis, sid: number
   const db = new Map(prev ? prev.db : []);
   found.db.forEach((s, k) => db.set(k, db.has(k) ? merge(db.get(k)!, s) : s));
   let claims: Claim[] = [];
+  let detached = prev?.detached || [];
   if (prev) {
-    const byText = new Map<string, number>();
-    analysis.sentences.forEach((s) => !byText.has(s.text) && byText.set(s.text, s.index));
-    prev.claims.forEach((c) => {
-      const old = prev.analysis.sentences.find((s) => s.index === c.sid);
-      const nsid = old ? byText.get(old.text) : undefined;
-      if (nsid != null) claims.push({ ...c, sid: nsid });
-    });
+    // exact sentence first, then the closest reworded one; the rest wait in "Detached"
+    const moved = reattach(prev.analysis, prev.claims, analysis);
+    claims = moved.claims;
+    detached = [...detached, ...moved.detached];
   }
   const sentence = analysis.sentences.find((s) => s.index === sid);
   const flat = passage.replace(/\s+/g, ' ').trim();
@@ -231,7 +252,10 @@ export function attachClaim(prev: Result | null, analysis: Analysis, sid: number
     claims.push({ sid, text: passage, anchor, ids: found.ids, cands: found.cands });
   }
   claims = claims.sort((a, b) => a.sid - b.sid);
-  return { analysis, claims, db, extra: prev ? prev.extra.filter((id) => db.has(id)) : [], requested: (prev ? prev.requested : 0) + n, pins: prev ? prev.pins : undefined };
+  return {
+    analysis, claims, db, extra: prev ? prev.extra.filter((id) => db.has(id)) : [], requested: (prev ? prev.requested : 0) + n, pins: prev ? prev.pins : undefined,
+    detached: detached.length ? detached : undefined, mine: prev?.mine,
+  };
 }
 
 /* Which sentence a selection belongs to: the last one it overlaps. */
@@ -241,8 +265,18 @@ export function sentenceForSelection(value: string, analysis: Analysis, start: n
   return hit.length ? hit[hit.length - 1].index : null;
 }
 
-/* Every claim gets its best unused source first; extras go to the strongest matches, max 4 per claim. */
-function assign(cands: Candidate[][], wanted: number) {
+/* A source already cited for one claim may also back another claim, but only on a
+   strong match for that claim: at least `minScore`, and at least `aboveStrictness`
+   above the match-strictness setting. */
+export const SHARED_SOURCE_THRESHOLD = { minScore: 0.55, aboveStrictness: 0.15 } as const;
+
+export const sharedSourceMin = (minRel: number) => Math.max(SHARED_SOURCE_THRESHOLD.minScore, minRel + SHARED_SOURCE_THRESHOLD.aboveStrictness);
+
+/* Every claim gets its best unused source first; extras go to the strongest matches, max 4 per claim.
+   Then a claim may also take one source already given to another claim, if it is a strong match
+   for it (SHARED_SOURCE_THRESHOLD). Shared sources add no new reference, so they don't count
+   towards `wanted`. */
+export function assignSources(cands: Candidate[][], wanted: number, minRel: number) {
   const used = new Set<string>();
   const out: string[][] = cands.map(() => []);
   const pairs: (Candidate & { ci: number })[] = [];
@@ -265,8 +299,17 @@ function assign(cands: Candidate[][], wanted: number) {
       total++;
     }
   }
+  const strong = sharedSourceMin(minRel);
+  cands.forEach((list, ci) => {
+    if (out[ci].length >= 4) return;
+    const shared = list.find((c) => c.score >= strong && used.has(c.id) && !out[ci].includes(c.id));
+    if (shared) out[ci].push(shared.id);
+  });
   return out;
 }
+
+/* How many claims cite source `id` (more than one = a shared source). */
+export const sharedWith = (r: Result, id: string) => r.claims.filter((c) => c.ids.includes(id)).length;
 
 /* ------------------------------------------------------------------ */
 /* Editing helpers                                                     */
@@ -339,6 +382,78 @@ export function addSource(r: Result, s: Source, claimIndex: number): { result: R
     return { result: { ...r, db, claims }, message: `Added to claim ${claimIndex + 1}.` };
   }
   return { result: { ...r, db, extra: [...r.extra, s.id] }, message: 'Added to the reference list.' };
+}
+
+/* Cite source `id` (already in r.db) on sentence `sid`, creating the claim if
+   that sentence has none yet. Used for imported references and detached citations. */
+export function attachToSentence(r: Result, ids: string[], sid: number, base?: Claim): { result: Result; added: number } {
+  const sentence = r.analysis.sentences.find((s) => s.index === sid);
+  if (!sentence) return { result: r, added: 0 };
+  const claims = r.claims.slice();
+  let at = claims.findIndex((c) => c.sid === sid);
+  if (at < 0) {
+    claims.push({ sid, text: sentence.text, ids: [], cands: base ? base.cands : [] });
+    claims.sort((a, b) => a.sid - b.sid);
+    at = claims.findIndex((c) => c.sid === sid);
+  }
+  const c = claims[at];
+  const fresh = ids.filter((id) => r.db.has(id) && !c.ids.includes(id));
+  const toks = new Set(tokens(c.text));
+  const cands = [...c.cands];
+  fresh.forEach((id) => {
+    const known = base?.cands.find((x) => x.id === id);
+    if (!cands.some((x) => x.id === id)) cands.push(known || { id, score: relevance(toks, r.db.get(id)!) });
+  });
+  claims[at] = { ...c, ids: [...c.ids, ...fresh], cands };
+  return { result: { ...r, claims }, added: fresh.length };
+}
+
+/* Put detached citation `k` on sentence `sid`. */
+export function reattachDetached(r: Result, k: number, sid: number): Result {
+  const d = (r.detached || [])[k];
+  if (!d) return r;
+  const { result } = attachToSentence(r, d.ids, sid, d);
+  const detached = (r.detached || []).filter((_, i) => i !== k);
+  return { ...result, detached: detached.length ? detached : undefined };
+}
+
+/* Drop detached citation `k` for good. */
+export function removeDetached(r: Result, k: number): Result {
+  const detached = (r.detached || []).filter((_, i) => i !== k);
+  return { ...r, detached: detached.length ? detached : undefined };
+}
+
+/* Add imported references to the trace's "My sources" list. A reference that is
+   already in the trace (same DOI, or same title and year) is a duplicate. */
+export function importReferences(r: Result, sources: Source[]): { result: Result; added: string[]; duplicates: Source[] } {
+  const db = new Map(r.db);
+  // match on DOI, and on title + year as well, so a DOI-less copy of a cited work is caught too
+  const titleKey = (s: Source) => keyOf({ ...s, doi: undefined });
+  const inTrace = new Set([...citedSet(r), ...(r.mine || [])]);
+  (r.detached || []).forEach((d) => d.ids.forEach((id) => inTrace.add(id)));
+  const titles = new Set([...inTrace].map((id) => db.get(id)).filter(Boolean).map((s) => titleKey(s!)));
+  const added: string[] = [];
+  const duplicates: Source[] = [];
+  for (const src of sources) {
+    const id = keyOf(src);
+    const tk = titleKey(src);
+    if (inTrace.has(id) || titles.has(tk)) {
+      duplicates.push(src);
+      continue;
+    }
+    const s: Source = { ...src, id, providers: [src.provider] };
+    db.set(id, db.has(id) ? merge(db.get(id)!, s) : s);
+    inTrace.add(id);
+    titles.add(tk);
+    added.push(id);
+  }
+  return { result: { ...r, db, mine: [...(r.mine || []), ...added] }, added, duplicates };
+}
+
+/* Take a reference off the "My sources" list (and out of the manuscript). */
+export function removeMine(r: Result, id: string): Result {
+  const mine = (r.mine || []).filter((x) => x !== id);
+  return { ...removeSource(r, id), mine: mine.length ? mine : undefined };
 }
 
 /* ------------------------------------------------------------------ */

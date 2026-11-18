@@ -3,7 +3,8 @@
    small set of tags with double-quoted attributes; anything else is dropped. */
 
 const TAGS = new Set(['p', 'i', 'em', 'b', 'strong', 'a', 'sup', 'sub', 'span', 'div', 'h3', 'br', 'small']);
-const ATTRS = new Set(['class', 'href', 'id', 'title']);
+/* data-ref ties a citation to its entry in the reference list (plain numbers) */
+const ATTRS = new Set(['class', 'href', 'id', 'title', 'data-ref']);
 const SAFE_HREF = /^(https?:|mailto:|#)/i;
 
 export function sanitizeRendered(html: string) {

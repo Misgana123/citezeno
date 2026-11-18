@@ -4,31 +4,45 @@ import Link from 'next/link';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_DOC, suggestTitle, type DocOptions } from '@/lib/docmodel';
 import {
-  TraceError, addSource, attachClaim, citedSet, removeSource, render, replaceSource, sentenceForSelection, trace, traceClaim,
+  MAX_CLAIMS, TraceError, addSource, attachClaim, attachToSentence, citedSet, importReferences, reattachDetached, removeDetached, removeMine, removeSource, render,
+  replaceSource, sentenceForSelection, trace, traceClaim,
   type LogLine, type Step, type StepState,
 } from '@/lib/engine';
 import { useSession } from '@/lib/auth-client';
 import { deleteRemote, fetchRemote, pushRemote, syncLibrary, type LibItem } from '@/lib/cloud';
-import { fromSaved, loadLibrary, removeEntry, toSaved, upsert, type Saved } from '@/lib/library';
+import { ACCOUNT_MAX, ACCOUNT_NOTICE, LOCAL_MAX, evictionFor, fromSaved, loadLibrary, removeEntry, toSaved, upsert, type Saved } from '@/lib/library';
 import { SAMPLES } from '@/lib/samples';
 import { STYLES, STYLE_GROUPS } from '@/lib/styles';
 import { enrich } from '@/lib/sources';
-import { analyse, chooseClaims, topicTokens } from '@/lib/text';
+import { analyse, chooseClaims, isEligible, locate, topicTokens } from '@/lib/text';
 import { CREDITS_PER_CLAIM } from '@/lib/pricing';
+import { reattach } from '@/lib/reattach';
+import { detectReferences, type RefEntry } from '@/lib/refcheck';
+import { checkAll } from '@/lib/refcheck-run';
+import { emptyHistory, isTextTarget, record, redo, undo, undoKey, type History } from '@/lib/undo';
 import { DEFAULT_PREFS, type ApiSettings, type Mode, type Prefs, type Result, type Source } from '@/lib/types';
+
+export type ClaimMode = 'auto' | 'pick';
+import { CreditsPill, RailLink, openPalette } from '../app/AppShell';
 import { registerCommands, type Command } from '../CommandPalette';
-import { Icon } from '../Icon';
+import { Icon, LogoMark, type IconName } from '../Icon';
+import { ThemeToggle } from '../Nav';
+import { UserMenu } from '../UserMenu';
 import { toast } from '../toast';
 import { usePersistent } from '../usePersistent';
 import { OutOfCredits, refundCredits, spendCredits, useCredits } from '../useCredits';
 import { CreditsDialog } from './CreditsDialog';
+import { CheckPanel, type CheckState } from './CheckPanel';
+import type { OriginalDoc } from './DocxPreview';
+import { EvictDialog } from './EvictDialog';
 import { Controls, MODES } from './Controls';
-import { Editor } from './Editor';
+import { Editor, type EditorApi } from './Editor';
 import { LibraryDrawer } from './LibraryDrawer';
-import { StyleNav } from './StyleNav';
+import { SidePanel, type OutlineClaim, type SideTab } from './SidePanel';
 import { Progress, type StepView } from './Progress';
-import { Results, type Tab } from './Results';
+import { Results, type SourceEdits, type Tab } from './Results';
 import { SettingsDialog } from './SettingsDialog';
+import { ShareDialog } from '../share/ShareDialog';
 
 const IDLE: StepView = {
   read: { state: 'idle', msg: 'Waiting' },
@@ -46,11 +60,68 @@ const mergePrefs = (p: Prefs): Prefs => ({
   minRel: p && typeof p.minRel === 'number' && p.minRel !== 0.15 ? p.minRel : DEFAULT_PREFS.minRel,
 });
 
+/* Beside the trace button: who chooses the sentences to cite. */
+function RunModeMenu({ mode, setMode }: { mode: ClaimMode; setMode: (m: ClaimMode) => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, [open]);
+  const opts: { id: ClaimMode; label: string; hint: string }[] = [
+    { id: 'auto', label: 'Let Citezeno choose', hint: 'Default. Traces your strongest claims.' },
+    { id: 'pick', label: 'I’ll pick sentences', hint: 'Click sentences in your draft, then trace only those.' },
+  ];
+  return (
+    <div className="at-run-mode" ref={box}>
+      <button className="at-run-caret" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} aria-label="Choose which sentences to trace">
+        <Icon name="chevron" />
+      </button>
+      {open && (
+        <div className="at-menu at-run-menu" role="menu">
+          <p>Which sentences to cite</p>
+          {opts.map((o) => (
+            <button
+              key={o.id}
+              role="menuitemradio"
+              aria-checked={mode === o.id}
+              onClick={() => {
+                setMode(o.id);
+                setOpen(false);
+              }}
+            >
+              <span className="at-run-radio" aria-hidden="true" />
+              <span>
+                <b>{o.label}</b>
+                <small>{o.hint}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Studio() {
   const [draft, setDraft] = usePersistent('draft', '');
   const [prefs, setPrefsRaw] = usePersistent<Prefs>('prefs', DEFAULT_PREFS, mergePrefs);
   const [settings, setSettings] = usePersistent<ApiSettings>('settings', {});
   const [result, setResult] = useState<Result | null>(null);
+  /* undo/redo for source edits; it starts again with each new trace */
+  const [hist, setHist] = useState<History<Result>>(emptyHistory);
+  const resultRef = useRef(result);
+  resultRef.current = result;
+  const histRef = useRef(hist);
+  histRef.current = hist;
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState<StepView>(IDLE);
   const [log, setLog] = useState<LogLine[]>([]);
@@ -58,8 +129,23 @@ export function Studio() {
   const [showProgress, setShowProgress] = useState(false);
   const [tab, setTab] = useState<Tab>('doc');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  /* on narrow screens the side panels open as drawers */
+  const [drawer, setDrawer] = useState<'' | 'nav' | 'insp'>('');
+  const [sideTab, setSideTab] = usePersistent<SideTab>('side-tab', 'style');
+  const editorApi = useRef<EditorApi | null>(null);
   const [doc, setDocRaw] = usePersistent<DocOptions>('doc', DEFAULT_DOC, (d) => ({ ...DEFAULT_DOC, ...d }));
   const [library, setLibrary] = useState<LibItem[]>([]);
+  const libraryRef = useRef(library);
+  libraryRef.current = library;
+  /* whether the account's list has been loaded, so its size is known */
+  const accountKnown = useRef(false);
+  /* saving a new trace into a full library asks first (see EvictDialog) */
+  const [evict, setEvict] = useState<{ victim: LibItem; entryId: string } | null>(null);
+  const evictOk = useRef<string | null>(null);
+  const [unsaved, setUnsaved] = useState<string | null>(null);
+  const [saveTick, setSaveTick] = useState(0);
+  const nearFullTold = useRef(false);
   const { data: session } = useSession();
   const userId = session?.user.id;
   const syncWarned = useRef(false);
@@ -88,10 +174,15 @@ export function Studio() {
   useEffect(() => {
     const local = loadLibrary();
     setLibrary(local);
+    accountKnown.current = false;
     if (!userId) return;
     let live = true;
     syncLibrary(local)
-      .then((list) => live && setLibrary(list))
+      .then((list) => {
+        if (!live) return;
+        accountKnown.current = true;
+        setLibrary(list);
+      })
       .catch(() => live && toast('Couldn’t reach your account library. Showing traces in this browser.', true));
     return () => {
       live = false;
@@ -101,13 +192,26 @@ export function Studio() {
 
   /* keep the library entry for the open trace up to date */
   useEffect(() => {
-    if (!result || !entryId) return;
+    if (!result || !entryId || unsaved === entryId) return;
     const t = setTimeout(() => {
+      const lib = libraryRef.current;
+      const isNew = !lib.some((x) => x.id === entryId);
+      // a full library loses its oldest trace: ask before that happens
+      if (isNew && evictOk.current !== entryId) {
+        const cap = userId ? (accountKnown.current ? ACCOUNT_MAX : Infinity) : LOCAL_MAX;
+        const victim = evictionFor(lib, entryId, cap);
+        if (victim) return setEvict({ victim, entryId });
+      }
       const text = tracedDraft.current;
       const entry = toSaved(entryId, suggestTitle(text), text, prefs.style, prefs.mode, result);
       const local = upsert(entry);
       if (!userId) return setLibrary(local);
-      setLibrary((prev) => [entry, ...prev.filter((x) => x.id !== entry.id)]);
+      // the account keeps its newest ACCOUNT_MAX traces
+      setLibrary((prev) => [entry, ...prev.filter((x) => x.id !== entry.id)].sort((a, b) => b.savedAt - a.savedAt).slice(0, ACCOUNT_MAX));
+      if (isNew && accountKnown.current && lib.length + 1 >= ACCOUNT_NOTICE && !nearFullTold.current) {
+        nearFullTold.current = true;
+        toast(`Your library holds ${Math.min(lib.length + 1, ACCOUNT_MAX)} of ${ACCOUNT_MAX} traces. Download or delete old ones to make room.`);
+      }
       pushRemote(entry).then(
         () => (syncWarned.current = false),
         (e: Error) => {
@@ -118,12 +222,53 @@ export function Studio() {
       );
     }, 400);
     return () => clearTimeout(t);
-  }, [result, entryId, prefs.style, prefs.mode, userId]);
+  }, [result, entryId, prefs.style, prefs.mode, userId, unsaved, saveTick]);
 
   const deferred = useDeferredValue(draft);
   const analysis = useMemo(() => (deferred.trim() ? analyse(deferred) : null), [deferred]);
-  /* what a full trace of the current draft would cost */
-  const cost = useMemo(() => (analysis ? chooseClaims(analysis.sentences, Math.min(prefs.count, 40)).length * CREDITS_PER_CLAIM : 0), [analysis, prefs.count]);
+
+  /* which sentences get traced: chosen by Citezeno (as always) or picked by the user.
+     Picks are kept by sentence text, so they survive edits elsewhere in the draft. */
+  const [claimMode, setClaimMode] = usePersistent<ClaimMode>('claim-mode', 'auto');
+  const [picks, setPicks] = useState<string[]>([]);
+  const pickSet = useMemo(() => new Set(picks), [picks]);
+  const pickedCount = useMemo(() => (analysis ? analysis.sentences.filter((s) => pickSet.has(s.text)).length : 0), [analysis, pickSet]);
+  // a picked sentence that was edited away is no longer picked (and no longer counts towards the limit)
+  useEffect(() => {
+    // only once the analysis has caught up with the draft
+    if (!picks.length || deferred !== draft) return;
+    const present = new Set(analysis ? analysis.sentences.map((s) => s.text) : []);
+    if (picks.some((t) => !present.has(t))) setPicks((xs) => xs.filter((t) => present.has(t)));
+  }, [analysis, picks, deferred, draft]);
+  const picking = claimMode === 'pick';
+  const togglePick = useCallback(
+    (text: string) =>
+      setPicks((xs) => {
+        if (xs.includes(text)) return xs.filter((x) => x !== text);
+        if (xs.length >= MAX_CLAIMS) {
+          toast(`You can trace up to ${MAX_CLAIMS} sentences at a time. Unselect one to pick another.`, true);
+          return xs;
+        }
+        return [...xs, text];
+      }),
+    [],
+  );
+  const suggestPicks = useCallback(() => {
+    if (!analysis) return;
+    const chosen = chooseClaims(analysis.sentences, Math.min(prefs.count, MAX_CLAIMS)).map((s) => s.text);
+    setPicks((xs) => [...xs, ...chosen.filter((t) => !xs.includes(t))].slice(0, MAX_CLAIMS));
+  }, [analysis, prefs.count]);
+
+  /* what a trace of the current draft would cost: one credit per claim searched */
+  const cost = useMemo(
+    () =>
+      picking
+        ? pickedCount * CREDITS_PER_CLAIM
+        : analysis
+          ? chooseClaims(analysis.sentences, Math.min(prefs.count, MAX_CLAIMS)).length * CREDITS_PER_CLAIM
+          : 0,
+    [analysis, prefs.count, picking, pickedCount],
+  );
 
   const setPrefs = useCallback(
     (p: Partial<Prefs>) =>
@@ -153,6 +298,13 @@ export function Studio() {
 
   const run = useCallback(async () => {
     if (running) return;
+    // "I'll pick sentences": only the picked ones are searched (and charged)
+    let picked: number[] | undefined;
+    if (picking) {
+      picked = analyse(draft).sentences.filter((s) => pickSet.has(s.text)).map((s) => s.index);
+      if (!picked.length) return toast('Click the sentences you want to cite in your draft first.', true);
+      if (picked.length > MAX_CLAIMS) return toast(`Pick at most ${MAX_CLAIMS} sentences per trace.`, true);
+    }
     const token = ++runToken.current;
     setRunning(true);
     setShowProgress(true);
@@ -171,11 +323,12 @@ export function Studio() {
         progress: (f) => token === runToken.current && setProgress(f),
         log: (l) => token === runToken.current && setLog((xs) => [...xs.slice(-20), l]),
         isCancelled: () => token !== runToken.current,
-      });
+      }, picked);
       if (!r || token !== runToken.current) return;
       ok = true;
       annotations.current = {};
       tracedDraft.current = draft;
+      setHist(emptyHistory());
       setEntryId(`t${Date.now().toString(36)}`);
       if (!doc.title.trim()) setDoc({ title: suggestTitle(draft) });
       setResult(r);
@@ -201,19 +354,53 @@ export function Studio() {
       // stopped or failed after paying: give the credits back
       if (spendId && !ok) refundCredits(spendId).then((back) => back && toast('Trace didn’t finish, so its credits were returned'));
     }
-  }, [running, draft, prefs, settings, doc.title, setDoc]);
+  }, [running, draft, prefs, settings, doc.title, setDoc, picking, pickSet]);
+
+  /* where the trace's citations sit in the draft as it is now: on the same
+     sentence, or on the reworded one that replaced it (see lib/reattach.ts) */
+  const placed = useMemo(() => {
+    if (!result || !analysis) return null;
+    return reattach(result.analysis, result.claims.filter((c) => c.ids.length), analysis);
+  }, [result, analysis]);
 
   /* sentences of the draft that already carry a citation */
   const citedTexts = useMemo(() => {
     const set = new Set<string>();
-    if (!result) return set;
-    result.claims.forEach((c) => {
-      if (!c.ids.length) return;
-      const s = result.analysis.sentences.find((x) => x.index === c.sid);
-      if (s) set.add(s.text);
-    });
+    if (!placed || !analysis) return set;
+    const text = new Map(analysis.sentences.map((s) => [s.index, s.text]));
+    placed.claims.forEach((c) => text.has(c.sid) && set.add(text.get(c.sid)!));
     return set;
-  }, [result]);
+  }, [placed, analysis]);
+
+  /* every sentence worth citing, for the claims outline */
+  const outline = useMemo<OutlineClaim[]>(() => {
+    if (!analysis) return [];
+    const spans = new Map(locate(deferred, analysis.sentences).map((sp) => [sp.index, sp]));
+    const sources = new Map<string, number>();
+    const text = new Map(analysis.sentences.map((s) => [s.index, s.text]));
+    placed?.claims.forEach((c) => text.has(c.sid) && sources.set(text.get(c.sid)!, c.ids.length));
+    return analysis.sentences
+      .filter((st) => sources.has(st.text) || isEligible(st))
+      .map((st) => {
+        const sp = spans.get(st.index);
+        const sc = st.score || 0;
+        return { index: st.index, text: st.text, start: sp ? sp.start : -1, end: sp ? sp.end : -1, level: sc > 1.8 ? 3 : sc > 1.1 ? 2 : 1, sources: sources.get(st.text) || 0 };
+      });
+  }, [analysis, deferred, placed]);
+
+  const jumpTo = useCallback((c: OutlineClaim) => {
+    if (c.start < 0) return;
+    setDrawer('');
+    // wait for a drawer to slide away before moving the focus
+    setTimeout(() => editorApi.current?.select(c.start, c.end), 40);
+  }, []);
+
+  useEffect(() => {
+    if (!drawer) return;
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && setDrawer('');
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [drawer]);
 
   /* cite only the passage the user selected */
   const citeSelection = useCallback(
@@ -236,13 +423,19 @@ export function Studio() {
           return false;
         }
         const next = attachClaim(result, a, sid, text.trim().replace(/\s+/g, ' '), found, n);
+        const newlyDetached = (next.detached || []).length - (result?.detached || []).length;
         tracedDraft.current = draft;
+        // a paid result: earlier steps can't be undone past it
+        setHist(emptyHistory());
         if (!entryId) setEntryId(`t${Date.now().toString(36)}`);
         if (!doc.title.trim()) setDoc({ title: suggestTitle(draft) });
         setResult(next);
         setTab('doc');
         setShowProgress(false);
         toast(`${found.ids.length} source${found.ids.length === 1 ? '' : 's'} added for that claim`);
+        if (newlyDetached > 0) {
+          toast(`${newlyDetached} earlier citation${newlyDetached === 1 ? ' was' : 's were'} detached: ${newlyDetached === 1 ? 'its sentence has' : 'their sentences have'} changed too much. Re-attach or remove ${newlyDetached === 1 ? 'it' : 'them'} above the results.`, true);
+        }
         ok = true;
         return true;
       } catch (e) {
@@ -257,11 +450,109 @@ export function Studio() {
     [citing, running, draft, prefs, settings, result, entryId, doc.title, setDoc],
   );
 
+  /* apply a source edit, remembering the previous result for undo */
+  const edit = (next: Result, label: string, key?: string) => {
+    const prev = resultRef.current;
+    if (!prev) return;
+    setHist((h) => record(h, prev, label, key));
+    setResult(next);
+  };
+  const step = useCallback((dir: 'undo' | 'redo') => {
+    const r = resultRef.current;
+    if (!r) return;
+    const s = (dir === 'undo' ? undo : redo)(histRef.current, r);
+    if (!s) return;
+    setHist(s.history);
+    setResult(s.value);
+    toast(`${dir === 'undo' ? 'Undone' : 'Redone'}: ${s.label}`);
+  }, []);
+  const canUndo = hist.past.length > 0;
+  const canRedo = hist.future.length > 0;
+
+  /* Ctrl+Z / Ctrl+Shift+Z (Cmd on a Mac), unless the focus is in a text field */
+  useEffect(() => {
+    if (!result) return;
+    const k = (e: KeyboardEvent) => {
+      const a = undoKey(e);
+      if (!a || isTextTarget(e.target)) return;
+      e.preventDefault();
+      step(a);
+    };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [result, step]);
+
+  /* "Check existing citations": find the references already in the draft and look
+     each one up from the browser. Free, like adding a source by DOI. */
+  const [check, setCheck] = useState<CheckState | null>(null);
+  /* the .docx opened this session, in memory only, for its formatted preview */
+  const [original, setOriginal] = useState<OriginalDoc | null>(null);
+  const [checkOpen, setCheckOpen] = useState(false);
+  const checkToken = useRef(0);
+  const runCheck = useCallback(async () => {
+    const text = draft;
+    const detected = detectReferences(text);
+    const token = ++checkToken.current;
+    setCheck({ detected, verdicts: new Map(), running: detected.entries.length > 0, draft: text });
+    setCheckOpen(true);
+    if (!detected.entries.length) return;
+    await checkAll(
+      detected.entries,
+      settings,
+      (id, v) => token === checkToken.current && setCheck((c) => (c ? { ...c, verdicts: new Map(c.verdicts).set(id, v) } : c)),
+      () => token !== checkToken.current,
+    );
+    if (token === checkToken.current) setCheck((c) => (c ? { ...c, running: false } : c));
+  }, [draft, settings]);
+  const closeCheck = useCallback(() => setCheckOpen(false), []);
+  /* look up again only the references a database didn't answer for */
+  const retryCheck = useCallback(async () => {
+    if (!check || check.running) return;
+    const todo = check.detected.entries.filter((e) => check.verdicts.get(e.id)?.status === 'error');
+    if (!todo.length) return;
+    const token = ++checkToken.current;
+    setCheck((c) => {
+      if (!c) return c;
+      const verdicts = new Map(c.verdicts);
+      todo.forEach((e) => verdicts.delete(e.id));
+      return { ...c, verdicts, running: true };
+    });
+    await checkAll(
+      todo,
+      settings,
+      (id, v) => token === checkToken.current && setCheck((c) => (c ? { ...c, verdicts: new Map(c.verdicts).set(id, v) } : c)),
+      () => token !== checkToken.current,
+    );
+    if (token === checkToken.current) setCheck((c) => (c ? { ...c, running: false } : c));
+  }, [check, settings]);
+
+  /* "Find a real source for this sentence": the existing "Cite this claim" on the
+     sentence that cites a reference that wasn't found (1 credit, as always) */
+  const findFor = async (e: RefEntry) => {
+    if (!check || check.draft !== draft) return toast('Your draft has changed. Check again first.', true);
+    const c = check.detected.intext.find((x) => x.entries.includes(e.id));
+    if (!c) return;
+    const a = analyse(draft);
+    const span = locate(draft, a.sentences).find((sp) => c.start >= sp.start && c.start < sp.end);
+    if (!span) return toast('Couldn’t find the sentence that cites it.', true);
+    // search for what the sentence says, not for the citation in it
+    const said = draft
+      .slice(span.start, span.end)
+      .replace(c.raw, ' ')
+      .replace(/\(\s*[;,]?\s*\)|\[\s*\]/g, ' ')
+      .replace(/\s+([.,;:!?])/g, '$1')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const ok = await citeSelection(said, span.start, span.end, 1);
+    if (ok) setCheckOpen(false);
+  };
+
   /* command palette entries for this page */
   useEffect(() => {
     const cmds: Command[] = [
       { id: 'run', group: 'Studio', label: 'Trace sources', icon: 'search', meta: 'Ctrl Enter', run: () => run() },
       { id: 'settings', group: 'Studio', label: 'Database settings', icon: 'gear', run: () => setSettingsOpen(true) },
+      { id: 'check', group: 'Studio', label: 'Check existing citations', icon: 'shield', keywords: 'verify fake references doi bibliography retracted', run: () => runCheck() },
       { id: 'library', group: 'Studio', label: 'Open the library of recent traces', icon: 'history', keywords: 'history recent saved', run: () => setLibOpen(true) },
       ...Object.entries(SAMPLES).map(([k, s]) => ({
         id: 'sample-' + k, group: 'Studio', label: `Load the sample “${s.label}”`, icon: 'doc' as const, run: () => setDraft(s.text),
@@ -287,17 +578,19 @@ export function Studio() {
     }
     if (result) {
       cmds.push(
+        { id: 'undo', group: 'Results', label: 'Undo the last source change', icon: 'undo' as const, meta: 'Ctrl Z', keywords: 'undo revert back', run: () => step('undo') },
+        { id: 'redo', group: 'Results', label: 'Redo the source change', icon: 'redo' as const, meta: 'Ctrl Shift Z', keywords: 'redo again forward', run: () => step('redo') },
         { id: 'dl-doc', group: 'Results', label: 'Download as Word or PDF', icon: 'download', keywords: 'export docx pdf print word', run: () => { setTab('export'); resultsEl.current?.scrollIntoView({ behavior: 'smooth' }); } },
       );
     }
     return registerCommands('studio', cmds);
-  }, [run, setPrefs, setDraft, result]);
+  }, [run, setPrefs, setDraft, result, step, runCheck]);
 
   const onReplace = (oldId: string, newId: string) => {
     if (!result) return;
     const next = replaceSource(result, oldId, newId);
     if (!next) return toast('That work is already in your list.');
-    setResult(next);
+    edit(next, 'source replaced');
     toast('Source replaced');
     const s = next.db.get(newId);
     if (s && s.doi && (!s.pages || !s.volume)) {
@@ -305,7 +598,8 @@ export function Studio() {
     }
   };
   const onPin = (id: string, pin: string) => {
-    setResult((r) => (r ? { ...r, pins: { ...(r.pins || {}), [id]: pin } } : r));
+    if (!result) return;
+    edit({ ...result, pins: { ...(result.pins || {}), [id]: pin } }, 'page number changed', `pin:${id}`);
   };
   const openEntry = async (item: LibItem) => {
     let it: Saved;
@@ -320,6 +614,7 @@ export function Studio() {
     }
     annotations.current = {};
     tracedDraft.current = it.draft;
+    setHist(emptyHistory());
     setDraft(it.draft);
     setPrefs({ style: it.style, mode: it.mode as Mode });
     setResult(fromSaved(it));
@@ -330,24 +625,11 @@ export function Studio() {
     setShowProgress(false);
     setTimeout(() => resultsEl.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   };
-  /* publish a read-only link to the open trace, in the current style */
-  const shareCurrent = async () => {
+  /* the share dialog: pick a design, preview the public page, then create the link */
+  const openShare = () => {
     if (!result || !entryId) return toast('Trace your draft first, then share it.', true);
-    try {
-      const text = tracedDraft.current;
-      await pushRemote(toSaved(entryId, suggestTitle(text), text, prefs.style, prefs.mode, result));
-      const res = await fetch(`/api/traces/${entryId}/share`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ style: prefs.style, mode: prefs.mode }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Couldn’t create a link.');
-      await navigator.clipboard.writeText(body.url).catch(() => {});
-      toast('Read-only link copied. Turn it off any time in the library.');
-    } catch (e) {
-      toast((e as Error).message, true);
-    }
+    if (unsaved === entryId) return toast('Save this trace to your library first (“Save” at the top), then share it.', true);
+    setShareOpen(true);
   };
 
   /* /studio?open=<id> (from the library page) opens that trace */
@@ -363,141 +645,261 @@ export function Studio() {
 
   const onRemove = (id: string) => {
     if (!result) return;
-    setResult(removeSource(result, id));
+    edit(removeSource(result, id), 'source removed');
     toast('Source removed');
   };
   const onAdd = (s: Source, ci: number) => {
     if (!result) return;
     const { result: next, message } = addSource(result, s, ci);
-    setResult(next);
+    edit(next, 'source added');
     toast(message);
   };
+  /* "My sources" (imported references) and detached citations; all free, all undoable */
+  const edits: SourceEdits = {
+    onImport: (sources) => {
+      if (!result) return { added: 0, duplicates: [] };
+      const { result: next, added, duplicates } = importReferences(result, sources);
+      if (added.length) edit(next, 'references imported');
+      return { added: added.length, duplicates };
+    },
+    onAttachMine: (id, sid) => {
+      if (!result) return;
+      const { result: next, added } = attachToSentence(result, [id], sid);
+      if (!added) return toast('That sentence already cites this source.');
+      edit(next, 'source cited on a sentence');
+      toast(`Cited on sentence ${sid + 1}`);
+    },
+    onListMine: (id) => {
+      if (!result || result.extra.includes(id)) return;
+      edit({ ...result, extra: [...result.extra, id] }, 'source added to the reference list');
+      toast('Added to the reference list');
+    },
+    onRemoveMine: (id) => {
+      if (!result) return;
+      edit(removeMine(result, id), 'imported source removed');
+      toast('Removed from My sources');
+    },
+    onReattach: (k, sid) => {
+      if (!result) return;
+      edit(reattachDetached(result, k, sid), 'citation re-attached');
+      toast(`Re-attached to sentence ${sid + 1}`);
+    },
+    onRemoveDetached: (k) => {
+      if (!result) return;
+      edit(removeDetached(result, k), 'detached citation removed');
+      toast('Detached citation removed');
+    },
+  };
+
+  const st = STYLES[prefs.style];
+  const dbsOn = Object.values(prefs.providers).filter(Boolean).length;
+  /* `short` is the caption under the icon when the rail is the phone's bottom bar */
+  const rail = (icon: IconName, label: string, onClick: () => void, opts: { badge?: number; cls?: string; current?: boolean; short?: string } = {}) => (
+    <button className={`at-rb${opts.cls ? ' ' + opts.cls : ''}`} onClick={onClick} aria-label={label} aria-current={opts.current ? 'page' : undefined}>
+      <Icon name={icon} />
+      {opts.badge ? <span className="at-rb-badge">{opts.badge > 99 ? '99+' : opts.badge}</span> : null}
+      <span className="at-rb-lbl" data-short={opts.short}>{label}</span>
+    </button>
+  );
 
   return (
-    <div className="shell">
-      <div className="ws-bar">
-        <div className="ws-bar-in">
-          <div className="ws-title">
-            <input
-              value={doc.title}
-              onChange={(e) => setDoc({ title: e.target.value })}
-              placeholder="Untitled draft"
-              aria-label="Document title"
-              spellCheck={false}
-            />
-            <span className="ws-saved">
-              <Icon name="check" /> {userId ? 'Saved to your account' : 'Saved in this browser'}
+    <div className={`at${drawer === 'nav' ? ' is-nav' : ''}${drawer === 'insp' ? ' is-insp' : ''}`}>
+      <nav className="at-rail" aria-label="Studio navigation">
+        <Link className="at-logo" href="/" aria-label="Citezeno home">
+          <LogoMark className="at-logo-mark" />
+        </Link>
+        <div className="at-rail-main">
+          {rail('doc', 'Studio', () => mainEl.current?.scrollTo({ top: 0, behavior: 'smooth' }), { current: true, cls: 'at-hide-phone' })}
+          {rail('history', 'Library', () => setLibOpen(true), { badge: library.length })}
+          {rail('quote', 'Style and claims', () => setDrawer('nav'), { cls: 'at-only-compact', short: 'Style' })}
+          {rail('sliders', 'Trace settings', () => setDrawer('insp'), { cls: 'at-only-compact', short: 'Settings' })}
+          {rail('search', 'Commands', openPalette, { cls: 'at-only-phone', short: 'Search' })}
+          <RailLink href="/history" icon="clock" label="History" cls="at-hide-phone" />
+        </div>
+        <div className="at-rail-end">
+          <RailLink href="/#method" icon="help" label="How it works" cls="at-hide-phone" />
+          {rail('gear', 'Database settings', () => setSettingsOpen(true), { short: 'Databases' })}
+        </div>
+      </nav>
+
+      <header className="at-top">
+        <Link className="at-top-logo" href="/" aria-label="Citezeno home">
+          <LogoMark className="at-logo-mark" />
+        </Link>
+        <div className="at-doc">
+          <span className="at-crumb">Studio</span>
+          <span className="at-crumb-sep" aria-hidden="true">/</span>
+          <input value={doc.title} onChange={(e) => setDoc({ title: e.target.value })} placeholder="Untitled draft" aria-label="Document title" spellCheck={false} />
+          {entryId && unsaved === entryId ? (
+            <button className="at-saved is-off" onClick={() => setUnsaved(null)} title="This trace isn’t in your library. Click to save it.">
+              <Icon name="alert" /> <span>Not saved · Save</span>
+            </button>
+          ) : (
+            <span className="at-saved" title={userId ? 'Saved to your account' : 'Saved in this browser'}>
+              <Icon name="check" /> <span>{userId ? 'Saved to your account' : 'Saved in this browser'}</span>
             </span>
-            {credits && (
-              <Link href="/pricing" className={`ws-credits${credits.total < Math.max(cost, 5) ? ' low' : ''}`} title={`${credits.free} free (resets monthly) + ${credits.paid} purchased`}>
-                <Icon name="bolt" /> {credits.total.toLocaleString()} credit{credits.total === 1 ? '' : 's'}
-              </Link>
+          )}
+        </div>
+        <button className="at-cmdk" onClick={openPalette} aria-label="Open the command menu">
+          <Icon name="search" />
+          <span>Search commands</span>
+          <span className="kbd">Ctrl K</span>
+        </button>
+        <CreditsPill need={cost} />
+        {userId && result && (
+          <button className="at-tbtn" onClick={openShare} title="Share a read-only link to this trace">
+            <Icon name="globe" />
+            <span>Share</span>
+          </button>
+        )}
+        {running ? (
+          <button className="at-run stop" onClick={cancel}>
+            <Icon name="stop" /> <span>Stop</span>
+          </button>
+        ) : (
+          <div className={`at-run-group${picking ? ' is-pick' : ''}`}>
+            <button className="at-run" onClick={run} title={picking ? 'Trace only the sentences you picked' : 'Let Citezeno choose the claims to trace'}>
+              <Icon name="search" /> <span className="at-run-lbl">{picking ? 'Trace selected' : 'Trace all claims'}</span>
+              {cost > 0 && <span className="at-run-cost">{cost} credit{cost === 1 ? '' : 's'}</span>}
+              <span className="kbd">Ctrl ↵</span>
+            </button>
+            <RunModeMenu mode={claimMode} setMode={setClaimMode} />
+          </div>
+        )}
+        <span className="at-top-sep" aria-hidden="true" />
+        <ThemeToggle />
+        <UserMenu />
+      </header>
+
+      <SidePanel
+        tab={sideTab}
+        setTab={setSideTab}
+        style={prefs.style}
+        onStyle={(id) => setPrefs({ style: id })}
+        claims={outline}
+        onJump={jumpTo}
+        hasDraft={Boolean(draft.trim())}
+        onClose={() => setDrawer('')}
+      />
+
+      <div className={`at-main${scroll.y > 4 ? ' is-scrolled' : ''}`} ref={mainEl} onScroll={onMainScroll}>
+        <div className="at-progress" aria-hidden="true">
+          <i style={{ transform: `scaleX(${scroll.p})` }} />
+        </div>
+        <div className="at-main-in">
+          <div className="at-context">
+            <button onClick={() => { setSideTab('style'); setDrawer('nav'); }}>
+              <Icon name="quote" />
+              <span>
+                <small>Style</small>
+                <b>{st.name}, {st.edition}</b>
+              </span>
+              <Icon name="chevron" className="at-context-chev" />
+            </button>
+            <button onClick={() => setDrawer('insp')}>
+              <Icon name="sliders" />
+              <span>
+                <small>Trace settings</small>
+                <b>{MODES.find((m) => m.id === prefs.mode)?.label} · {prefs.count} source{prefs.count === 1 ? '' : 's'} · {dbsOn} database{dbsOn === 1 ? '' : 's'}</b>
+              </span>
+              <Icon name="chevron" className="at-context-chev" />
+            </button>
+            {outline.length > 0 && (
+              <button className="at-context-claims" onClick={() => { setSideTab('claims'); setDrawer('nav'); }}>
+                <Icon name="thread" />
+                <span>
+                  <small>Claims</small>
+                  <b>{outline.filter((c) => c.sources).length} of {outline.length} cited</b>
+                </span>
+                <Icon name="chevron" className="at-context-chev" />
+              </button>
             )}
           </div>
-          <div className="ws-actions">
-            <button className="ws-btn" onClick={() => setLibOpen(true)} title="Recent traces">
-              <Icon name="history" />
-              <span>Library</span>
-              {library.length ? <span className="ws-count">{library.length}</span> : null}
-            </button>
-            {userId && result && (
-              <button className="ws-btn" onClick={shareCurrent} title="Copy a read-only link to this trace">
-                <Icon name="globe" />
-                <span>Share</span>
-              </button>
-            )}
-            <button className="ws-btn" onClick={() => setSettingsOpen(true)} title="Database settings">
-              <Icon name="gear" />
-              <span>Settings</span>
-            </button>
-            <span className="ws-sep" aria-hidden="true" />
-            {running ? (
-              <button className="btn btn-ghost btn-sm" onClick={cancel}>
-                <Icon name="stop" /> Stop
-              </button>
+
+          <Editor
+            value={draft}
+            onChange={setDraft}
+            analysis={analysis}
+            cited={citedTexts}
+            highlight={highlight}
+            setHighlight={setHighlight}
+            onRun={run}
+            onCite={citeSelection}
+            citing={citing}
+            api={editorApi}
+            onCheck={runCheck}
+            original={original}
+            onOriginal={setOriginal}
+            checking={Boolean(check?.running)}
+            pick={picking ? { picked: pickSet, count: pickedCount, max: MAX_CLAIMS, toggle: togglePick, suggest: suggestPicks, clear: () => setPicks([]), done: () => setClaimMode('auto'), cost } : null}
+          />
+
+          <div ref={progressEl}>
+            {showProgress && <Progress steps={steps} log={log} progress={progress} running={running} onCancel={cancel} />}
+          </div>
+
+          <div ref={resultsEl} style={{ scrollMarginTop: 16 }}>
+            {result && rendered ? (
+              <Results
+                result={result}
+                rendered={rendered}
+                prefs={prefs}
+                setPrefs={setPrefs}
+                tab={tab}
+                setTab={setTab}
+                annotations={annotations}
+                onReplace={onReplace}
+                doc={doc}
+                setDoc={setDoc}
+                onRemove={onRemove}
+                onAdd={onAdd}
+                onPin={onPin}
+                edits={edits}
+                history={{ canUndo, canRedo, undoLabel: hist.past[hist.past.length - 1]?.label, redoLabel: hist.future[hist.future.length - 1]?.label, onUndo: () => step('undo'), onRedo: () => step('redo') }}
+              />
             ) : (
-              <button className="btn btn-thread btn-sm ws-run" onClick={run}>
-                <Icon name="search" /> Trace all claims
-                {cost > 0 && <span className="ws-cost">{cost} credit{cost === 1 ? '' : 's'}</span>}
-                <span className="kbd">Ctrl ↵</span>
-              </button>
+              !showProgress && (
+                <div className="at-res-empty">
+                  <span className="at-res-empty-ico">
+                    <Icon name="thread" />
+                  </span>
+                  <b>Your cited manuscript will appear here</b>
+                  <p>
+                    Trace all claims, or select a passage in your draft and choose “Cite this claim”. Your cited manuscript,
+                    references, sources and source map will appear here.
+                  </p>
+                  <ul>
+                    <li><Icon name="doc" /> Manuscript</li>
+                    <li><Icon name="list" /> References</li>
+                    <li><Icon name="cards" /> Sources</li>
+                    <li><Icon name="map" /> Map</li>
+                    <li><Icon name="chart" /> Insights</li>
+                    <li><Icon name="code" /> Export</li>
+                  </ul>
+                </div>
+              )
             )}
           </div>
+
+          <button
+            className={`at-to-top${scroll.y > 700 ? ' show' : ''}`}
+            onClick={() => mainEl.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+            aria-label="Back to the top"
+            tabIndex={scroll.y > 700 ? 0 : -1}
+          >
+            <Icon name="chevron" />
+          </button>
+
+          <p className="at-foot">
+            Records come from OpenAlex, Crossref, Open Library and Wikipedia. Open every source and check it before you
+            rely on it.
+          </p>
         </div>
       </div>
 
-      <div className="ws-grid">
-        <StyleNav value={prefs.style} onChange={(id) => setPrefs({ style: id })} />
+      <Controls prefs={prefs} set={setPrefs} analysis={analysis} cost={cost} claimMode={claimMode} setClaimMode={setClaimMode} picked={pickedCount} onSettings={() => setSettingsOpen(true)} onClose={() => setDrawer('')} />
 
-        <div className={`ws-main${scroll.y > 4 ? ' is-scrolled' : ''}`} ref={mainEl} onScroll={onMainScroll}>
-          <div className="ws-progress" aria-hidden="true">
-            <i style={{ transform: `scaleX(${scroll.p})` }} />
-          </div>
-          <div className="ws-main-in">
-            <Editor
-              value={draft}
-              onChange={setDraft}
-              analysis={analysis}
-              cited={citedTexts}
-              highlight={highlight}
-              setHighlight={setHighlight}
-              onRun={run}
-              onCite={citeSelection}
-              citing={citing}
-            />
-
-            <div ref={progressEl}>
-              {showProgress && <Progress steps={steps} log={log} progress={progress} running={running} onCancel={cancel} />}
-            </div>
-
-            <div ref={resultsEl} style={{ scrollMarginTop: 16 }}>
-              {result && rendered ? (
-                <Results
-                  result={result}
-                  rendered={rendered}
-                  prefs={prefs}
-                  setPrefs={setPrefs}
-                  tab={tab}
-                  setTab={setTab}
-                  annotations={annotations}
-                  onReplace={onReplace}
-                  doc={doc}
-                  setDoc={setDoc}
-                  onRemove={onRemove}
-                  onAdd={onAdd}
-                  onPin={onPin}
-                />
-              ) : (
-                !showProgress && (
-                  <div className="res-empty">
-                    <Icon name="thread" />
-                    <p>
-                      Trace all claims, or select a passage in your draft and choose “Cite this claim”. Your cited
-                      manuscript, references, sources and source map will appear here.
-                    </p>
-                  </div>
-                )
-              )}
-            </div>
-
-            <button
-              className={`to-top${scroll.y > 700 ? ' show' : ''}`}
-              onClick={() => mainEl.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-              aria-label="Back to the top"
-              tabIndex={scroll.y > 700 ? 0 : -1}
-            >
-              <Icon name="chevron" />
-            </button>
-
-            <p className="ws-foot">
-              Records come from OpenAlex, Crossref, Open Library and Wikipedia. Open every source and check it before you
-              rely on it.
-            </p>
-          </div>
-        </div>
-
-        <Controls prefs={prefs} set={setPrefs} analysis={analysis} />
-      </div>
+      {drawer && <div className="at-scrim" onClick={() => setDrawer('')} aria-hidden="true" />}
 
       {libOpen && (
         <LibraryDrawer
@@ -518,7 +920,51 @@ export function Studio() {
         />
       )}
 
+      {checkOpen && check && (
+        <CheckPanel
+          state={check}
+          stale={check.draft !== draft}
+          citing={citing}
+          onShow={(start, end) => {
+            setCheckOpen(false);
+            setTimeout(() => editorApi.current?.select(start, end), 40);
+          }}
+          onFind={findFor}
+          onRecheck={runCheck}
+          onRetry={retryCheck}
+          onClose={closeCheck}
+        />
+      )}
+
+      {evict && (
+        <EvictDialog
+          victim={evict.victim}
+          cap={userId ? ACCOUNT_MAX : LOCAL_MAX}
+          signedIn={Boolean(userId)}
+          onContinue={() => {
+            evictOk.current = evict.entryId;
+            setEvict(null);
+            setUnsaved(null);
+            setSaveTick((n) => n + 1);
+          }}
+          onCancel={() => {
+            setUnsaved(evict.entryId);
+            setEvict(null);
+            toast('Not saved to your library. Use “Save” at the top when you want to keep it.');
+          }}
+        />
+      )}
+
       {outOf && <CreditsDialog needed={outOf.needed} have={outOf.have} resetsAt={credits?.resetsAt} onClose={() => setOutOf(null)} />}
+      {shareOpen && result && entryId && (
+        <ShareDialog
+          id={entryId}
+          title={suggestTitle(tracedDraft.current)}
+          owner={session?.user.name || ''}
+          saved={toSaved(entryId, suggestTitle(tracedDraft.current), tracedDraft.current, prefs.style, prefs.mode, result)}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
 
       {settingsOpen && (
         <SettingsDialog

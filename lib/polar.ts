@@ -3,10 +3,12 @@ import { createPolarCore } from '@polar-sh/sdk/2026-10';
 import { listProducts } from '@polar-sh/sdk/2026-10/services/products';
 import { pool } from './db';
 import { adjustPaid, creditsFor } from './credits';
+import { allPlanProductIds, creditsForProduct, planDefs, planViews, type PlanView } from './plans';
 import { siteURL } from './site';
 
 /* Polar handles payments; Citezeno keeps the credit balance itself (lib/credits.ts).
-   A paid order adds the credits named in its product's metadata ("credits": 500).
+   A paid order adds the plan's credits from the environment (lib/plans.ts); any
+   other product adds the credits named in its metadata ("credits": 500).
    Leave POLAR_ACCESS_TOKEN unset and billing is switched off: everyone keeps the
    free monthly allowance and the pricing page shows no purchase buttons. */
 
@@ -36,9 +38,9 @@ function userOf(o: OrderLike) {
 
 async function onPaid(o: OrderLike) {
   const userId = userOf(o);
-  const credits = creditsFor(o.product?.metadata);
+  const credits = creditsForProduct(o.product);
   if (!userId || !credits) {
-    console.warn('[citezeno] Polar order ignored (no user or no "credits" in product metadata)', o.id);
+    console.warn('[citezeno] Polar order ignored (no user, or the product is neither a configured plan nor has "credits" metadata)', o.id);
     return;
   }
   const added = await adjustPaid(userId, credits, 'purchase', `order:${o.id}`, {
@@ -50,7 +52,7 @@ async function onPaid(o: OrderLike) {
 /* Refunds remove the matching share of the order's credits (never below zero). */
 async function onRefunded(o: OrderLike) {
   const userId = userOf(o);
-  const credits = creditsFor(o.product?.metadata);
+  const credits = creditsForProduct(o.product);
   if (!userId || !credits) return;
   const share = o.total_amount ? Math.min(1, (o.refunded_amount || 0) / o.total_amount) : 1;
   const target = Math.round(credits * share);
@@ -102,15 +104,34 @@ export type CreditPack = {
   featured: boolean;
 };
 
-/* Products shown on the pricing page: active Polar products that have a
-   "credits" metadata value. Optional metadata "featured": "true" highlights one. */
-export async function listPacks(): Promise<CreditPack[]> {
+type ProductRow = Awaited<ReturnType<ReturnType<typeof listProducts>>>['items'][number];
+
+async function activeProducts(): Promise<ProductRow[]> {
   if (!polarClient) return [];
+  const res = await listProducts(polarClient)({ is_archived: false, limit: 100 });
+  return res.items;
+}
+
+const fixedPrice = (p: ProductRow) =>
+  p.prices.find((x) => !x.is_archived && x.amount_type === 'fixed') as { price_amount: number; price_currency: string } | undefined;
+
+/* What the pricing page shows: the Scholar and Lab plans (monthly and annual,
+   from the environment, priced by Polar), plus any other active product that
+   has "credits" metadata, as before. */
+export async function listPricing(): Promise<{ plans: PlanView[]; packs: CreditPack[] }> {
+  if (!polarClient) return { plans: [], packs: [] };
   try {
-    const res = await listProducts(polarClient)({ is_archived: false, limit: 50 });
-    return res.items
+    const items = await activeProducts();
+    const prices = new Map<string, { price: number; currency: string }>();
+    items.forEach((p) => {
+      const pr = fixedPrice(p);
+      if (pr) prices.set(p.id, { price: pr.price_amount, currency: pr.price_currency });
+    });
+    const planIds = allPlanProductIds();
+    const packs = items
+      .filter((p) => !planIds.has(p.id))
       .map((p) => {
-        const price = p.prices.find((x) => !x.is_archived && x.amount_type === 'fixed') as { price_amount: number; price_currency: string } | undefined;
+        const price = fixedPrice(p);
         return {
           id: p.id,
           name: p.name,
@@ -124,8 +145,9 @@ export async function listPacks(): Promise<CreditPack[]> {
       })
       .filter((p) => p.credits > 0 && p.price > 0)
       .sort((a, b) => a.price - b.price);
+    return { plans: planViews(planDefs(), prices), packs };
   } catch (e) {
     console.error('[citezeno] could not load Polar products', e);
-    return [];
+    return { plans: [], packs: [] };
   }
 }
