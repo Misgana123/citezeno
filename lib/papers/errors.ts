@@ -13,7 +13,7 @@ export class PapersError extends Error {
   constructor(
     readonly code: PapersErrorCode,
     message: string,
-    readonly details: { retryAfterS?: number; reason?: string; status?: number } = {},
+    readonly details: { retryAfterS?: number; reason?: string; status?: number; resetsAt?: string; limit?: number } = {},
   ) {
     super(message);
     this.name = 'PapersError';

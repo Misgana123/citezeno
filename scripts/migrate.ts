@@ -87,6 +87,38 @@ create table if not exists activity (
   meta        jsonb       not null default '{}'::jsonb
 );
 create index if not exists activity_user_time on activity ("userId", "createdAt" desc);
+
+-- Find Papers (v7). Cached OpenAlex responses, keyed by a hash of the request.
+create table if not exists papers_cache (
+  key         text        primary key,
+  value       jsonb       not null,
+  "expiresAt" timestamptz not null
+);
+create index if not exists papers_cache_expires on papers_cache ("expiresAt");
+
+-- Find Papers: OpenAlex spending per UTC day (totals only: no queries, no users).
+create table if not exists papers_spend (
+  day         text             primary key,
+  usd         double precision not null default 0,
+  calls       integer          not null default 0,
+  searches    integer          not null default 0,
+  "alertedAt" timestamptz,
+  "cappedAt"  timestamptz
+);
+
+-- Find Papers: searches each user ran per UTC day, for the daily limit.
+create table if not exists papers_usage (
+  "userId"  text    not null references "user"(id) on delete cascade,
+  day       text    not null,
+  searches  integer not null default 0 check (searches >= 0),
+  primary key ("userId", day)
+);
+
+-- Find Papers: shared call slots, so OpenAlex's per-second limits hold across server instances.
+create table if not exists papers_slot (
+  key       text   primary key,
+  "nextAt"  bigint not null
+);
 `;
 
 async function main() {
@@ -100,7 +132,7 @@ async function main() {
     console.log('Auth tables are up to date.');
   }
   await pool.query(APP_SQL);
-  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity).');
+  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity, papers).');
 }
 
 main()

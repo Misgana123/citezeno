@@ -5,8 +5,10 @@ import { paperIdRoute } from '@/lib/papers/route';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/* "More like this": papers close in meaning to this one. */
-export const GET = paperIdRoute(async ({ client, config, search }, id) => {
-  const { list } = await similarTo(client, id, search({ requireQuery: false }), config.maxQueryChars);
+/* "More like this": papers close in meaning to this one (one semantic search). */
+export const GET = paperIdRoute(async ({ client, config, search, reserve }, id) => {
+  const request = search({ requireQuery: false });
+  await reserve(1);
+  const { list } = await similarTo(client, id, request, config.maxQueryChars);
   return json(list);
 });

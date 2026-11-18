@@ -9,7 +9,19 @@ const MESSAGES: Record<Exclude<PapersErrorCode, 'bad_request'>, string> = {
   user_limit: "You've reached today's search limit.",
 };
 
+/* "in 3 hours" / "in 25 minutes" until the limit resets. */
+export function resetsIn(resetsAt: string, now: number = Date.now()): string {
+  const mins = Math.max(1, Math.ceil((Date.parse(resetsAt) - now) / 60_000));
+  if (mins < 60) return `in ${mins} minute${mins === 1 ? '' : 's'}`;
+  const hours = Math.round(mins / 60);
+  return `in about ${hours} hour${hours === 1 ? '' : 's'}`;
+}
+
 /* bad_request messages are written for the user already; the rest are replaced. */
-export function userMessage(e: PapersError): string {
-  return e.code === 'bad_request' ? e.message : MESSAGES[e.code];
+export function userMessage(e: PapersError, now: number = Date.now()): string {
+  if (e.code === 'bad_request') return e.message;
+  if (e.code === 'user_limit' && e.details.resetsAt) {
+    return `${MESSAGES.user_limit} It resets at midnight UTC (${resetsIn(e.details.resetsAt, now)}).`;
+  }
+  return MESSAGES[e.code];
 }
