@@ -4,6 +4,7 @@
 import { getMigrations } from 'better-auth/db/migration';
 import { authOptions } from '../lib/auth';
 import { pool } from '../lib/db';
+import { SHELF_SQL } from '../lib/shelf/schema';
 
 const APP_SQL = `
 create table if not exists trace (
@@ -132,7 +133,8 @@ async function main() {
     console.log('Auth tables are up to date.');
   }
   await pool.query(APP_SQL);
-  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity, papers).');
+  await pool.query(SHELF_SQL);
+  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity, papers, shelf).');
 }
 
 main()
