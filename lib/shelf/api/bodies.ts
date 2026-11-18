@@ -73,3 +73,11 @@ export const pdfConfirmBody = z.union([
   z.object({ itemId: ID }),
   z.object({ details: manualPaperSchema, projectId: ID.nullish() }),
 ]);
+
+/* POST /api/shelf/imports: a .bib / .ris file's text (read in the browser). */
+export const importBody = z.object({
+  fileName: z.string().trim().min(1).max(300),
+  text: z.string().min(1, 'This file is empty.'),
+  projectId: ID.nullish(),
+  newProject: NAME.nullish(),
+});

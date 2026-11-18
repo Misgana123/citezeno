@@ -17,7 +17,8 @@ describe('shelf config', () => {
   it('has the agreed defaults and reads overrides', () => {
     const c = shelfConfig({});
     expect(c.pdfMaxBytes).toBe(10 * 1024 * 1024);
-    expect(c.importChunk).toBe(2000);
+    expect(c.importMaxEntries).toBe(10_000);
+    expect(shelfConfig({ SHELF_IMPORT_MAX_MB: '50' }).importMaxBytes).toBeLessThan(4.5 * 1024 * 1024);
     expect(shelfConfig({ SHELF_PDF_MAX_MB: '25', SHELF_UPLOADS_PER_DAY: 'nope' }).pdfMaxBytes).toBe(25 * 1024 * 1024);
     expect(shelfConfig({ SHELF_UPLOADS_PER_DAY: 'nope' }).uploadsPerDay).toBe(50);
   });

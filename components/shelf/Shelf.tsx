@@ -10,6 +10,7 @@ import { toast } from '../toast';
 import { AddPapersDialog } from './add/AddPapersDialog';
 import { FilesDialog } from './pdf/FilesDialog';
 import { PdfUploadTab } from './pdf/PdfUploadTab';
+import { ImportTab } from './add/ImportTab';
 import { shelfFetch } from './api';
 import { BulkBar, type DistributiveOmit } from './BulkBar';
 import { DuplicatesView } from './DuplicatesView';
@@ -38,7 +39,18 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
   const [adding, setAdding] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
   const closeFiles = useCallback(() => setFilesOpen(false), []);
-  const closeAdd = useCallback(() => setAdding(false), []);
+  const closeAdd = useCallback(() => {
+    setAdding(false);
+    list.reload();
+    void groups.reload();
+  }, [list.reload, groups.reload]);
+  /* during an import, refresh the counts now and then */
+  const lastRefresh = useRef(0);
+  const importProgress = useCallback(() => {
+    if (Date.now() - lastRefresh.current < 5000) return;
+    lastRefresh.current = Date.now();
+    void groups.reload();
+  }, [groups.reload]);
   const tagMap = useMemo(() => new Map(groups.tags.map((t) => [t.id, t])), [groups.tags]);
 
   // keep the address bar in step (back, reload, share); the open paper is in it too
@@ -290,6 +302,7 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
               icon: 'upload',
               render: (c) => <PdfUploadTab projectId={c.projectId} onAdded={c.onAdded} onManageFiles={() => setFilesOpen(true)} />,
             },
+            { key: 'import', label: 'Import file', icon: 'download', render: (c) => <ImportTab projectId={c.projectId} onProgress={importProgress} /> },
           ]}
         />
       )}

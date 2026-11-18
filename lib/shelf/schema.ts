@@ -132,4 +132,34 @@ begin
 end $$;
 drop trigger if exists shelf_pdf_trash on shelf_pdf;
 create trigger shelf_pdf_trash after delete on shelf_pdf for each row execute function shelf_pdf_to_trash();
+
+-- Imports of .bib / .ris files (v10). The entries wait here and are worked
+-- through in batches in the background, so large files never time out.
+create table if not exists shelf_import (
+  id                text        primary key,
+  "userId"          text        not null references "user"(id) on delete cascade,
+  "fileName"        text        not null,
+  format            text        not null,
+  "projectId"       text        references shelf_project(id) on delete set null,
+  status            text        not null default 'queued' check (status in ('queued', 'done')),
+  total             integer     not null default 0,
+  "lookupFailures"  integer     not null default 0,
+  "lockedUntil"     timestamptz,
+  "createdAt"       timestamptz not null default now(),
+  "finishedAt"      timestamptz
+);
+create index if not exists shelf_import_user on shelf_import ("userId", "createdAt" desc);
+create index if not exists shelf_import_queued on shelf_import ("createdAt") where status = 'queued';
+
+create table if not exists shelf_import_entry (
+  "importId" text    not null references shelf_import(id) on delete cascade,
+  idx        integer not null,
+  label      text    not null,
+  data       jsonb,
+  status     text    not null default 'pending' check (status in ('pending', 'matched', 'added', 'duplicate', 'failed')),
+  reason     text,
+  "itemId"   text,
+  primary key ("importId", idx)
+);
+create index if not exists shelf_import_entry_pending on shelf_import_entry ("importId", idx) where status = 'pending';
 `;

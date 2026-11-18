@@ -33,3 +33,35 @@ export async function shelve(
     return (await getItem(q, userId, item.id)) as ShelfItem;
   });
 }
+
+/* The same steps with fewer round trips, for imports, inside the caller's
+   transaction: the project is checked by the insert itself, and only the new
+   item's ID comes back. */
+export async function shelveLean(
+  q: Queryable,
+  userId: string,
+  opts: { keys: { openalexId?: string | null; doi?: string | null }; paper: (q: Queryable) => Promise<{ id: string }>; via: AddedVia; projectId?: string | null },
+): Promise<string> {
+  {
+    const dup = await findExactDuplicate(q, userId, opts.keys);
+    if (dup) throw alreadySaved(dup);
+    const paper = await opts.paper(q);
+    const { rows } = await q.query<{ id: string }>(
+      `insert into shelf_item (id, "userId", "paperId", "addedVia") values ('i_' || gen_random_uuid()::text, $1, $2, $3)
+       on conflict ("userId", "paperId") do nothing returning id`,
+      [userId, paper.id, opts.via],
+    );
+    if (!rows[0]) {
+      const existing = await q.query<{ id: string }>(`select id from shelf_item where "userId" = $1 and "paperId" = $2`, [userId, paper.id]);
+      throw alreadySaved(existing.rows[0]?.id ?? '');
+    }
+    if (opts.projectId) {
+      const { rowCount } = await q.query(
+        `insert into shelf_item_project ("itemId", "projectId") select $1, id from shelf_project where id = $2 and "userId" = $3`,
+        [rows[0].id, opts.projectId, userId],
+      );
+      if (!rowCount) throw new ShelfError('not_found', 'That project no longer exists.');
+    }
+    return rows[0].id;
+  }
+}

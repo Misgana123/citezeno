@@ -4,8 +4,8 @@
      SHELF_PDF_MAX_MB          largest PDF a user may upload (default 10)
      SHELF_STORAGE_MB          total PDF storage per user (default 500)
      SHELF_UPLOADS_PER_DAY     PDF uploads per user per day (default 50)
-     SHELF_IMPORT_MAX_MB       largest .bib / .ris file (default 5)
-     SHELF_IMPORT_CHUNK        entries per queued import chunk (default 2000)
+     SHELF_IMPORT_MAX_MB       largest .bib / .ris file (default 4; Vercel caps request bodies at 4.5 MB)
+     SHELF_IMPORT_MAX_ENTRIES  most references one import may hold (default 10000)
 
    Title searches (add by title, PDFs without a DOI) count toward the same daily
    search limit as Find Papers (PAPERS_DAILY_SEARCHES). */
@@ -17,7 +17,7 @@ export type ShelfConfig = {
   storageBytesPerUser: number;
   uploadsPerDay: number;
   importMaxBytes: number;
-  importChunk: number;
+  importMaxEntries: number;
 };
 
 const MB = 1024 * 1024;
@@ -32,7 +32,7 @@ export function shelfConfig(env: Env = process.env): ShelfConfig {
     pdfMaxBytes: Math.floor(positive(env.SHELF_PDF_MAX_MB, 10) * MB),
     storageBytesPerUser: Math.floor(positive(env.SHELF_STORAGE_MB, 500) * MB),
     uploadsPerDay: Math.floor(positive(env.SHELF_UPLOADS_PER_DAY, 50)),
-    importMaxBytes: Math.floor(positive(env.SHELF_IMPORT_MAX_MB, 5) * MB),
-    importChunk: Math.floor(positive(env.SHELF_IMPORT_CHUNK, 2000)),
+    importMaxBytes: Math.floor(Math.min(4.4, positive(env.SHELF_IMPORT_MAX_MB, 4)) * MB),
+    importMaxEntries: Math.floor(positive(env.SHELF_IMPORT_MAX_ENTRIES, 10_000)),
   };
 }
