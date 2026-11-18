@@ -7,6 +7,7 @@ import { READING_STATUSES, type ReadingStatus, type ShelfItem } from '@/lib/shel
 import { Icon } from '../Icon';
 import { formatCount } from '../papers/format';
 import { toast } from '../toast';
+import { AddPapersDialog } from './add/AddPapersDialog';
 import { shelfFetch } from './api';
 import { BulkBar, type DistributiveOmit } from './BulkBar';
 import { runBulk } from './bulk';
@@ -31,6 +32,8 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
   const [open, setOpen] = useState<ShelfItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [sideOpen, setSideOpen] = useState(false); // phones: the views list is folded away
+  const [adding, setAdding] = useState(false);
+  const closeAdd = useCallback(() => setAdding(false), []);
   const tagMap = useMemo(() => new Map(groups.tags.map((t) => [t.id, t])), [groups.tags]);
 
   // keep the address bar in step (back, reload, share); the open paper is in it too
@@ -158,6 +161,12 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
       <section className="sh-main" aria-label={title}>
         <div className="sh-head">
           <h2 className="h3">{title}</h2>
+          <button type="button" className="btn btn-thread btn-sm sh-add-btn" onClick={() => setAdding(true)}>
+            <Icon name="plus" /> Add papers
+          </button>
+        </div>
+
+        <div className="sh-tools">
           <div className="seg sh-seg" role="group" aria-label="Reading status">
             <button type="button" aria-pressed={!filters.status} onClick={() => patchFilters({ status: '' })}>
               All
@@ -246,6 +255,18 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
           </>
         )}
       </section>
+
+      {adding && (
+        <AddPapersDialog
+          groups={groups}
+          defaultProjectId={filters.project && filters.project !== 'unsorted' ? filters.project : null}
+          onClose={closeAdd}
+          onAdded={() => {
+            list.reload();
+            void groups.reload();
+          }}
+        />
+      )}
 
       {open && <ItemDrawer item={open} groups={groups} onChange={changed} onRemove={remove} onClose={closeDrawer} />}
     </div>

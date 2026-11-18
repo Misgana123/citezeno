@@ -3,7 +3,7 @@ import { PapersError } from '@/lib/papers/errors';
 import type { OpenAlexClient } from '@/lib/papers/openalex/client';
 import { parseListRequest } from '@/lib/shelf/api/list-request';
 import { readClientPaper } from '@/lib/shelf/api/paper-schema';
-import { saveFromSearch } from '@/lib/shelf/service/save-search';
+import { saveOpenAlexPaper as saveFromSearch } from '@/lib/shelf/service/save-openalex';
 import { getItem } from '@/lib/shelf/store/items';
 import { createPrivate, getPaper, putShared } from '@/lib/shelf/store/papers';
 import { createProject } from '@/lib/shelf/store/projects';

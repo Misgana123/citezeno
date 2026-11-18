@@ -6,7 +6,8 @@ import { READING_STATUSES, type ReadingStatus, type ShelfItem } from '@/lib/shel
 import { Icon } from '../Icon';
 import { authorsShort, citationLabel, doiHref, languageName, openalexHref, typeLabel } from '../papers/format';
 import { toast } from '../toast';
-import { shelfFetch } from './api';
+import { emptyDraft, ManualForm } from './add/ManualForm';
+import { ShelfApiError, shelfFetch } from './api';
 import type { DistributiveOmit } from './BulkBar';
 import { runBulk } from './bulk';
 import { STATUS_LABELS } from './shelf-state';
@@ -33,6 +34,7 @@ export function ItemDrawer({
   const p = item.paper;
   const closeRef = useRef<HTMLButtonElement>(null);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -112,6 +114,39 @@ export function ItemDrawer({
                 )}
               </span>
             </div>
+
+            {p.origin !== 'openalex' && (
+              <section className="fp-detail-sec" aria-labelledby="sh-details-h">
+                <h3 id="sh-details-h">Details</h3>
+                {editing ? (
+                  <ManualForm
+                    initial={emptyDraft({
+                      title: p.title,
+                      authors: p.authors.map((a) => a.name).join('\n'),
+                      year: p.year ? String(p.year) : '',
+                      source: p.source ?? '',
+                      url: p.landingUrl ?? '',
+                      doi: p.doi ?? '',
+                    })}
+                    submitLabel="Save details"
+                    onCancel={() => setEditing(false)}
+                    onSubmit={async (details) => {
+                      try {
+                        onChange(await shelfFetch<ShelfItem>(`/api/shelf/papers/${item.id}`, { method: 'PATCH', body: { details: { ...details, abstract: p.abstract, type: p.type } } }));
+                        setEditing(false);
+                        return null;
+                      } catch (e) {
+                        return (e as ShelfApiError).code === 'duplicate' ? 'Another paper on your shelf already has this DOI.' : (e as Error).message;
+                      }
+                    }}
+                  />
+                ) : (
+                  <button type="button" className="btn btn-ghost btn-sm sh-edit-btn" onClick={() => setEditing(true)}>
+                    <Icon name="wand" /> Edit details
+                  </button>
+                )}
+              </section>
+            )}
 
             <section className="fp-detail-sec" aria-labelledby="sh-status-h">
               <h3 id="sh-status-h">Reading status</h3>

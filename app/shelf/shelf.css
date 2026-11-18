@@ -104,3 +104,43 @@
   .sh-bulk-sel { flex: 1 1 130px; }
   .sh-card-tools { margin-left: 0; }
 }
+
+/* ---------- add papers ---------- */
+.sh-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.sh-add-dialog { width: min(640px, 100%); max-height: calc(100vh - 14vh - 24px); overflow-y: auto; padding: 22px 24px 24px; display: grid; gap: 14px; }
+.sh-add-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sh-add-head h2 { margin: 0; }
+.sh-add-tabs { justify-self: start; }
+.sh-add-tabs button { display: inline-flex; align-items: center; gap: 6px; }
+.sh-add-tabs button svg { width: 15px; height: 15px; }
+.sh-add-into { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink-3); }
+.sh-add-into .select { width: auto; max-width: 260px; height: 34px; min-height: 34px; padding: 0 30px 0 12px; font-size: 13.5px; border-width: 1px; border-radius: 10px; }
+.sh-add-body { display: grid; gap: 12px; min-width: 0; }
+.dialog .sh-add-body p { margin: 0; }
+
+.sh-lookup { display: grid; gap: 10px; }
+.sh-lookup-form { display: flex; gap: 8px; }
+.sh-lookup-form .input { flex: 1; min-width: 0; }
+.sh-lookup-form .btn { min-height: 44px; }
+.sh-matches { display: grid; gap: 8px; }
+.sh-match-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sh-match { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--rule-2); background: var(--ground); }
+.sh-match > div { display: grid; gap: 2px; min-width: 0; }
+.sh-match-title { font-family: var(--f-read); font-size: 15.5px; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
+.sh-match-meta { font-size: 12.5px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-match .btn { flex: none; }
+.sh-not-here { justify-self: start; }
+
+.sh-manual { display: grid; gap: 12px; }
+.sh-manual textarea.input { min-height: 74px; padding-top: 10px; resize: vertical; }
+.sh-manual-row { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; }
+.sh-manual .dialog-actions { margin-top: 4px; }
+.sh-form-err { margin: 0; padding: 9px 12px; border-radius: 10px; background: var(--warn-soft); color: var(--warn); font-size: 13.5px; font-weight: 600; }
+.sh-edit-btn { justify-self: start; }
+
+@media (max-width: 560px) {
+  .sh-add-dialog { padding: 18px 16px 20px; }
+  .sh-add-tabs { justify-self: stretch; }
+  .sh-manual-row { grid-template-columns: minmax(0, 1fr); }
+  .sh-match { flex-wrap: wrap; }
+}

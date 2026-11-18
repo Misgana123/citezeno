@@ -2,6 +2,7 @@ import { json } from '@/lib/http';
 import { itemPatchBody } from '@/lib/shelf/api/bodies';
 import { ShelfError } from '@/lib/shelf/errors';
 import { shelfRoute } from '@/lib/shelf/route';
+import { editDetails } from '@/lib/shelf/service/edit-details';
 import { deleteItems, getItem, updateItem } from '@/lib/shelf/store/items';
 
 export const runtime = 'nodejs';
@@ -17,9 +18,10 @@ export const GET = shelfRoute<P>(async ({ db, userId }, { id }) => {
   return json(item);
 });
 
-/* Change the note or reading status. */
+/* Change the note or reading status, or correct a manual / imported paper's details. */
 export const PATCH = shelfRoute<P>(async (ctx, { id }) => {
-  const patch = await ctx.body(itemPatchBody);
+  const { details, ...patch } = await ctx.body(itemPatchBody);
+  if (details) await editDetails(ctx.db, ctx.userId, id, details);
   const item = await updateItem(ctx.db, ctx.userId, id, patch);
   if (!item) throw notFound();
   return json(item);

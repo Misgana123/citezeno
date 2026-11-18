@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { READING_STATUSES } from '../types';
+import { manualPaperSchema } from './manual-schema';
 
 /* The JSON bodies the /api/shelf routes accept. */
 
@@ -8,15 +9,23 @@ export const NAME = z.string().trim().min(1, 'Give it a name.').max(80, 'Keep th
 export const NOTE_MAX = 20_000;
 
 /* POST /api/shelf/papers: the ways a paper reaches the shelf. */
+const PAPER_ID = z.string().trim().min(1).max(60);
 export const saveBody = z.discriminatedUnion('via', [
-  z.object({ via: z.literal('search'), paperId: z.string().trim().min(1).max(60), paper: z.unknown().optional(), projectId: ID.nullish() }),
+  z.object({ via: z.literal('search'), paperId: PAPER_ID, paper: z.unknown().optional(), projectId: ID.nullish() }),
+  z.object({ via: z.enum(['doi', 'link', 'title']), paperId: PAPER_ID, projectId: ID.nullish() }),
+  z.object({ via: z.literal('manual'), details: manualPaperSchema, projectId: ID.nullish() }),
 ]);
+
+/* POST /api/shelf/lookup */
+export const lookupBody = z.object({ input: z.string().max(2000, 'That is too long to look up.') });
 
 /* PATCH /api/shelf/papers/:id */
 export const itemPatchBody = z
   .object({
     note: z.string().max(NOTE_MAX, 'Notes are limited to 20,000 characters.').nullable().optional(),
     readingStatus: z.enum(READING_STATUSES).optional(),
+    /* only for papers added by hand or imported */
+    details: manualPaperSchema.optional(),
   })
   .strict();
 
