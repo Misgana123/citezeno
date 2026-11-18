@@ -34,10 +34,15 @@ The studio needs an account, and searching costs **1 credit per claim**: every c
 
 Polar handles the payments. Citezeno keeps the balance in its own database (`credit_balance`, `credit_ledger`).
 
-1. In Polar ([sandbox.polar.sh](https://sandbox.polar.sh) for testing), create one product per credit pack, e.g. “Starter: 200 credits, $5” and “Researcher: 1,000 credits, $19”. One-time or monthly products both work; a monthly product adds its credits on every renewal.
-2. In each product's **metadata**, add `credits` = the number of credits it gives (e.g. `1000`). Add `featured` = `true` to highlight one. Products without `credits` don't appear on the pricing page.
-3. Create an Organization Access Token and set `POLAR_ACCESS_TOKEN` and `POLAR_SERVER` (`sandbox` or `production`).
-4. Add a webhook pointing to `{BETTER_AUTH_URL}/api/auth/polar/webhooks` for the `order.paid` and `order.refunded` events, then set `POLAR_WEBHOOK_SECRET`.
+There are two paid plans, **Scholar** and **Lab**, each billed monthly or annually; the pricing page shows them with a Monthly / Annually switch and the annual saving (`components/billing/PlanPicker.tsx`, `lib/plans.ts`).
+
+1. In Polar ([sandbox.polar.sh](https://sandbox.polar.sh) for testing), create four subscription products: Scholar monthly ($7), Scholar yearly ($67.20), Lab monthly ($19) and Lab yearly ($182.40). Prices are read from Polar, so change them there.
+2. Paste their IDs into `POLAR_SCHOLAR_MONTHLY_PRODUCT_ID`, `POLAR_SCHOLAR_ANNUAL_PRODUCT_ID`, `POLAR_LAB_MONTHLY_PRODUCT_ID` and `POLAR_LAB_ANNUAL_PRODUCT_ID`. Leave one empty to hide that option.
+3. Set the credits each payment adds: `SCHOLAR_MONTHLY_CREDITS` (200), `SCHOLAR_ANNUAL_CREDITS` (2400), `LAB_MONTHLY_CREDITS` (1000), `LAB_ANNUAL_CREDITS` (12000). Annual plans add the whole year's credits when the payment arrives. No product metadata is needed for the plans.
+4. Create an Organization Access Token and set `POLAR_ACCESS_TOKEN` and `POLAR_SERVER` (`sandbox` or `production`).
+5. Add a webhook pointing to `{BETTER_AUTH_URL}/api/auth/polar/webhooks` for the `order.paid` and `order.refunded` events, then set `POLAR_WEBHOOK_SECRET`.
+
+Any other active Polar product with a `credits` value in its metadata (e.g. a one-time top-up) still appears as its own card and adds that many credits.
 
 Credits are added when `order.paid` arrives (repeat deliveries are ignored), and refunds take back the matching share. Without `POLAR_ACCESS_TOKEN`, billing is off: the free allowance still applies and the pricing page shows no buy buttons.
 
