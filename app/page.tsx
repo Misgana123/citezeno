@@ -130,9 +130,6 @@ export default function Home() {
       <main>
         <section className="hero">
           <div className="wrap hero-in">
-            <Link className="hero-eyebrow rise" href="/studio">
-              <b>New</b> <span className="hero-eyebrow-long">Check the citations already in your draft</span><span className="hero-eyebrow-short">Check your draft’s citations</span> <Icon name="arrow" />
-            </Link>
             <h1 className="rise">
               Every claim needs a source <em>that exists.</em>
               <sup aria-hidden="true">[1]</sup>
