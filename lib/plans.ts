@@ -7,7 +7,9 @@
      POLAR_LAB_MONTHLY_PRODUCT_ID       LAB_MONTHLY_CREDITS       (default 1000)
      POLAR_LAB_ANNUAL_PRODUCT_ID        LAB_ANNUAL_CREDITS        (default 12 × monthly)
 
-   Prices come from Polar. Server-only values: nothing here is sent to the
+   Prices come from Polar. Until a plan's products exist there, the pricing page
+   shows it as "coming soon" at these display prices (in dollars):
+     SCHOLAR_MONTHLY_PRICE (7)  SCHOLAR_ANNUAL_PRICE (67.20)  LAB_MONTHLY_PRICE (19)  LAB_ANNUAL_PRICE (182.40) Server-only values: nothing here is sent to the
    browser except through the pricing page's props. */
 
 export type Interval = 'month' | 'year';
@@ -24,9 +26,9 @@ export type PlanDef = {
 
 type Env = Record<string, string | undefined>;
 
-const PLAN_TEXT: Record<PlanKey, { name: string; blurb: string; featured: boolean; monthly: number }> = {
-  scholar: { name: 'Scholar', blurb: 'For students writing essays and coursework.', featured: false, monthly: 200 },
-  lab: { name: 'Lab', blurb: 'For theses, papers and anyone citing every week.', featured: true, monthly: 1000 },
+const PLAN_TEXT: Record<PlanKey, { name: string; blurb: string; featured: boolean; monthly: number; price: { month: number; year: number } }> = {
+  scholar: { name: 'Scholar', blurb: 'For students writing essays and coursework.', featured: false, monthly: 200, price: { month: 7, year: 67.2 } },
+  lab: { name: 'Lab', blurb: 'For theses, papers and anyone citing every week.', featured: true, monthly: 1000, price: { month: 19, year: 182.4 } },
 };
 
 /* A whole, positive number from the environment, or the fallback. */
@@ -77,7 +79,11 @@ export function creditsForProduct(
 /* ---------------------------------------------------------------- display */
 
 export type PlanPrice = { productId: string; credits: number; price: number; currency: string };
-export type PlanView = { key: PlanKey; name: string; blurb: string; featured: boolean; month?: PlanPrice; year?: PlanPrice; savePct: number };
+export type PlanView = {
+  key: PlanKey; name: string; blurb: string; featured: boolean; month?: PlanPrice; year?: PlanPrice; savePct: number;
+  /* not buyable yet: shown at the display prices with a "coming soon" button */
+  preview?: boolean;
+};
 
 /* Join the plans with the prices Polar returns (cents, by product id).
    A plan shows only when at least one of its products has a price. */
@@ -96,6 +102,25 @@ export function planViews(defs: PlanDef[], prices: Map<string, { price: number; 
     out.push({ key: d.key, name: d.name, blurb: d.blurb, featured: d.featured, month, year, savePct });
   }
   return out;
+}
+
+/* A dollar amount from the environment, in cents, or the fallback. */
+function cents(v: string | undefined, fallback: number) {
+  const n = Number(v);
+  return Math.round((v != null && v.trim() !== '' && Number.isFinite(n) && n > 0 ? n : fallback) * 100);
+}
+
+/* Both plans at their display prices, for before they're set up in Polar. */
+export function previewPlanViews(env: Env = process.env): PlanView[] {
+  return planDefs(env).map((d) => {
+    const up = d.key.toUpperCase();
+    const t = PLAN_TEXT[d.key];
+    const monthly = count(env[`${up}_MONTHLY_CREDITS`], t.monthly);
+    const month = { productId: '', credits: monthly, price: cents(env[`${up}_MONTHLY_PRICE`], t.price.month), currency: 'usd' };
+    const year = { productId: '', credits: count(env[`${up}_ANNUAL_CREDITS`], monthly * 12), price: cents(env[`${up}_ANNUAL_PRICE`], t.price.year), currency: 'usd' };
+    const savePct = Math.max(0, Math.round((1 - year.price / (month.price * 12)) * 100));
+    return { key: d.key, name: d.name, blurb: d.blurb, featured: d.featured, month, year, savePct, preview: true };
+  });
 }
 
 export const allPlanProductIds = (env: Env = process.env) =>

@@ -79,3 +79,14 @@ describe('what the pricing page shows', () => {
     expect(views[0].savePct).toBe(0);
   });
 });
+
+describe('plans before Polar is set up', () => {
+  it('shows both plans at the agreed display prices, marked as previews', async () => {
+    const { previewPlanViews } = await import('@/lib/plans');
+    const [scholar, lab] = previewPlanViews({});
+    expect(scholar).toMatchObject({ name: 'Scholar', preview: true, month: { price: 700, credits: 200 }, year: { price: 6720, credits: 2400 }, savePct: 20 });
+    expect(lab).toMatchObject({ name: 'Lab', preview: true, month: { price: 1900, credits: 1000 }, year: { price: 18240, credits: 12000 }, savePct: 20 });
+    const custom = previewPlanViews({ SCHOLAR_MONTHLY_PRICE: '8', SCHOLAR_ANNUAL_PRICE: '76.80', SCHOLAR_MONTHLY_CREDITS: '250' })[0];
+    expect(custom).toMatchObject({ month: { price: 800, credits: 250 }, year: { price: 7680, credits: 3000 }, savePct: 20 });
+  });
+});

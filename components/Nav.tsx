@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Icon, LogoMark } from './Icon';
-import { UserMenu } from './UserMenu';
+import { useSession } from '@/lib/auth-client';
 
 const LINKS = [
   { href: '/styles', label: 'Citation styles' },
@@ -35,6 +35,8 @@ export function ThemeToggle() {
 
 export function Nav({ onBlue = false }: { onBlue?: boolean }) {
   const path = usePathname();
+  const { data: session, isPending } = useSession();
+  const signedIn = Boolean(session);
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -69,10 +71,12 @@ export function Nav({ onBlue = false }: { onBlue?: boolean }) {
           ))}
         </nav>
         <div className="nav-end">
-          <span className="nav-theme">
-            <ThemeToggle />
-          </span>
-          <UserMenu />
+          {/* no theme switch or profile here: signed-out visitors get "Sign in", everyone gets the studio */}
+          {!signedIn && !isPending && (
+            <Link className="nav-signin" href="/sign-in">
+              Sign in
+            </Link>
+          )}
           {path !== '/studio' && (
             <Link className="btn btn-thread nav-cta" href="/studio">
               <span className="nav-cta-long">Open the studio</span>
@@ -94,10 +98,6 @@ export function Nav({ onBlue = false }: { onBlue?: boolean }) {
             </Link>
           ))}
         </nav>
-        <div className="nav-sheet-end">
-          <span>Theme</span>
-          <ThemeToggle />
-        </div>
       </div>
     </header>
   );

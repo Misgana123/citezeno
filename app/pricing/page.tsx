@@ -1,9 +1,13 @@
 import type { Metadata } from 'next';
 import { unstable_cache } from 'next/cache';
 import Link from 'next/link';
+import { PlanEstimator } from '@/components/billing/PlanEstimator';
 import { PlanPicker } from '@/components/billing/PlanPicker';
+import { Icon, type IconName } from '@/components/Icon';
 import { Footer, Nav } from '@/components/Nav';
-import { listPricing, polarEnabled } from '@/lib/polar';
+import { listPricing } from '@/lib/polar';
+import { previewPlanViews } from '@/lib/plans';
+import './pricing.css';
 import { CREDITS_PER_CLAIM, FREE_MONTHLY_CREDITS } from '@/lib/pricing';
 import { JsonLd } from '@/components/JsonLd';
 import { appLd, faqLd, pageMeta } from '@/lib/seo';
@@ -20,6 +24,18 @@ export const revalidate = 300;
 
 const pricing = unstable_cache(listPricing, ['polar-pricing'], { revalidate: 300 });
 
+/* what every plan includes, free or paid */
+const INCLUDED: [IconName, string, string][] = [
+  ['quote', '12 citation styles', 'APA, MLA, Chicago, Harvard, IEEE, Vancouver and more, switched instantly.'],
+  ['list', '5 output forms', 'In-text, footnotes, endnotes, bibliography or annotated bibliography.'],
+  ['word', 'Word and PDF', 'Real .docx footnotes and hanging indents, or a print-ready PDF.'],
+  ['code', 'BibTeX, RIS, CSL-JSON', 'Send your references to Zotero, Mendeley or EndNote.'],
+  ['shield', 'Check existing citations', 'Find out which references in a draft are real. Always free.'],
+  ['upload', 'Import your references', 'Bring in .bib and .ris files from your reference manager.'],
+  ['history', 'Synced library', 'Every trace saved to your account, on every device.'],
+  ['globe', 'Share links', 'A read-only page for any trace, with an optional password.'],
+];
+
 const FAQ = [
   ['What counts as one claim?', `Each sentence Citezeno searches sources for. A full trace uses one credit per claim it picks (the button shows the cost before you start), and “Cite this claim” uses ${CREDITS_PER_CLAIM}.`],
   ['What if a trace fails or I stop it?', 'If a trace stops before it finishes (you press Stop, or the databases can’t be reached), its credits are returned automatically.'],
@@ -31,6 +47,9 @@ const FAQ = [
 
 export default async function PricingPage() {
   const { plans, packs } = await pricing();
+  // until Scholar and Lab exist in Polar, show them at their display prices
+  const preview = plans.length === 0;
+  const shown = preview ? previewPlanViews() : plans;
   const prices = [...plans.flatMap((p) => [p.month, p.year]).filter((x) => x !== undefined), ...packs].map((x) => x!.price);
   const currency = plans[0]?.month?.currency || plans[0]?.year?.currency || packs[0]?.currency;
   return (
@@ -43,51 +62,104 @@ export default async function PricingPage() {
         })}
       />
       <Nav />
-      <main className="wrap page">
-        <header className="price-head">
-          <h1 className="h2">Pay for the claims you trace</h1>
-          <p className="lede">
-            One credit finds real sources for one claim. Every account gets {FREE_MONTHLY_CREDITS} free credits a month. Need
-            more? Pick a plan, billed monthly or annually. Cancel any time.
+      <main className="pr">
+        <header className="pr-hero wrap">
+          <span className="kicker">Pricing</span>
+          <h1>
+            Pay for the claims <em>you trace.</em>
+          </h1>
+          <p>
+            One credit finds real, published sources for one claim. Every account gets {FREE_MONTHLY_CREDITS} free credits a
+            month; Scholar and Lab add more, billed monthly or annually.
           </p>
+          <ul className="pr-assure">
+            <li><Icon name="check" /> {FREE_MONTHLY_CREDITS} free credits every month</li>
+            <li><Icon name="check" /> No card to start</li>
+            <li><Icon name="check" /> Cancel any time</li>
+          </ul>
         </header>
 
-        <div className="how">
-          <div>
-            <b>{CREDITS_PER_CLAIM} credit</b>
-            <span>per claim searched, across every database you switch on</span>
-          </div>
-          <div>
-            <b>{FREE_MONTHLY_CREDITS} free</b>
-            <span>credits every month, refilled on the 1st</span>
-          </div>
-          <div>
-            <b>Never expire</b>
-            <span>purchased credits stay until you use them</span>
-          </div>
+        <div className="wrap">
+          <PlanPicker plans={shown} packs={packs} freeCredits={FREE_MONTHLY_CREDITS} />
         </div>
 
-        <PlanPicker plans={plans} packs={packs} freeCredits={FREE_MONTHLY_CREDITS} />
-        {!plans.length && !packs.length && (
-          <p className="small" style={{ textAlign: 'center', marginTop: 24 }}>
-            {polarEnabled ? 'Paid plans are being set up. Check back soon.' : 'Paid plans are coming soon.'}
-          </p>
-        )}
+        <section className="pr-facts wrap" aria-label="How credits work">
+          <div>
+            <b>{CREDITS_PER_CLAIM}</b>
+            <span>credit per claim</span>
+            <p>Searched across every database you switch on. The trace button shows the cost first.</p>
+          </div>
+          <div>
+            <b>{FREE_MONTHLY_CREDITS}</b>
+            <span>free every month</span>
+            <p>Refilled on the 1st, spent before paid credits. They don’t roll over.</p>
+          </div>
+          <div>
+            <b>∞</b>
+            <span>paid credits never expire</span>
+            <p>Unused plan credits roll over for as long as you need them.</p>
+          </div>
+          <div>
+            <b>0</b>
+            <span>for a failed search</span>
+            <p>If a trace stops or the databases can’t be reached, its credits come back.</p>
+          </div>
+        </section>
 
-        <section className="faq">
-          <h2 className="h3" style={{ fontSize: 26 }}>
-            Questions
-          </h2>
-          {FAQ.map(([q, a]) => (
-            <details key={q}>
-              <summary>{q}</summary>
-              <p>{a}</p>
-            </details>
-          ))}
-          <p className="small" style={{ textAlign: 'center', marginTop: 24 }}>
-            Payments are handled by Polar, our merchant of record, which also takes care of sales tax and VAT. Anything else?{' '}
-            <Link href="/contact">Contact us</Link>.
-          </p>
+        <div className="wrap">
+          <PlanEstimator
+            tiers={[
+              { key: 'free', name: 'Free', credits: FREE_MONTHLY_CREDITS },
+              ...shown.map((p) => ({ key: p.key, name: p.name, credits: p.month?.credits ?? Math.round((p.year?.credits ?? 0) / 12) })),
+            ]}
+          />
+        </div>
+
+        <section className="pr-incl wrap" aria-labelledby="incl-title">
+          <div className="pr-sec-head">
+            <span className="kicker">Every plan</span>
+            <h2 id="incl-title">
+              Everything is included. <em>Only the credits change.</em>
+            </h2>
+          </div>
+          <ul>
+            {INCLUDED.map(([icon, title, body]) => (
+              <li key={title}>
+                <span className="pr-incl-ico">
+                  <Icon name={icon} />
+                </span>
+                <b>{title}</b>
+                <span>{body}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="pr-faq wrap" aria-labelledby="faq-title">
+          <div className="pr-faq-side">
+            <span className="kicker">Questions</span>
+            <h2 id="faq-title">
+              Good to <em>know.</em>
+            </h2>
+            <p>
+              Anything else? <Link href="/contact">Contact us</Link> and a person will reply.
+            </p>
+            <p className="pr-polar">
+              <Icon name="shield" />
+              <span>Payments are handled by Polar, our merchant of record, which also takes care of sales tax and VAT.</span>
+            </p>
+          </div>
+          <div className="pr-faq-list">
+            {FAQ.map(([q, a]) => (
+              <details key={q}>
+                <summary>
+                  {q}
+                  <span className="pr-faq-ico" aria-hidden="true" />
+                </summary>
+                <p>{a}</p>
+              </details>
+            ))}
+          </div>
         </section>
       </main>
       <Footer />

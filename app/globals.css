@@ -181,9 +181,8 @@ img, svg { display: block; }
 .nav-sheet a { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 14px; text-decoration: none; font-size: 16px; font-weight: 600; }
 .nav-sheet a svg { width: 16px; height: 16px; color: var(--ink-3); }
 .nav-sheet a:hover, .nav-sheet a[aria-current='page'] { background: var(--card); }
-.nav-sheet-end { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; padding: 8px 8px 4px 16px; border-top: 1px solid var(--rule-2); font-size: 14px; color: var(--ink-3); }
 @media (max-width: 960px) {
-  .nav-links, .nav-theme { display: none; }
+  .nav-links { display: none; }
   .nav-burger { display: grid; }
 }
 @media (min-width: 961px) { .nav-sheet { display: none !important; } }
