@@ -66,6 +66,8 @@ Each button appears only when its keys are set. Register these callback URLs wit
 | `/pricing` | Credit packs loaded live from Polar, plus the free tier |
 | `/billing/success` | Shown after checkout while the credits arrive |
 | `/library` | Every saved trace: search, filter, sort, rename, share, delete, reopen in the studio |
+| `/papers` | Find Papers: search OpenAlex by keywords or meaning, preview papers and their references |
+| `/shelf` | My shelf (Keep Papers): saved papers, projects, folders, tags, notes, PDFs, imports, search and export |
 | `/s/[token]` | Public read-only view of a shared trace, in any style, with a BibTeX download |
 | `/two-factor` | The code step of sign-in when two-step verification is on |
 | `/history` | Activity timeline: traces, credits, sharing and security events, with filters and CSV export |
@@ -195,6 +197,17 @@ lib/
 ```
 
 Runtime dependencies are Next.js, React, Better Auth, `pg`, Resend and Polar. Icons, charts, the command menu, toasts and the Word and PDF writers are all built in. `scripts/migrate.ts` creates the database tables.
+
+## My shelf (Keep Papers)
+
+Every user's personal library of papers, at `/shelf` (named Shelf because "library" is the studio's saved traces). Code lives in `lib/shelf/`, `components/shelf/` and `app/api/shelf/`; the plan is in `docs/coreidea.md`.
+
+- **Tables**: `npm run db:migrate` creates the `shelf_*` tables. Deleting an account removes the whole shelf.
+- **PDF storage (Cloudinary)**: set `CLOUDINARY_URL` (Cloudinary → Settings → API Keys → "API environment variable") and turn on Settings → Security → "Allow delivery of PDF and ZIP files". Files are private ("authenticated") and downloaded through links that expire after five minutes. The browser uploads straight to Cloudinary with a signed form, because Vercel caps request bodies at 4.5 MB. Without `CLOUDINARY_URL`, uploads are switched off with a clear message.
+- **Background work (Vercel Cron)**: `vercel.json` calls `/api/shelf/cron` every minute (needs Vercel Pro). Set `CRON_SECRET` to any long random string; Vercel sends it, and the route refuses calls without it. Each run works through imports, removes deleted PDFs from storage, rechecks saved papers with OpenAlex (citations, retractions) and clears abandoned uploads.
+- **OpenAlex**: every call goes through Find Papers' cache, rate limiter, cost log and daily cap. Title searches count toward the user's daily search limit.
+- **Limits**: `SHELF_PDF_MAX_MB`, `SHELF_STORAGE_MB`, `SHELF_UPLOADS_PER_DAY`, `SHELF_IMPORT_MAX_MB`, `SHELF_IMPORT_MAX_ENTRIES`, `SHELF_REFRESH_DAYS`, `SHELF_REFRESH_BATCHES` (see `.env.example`).
+- **Tests**: the Shelf database tests run against a throwaway schema when `TEST_DATABASE_URL` is set (for example to your local `DATABASE_URL`); without it they are skipped.
 
 ## Optional settings
 

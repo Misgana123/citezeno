@@ -5,7 +5,7 @@ import type { Paper } from '@/lib/papers/types';
 import type { ShelfItem } from '@/lib/shelf/types';
 import { Icon } from '../../Icon';
 import { authorsShort } from '../../papers/format';
-import { ShelfApiError, shelfFetch } from '../api';
+import { ShelfApiError, shelfFetch, shelfItemHref } from '../api';
 import { savedToast } from '../dup-hint';
 import { markSaved } from '../saved-store';
 import type { DupSummary } from '@/lib/shelf/api/saved-response';
@@ -110,9 +110,9 @@ export function LookupTab({ projectId, onAdded, onManual }: { projectId: string 
                     <span className="sh-match-meta">{[authorsShort(p.authors, 2), p.year, p.source].filter(Boolean).join(' · ')}</span>
                   </div>
                   {saved ? (
-                    <span className="btn btn-ghost btn-sm sv-saved">
-                      <Icon name="check" /> Saved
-                    </span>
+                    <a className="btn btn-ghost btn-sm sv-saved" href={shelfItemHref(saved)} title="Already on your shelf: open it">
+                      <Icon name="check" /> On your shelf
+                    </a>
                   ) : (
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => add(p)} disabled={!!adding}>
                       {adding === p.id ? <span className="spin" aria-hidden="true" /> : <Icon name="plus" />} Add
