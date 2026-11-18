@@ -715,6 +715,7 @@ export function Studio() {
           {rail('sliders', 'Trace settings', () => setDrawer('insp'), { cls: 'at-only-compact', short: 'Settings' })}
           {rail('search', 'Commands', openPalette, { cls: 'at-only-phone', short: 'Search' })}
           <RailLink href="/history" icon="clock" label="History" cls="at-hide-phone" />
+          <RailLink href="/papers" icon="book" label="Find papers" cls="at-hide-phone" />
         </div>
         <div className="at-rail-end">
           <RailLink href="/#method" icon="help" label="How it works" cls="at-hide-phone" />

@@ -1,5 +1,5 @@
 import type { Paper } from '../types';
-import type { SearchMode, SortKey } from './request';
+import type { SearchMode, SortKey } from './options';
 
 /* Notes the UI shows above the results. */
 export type SearchNotice = 'query_truncated' | 'filtered_top_results' | 'results_capped';

@@ -1,34 +1,13 @@
 import { z } from 'zod';
 import { PapersError } from '../errors';
+import { MAX_INPUT_CHARS, MAX_PAGE, MIN_YEAR, SEARCH_MODES, SORTS, WORK_TYPES, type SearchMode, type SortKey, type WorkType } from './options';
 import { capText, DEFAULT_QUERY_CHARS } from './query-length';
 
 /* The search request the browser sends, validated and normalized.
    Shared by the main search and the related-paper lists. */
 
-export const SEARCH_MODES = ['smart', 'keyword', 'semantic'] as const;
-export const SORTS = ['relevance', 'newest', 'cited'] as const;
-export const WORK_TYPES = [
-  'article',
-  'book',
-  'book-chapter',
-  'preprint',
-  'dataset',
-  'dissertation',
-  'review',
-  'report',
-  'editorial',
-  'letter',
-  'standard',
-  'other',
-] as const;
-
-export type SearchMode = (typeof SEARCH_MODES)[number];
-export type SortKey = (typeof SORTS)[number];
-export type WorkType = (typeof WORK_TYPES)[number];
-
-export const MAX_INPUT_CHARS = 10_000; // longer input is rejected outright
-export const MAX_PAGE = 100;
-export const MIN_YEAR = 1000;
+export { MAX_INPUT_CHARS, MAX_PAGE, MIN_YEAR, SEARCH_MODES, SORTS, WORK_TYPES };
+export type { SearchMode, SortKey, WorkType };
 
 export type SearchFilters = {
   yearFrom: number | null;
