@@ -1,14 +1,106 @@
-/* My shelf (/shelf). Reuses Find Papers' cards and states (papers.css) and the
-   workspace patterns in atelier.css; only shelf-specific pieces live here. */
+/* My shelf (/shelf). Reuses Find Papers' cards, states and drawer (papers.css)
+   and the shared tokens and controls (.btn, .seg, .check, .input, .select,
+   .umenu-pop, .drawer); only shelf-specific pieces live here. */
 
-.sh { display: grid; gap: 22px; }
-.sh-card .fp-title span { color: var(--ink); }
+.sh { display: grid; grid-template-columns: 236px minmax(0, 1fr); align-items: start; gap: 28px; }
+.sh-main { display: grid; gap: 14px; min-width: 0; }
+.sh-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.sh-head .h3 { overflow-wrap: anywhere; }
+.sh-seg { background: var(--sheet); box-shadow: var(--shadow-sm); }
+.sh-seg button { padding: 6px 12px; font-size: 13px; }
+.sh-seg button[aria-pressed='true'] { background: var(--ink); color: var(--ground); }
+
+/* ---------- sidebar ---------- */
+.sh-side-toggle { display: none; }
+.sh-side { position: sticky; top: 12px; display: grid; gap: 18px; max-height: calc(100vh - 120px); overflow-y: auto; padding: 4px 2px 12px; scrollbar-width: thin; }
+.sh-views { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.sh-folders { margin: 2px 0 4px 18px; padding-left: 8px; border-left: 1px solid var(--rule-2); }
+.sh-view {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 10px;
+  background: transparent; font-size: 14px; font-weight: 600; color: var(--ink-2); text-align: left; transition: background 0.15s, color 0.15s;
+}
+.sh-view svg { width: 16px; height: 16px; color: var(--ink-3); }
+.sh-view:hover { background: var(--ground-2); color: var(--ink); }
+.sh-view[aria-current='true'] { background: var(--sheet); color: var(--ink); box-shadow: var(--shadow-sm); }
+.sh-view[aria-current='true'] svg { color: var(--thread); }
+.sh-view.is-warn, .sh-view.is-warn svg { color: var(--warn); }
+.sh-view-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-view-n { font-size: 12px; font-weight: 650; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sh-folders .sh-view { padding: 6px 10px; font-size: 13.5px; }
+.sh-folders .sh-view svg { width: 13px; height: 13px; }
+
+.sh-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 28px; align-items: center; }
+.sh-row .sh-view { grid-column: 1 / -1; grid-row: 1; padding-right: 36px; }
+.sh-row-more { grid-column: 2; grid-row: 1; width: 28px; height: 28px; opacity: 0; color: var(--ink-3); }
+.sh-row-more svg { width: 15px; height: 15px; }
+.sh-row:hover .sh-row-more, .sh-row-more:focus-visible, .sh-row-more[aria-expanded='true'] { opacity: 1; }
+.sh-row:hover .sh-view-n, .sh-row:has(.sh-row-more[aria-expanded='true']) .sh-view-n { visibility: hidden; }
+.sh-row-more:hover { border-color: transparent; background: var(--ground-2); }
+.sh-row-menu { width: 170px; top: calc(100% + 2px); }
+.umenu-pop .is-danger { color: var(--warn); }
+
+.sh-side-sec { display: grid; gap: 6px; }
+.sh-side-h { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 0 10px; }
+.sh-side-h h2 { margin: 0; font: 650 10.5px/1.3 var(--f-mono); letter-spacing: 0.11em; text-transform: uppercase; color: var(--ink-3); }
+.sh-add { width: 28px; height: 28px; color: var(--ink-3); }
+.sh-add svg { width: 15px; height: 15px; }
+.sh-add:hover { border-color: transparent; background: var(--ground-2); color: var(--ink); }
+.sh-side-empty { padding: 4px 10px; font-size: 12.5px; line-height: 1.45; color: var(--ink-3); }
+.sh-inline .input { height: 34px; min-height: 34px; padding: 0 10px; font-size: 13.5px; border-width: 1px; border-radius: 10px; }
+
+/* ---------- cards ---------- */
+.sh-card.is-selected { border-color: var(--thread); background: color-mix(in srgb, var(--thread-soft) 45%, var(--sheet)); }
+.sh-pick { display: inline-grid; place-items: center; width: 22px; height: 22px; margin: -2px 0 -2px -4px; cursor: pointer; }
+.sh-pick input { width: 17px; height: 17px; accent-color: var(--thread); cursor: pointer; }
+.sh-card-tags { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 2px 0 0; font-size: 12.5px; font-weight: 650; color: var(--ink-3); }
 .sh-note {
   margin: 4px 0 0; padding: 8px 12px; border-left: 3px solid var(--thread); border-radius: 0 10px 10px 0; background: var(--ground-2);
   font-size: 13.5px; line-height: 1.5; color: var(--ink-2); white-space: pre-line;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
 }
-.sh-card-tools { display: inline-flex; align-items: center; gap: 6px; }
+.sh-card-tools { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
 .sh-status { width: auto; height: 34px; min-height: 34px; padding: 0 30px 0 12px; font-size: 13px; border-width: 1px; border-radius: 999px; }
 .sh-remove { width: 34px; height: 34px; color: var(--ink-3); }
 .sh-remove:hover { color: var(--warn); }
+
+/* ---------- selection bar ---------- */
+.sh-bulk {
+  position: sticky; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 14px;
+  background: var(--sheet); border: 1px solid var(--thread); box-shadow: 0 0 0 3px var(--thread-soft), var(--at-card-shadow); animation: popIn 0.18s var(--ease);
+}
+.sh-bulk-n { margin-right: 4px; font-size: 13.5px; color: var(--ink-2); }
+.sh-bulk-sel { width: auto; height: 34px; min-height: 34px; padding: 0 30px 0 12px; font-size: 13px; border-width: 1px; border-radius: 999px; }
+.sh-bulk-del { --b-fg: var(--warn); }
+.sh-bulk-x { width: 34px; height: 34px; margin-left: auto; }
+
+/* ---------- drawer ---------- */
+.sh-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sh-checks-in { margin: 6px 0 2px 26px; }
+.sh-checks .check { font-size: 14px; }
+.sh-hint { margin: 0; font-size: 13px; color: var(--ink-3); }
+.sh-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sh-chip { display: inline-flex; align-items: center; gap: 4px; padding-right: 4px; }
+.sh-chip button { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ink-3); }
+.sh-chip button:hover { background: var(--ground-2); color: var(--ink); }
+.sh-chip svg { width: 11px; height: 11px; }
+.sh-tag-add .input { width: 150px; height: 30px; min-height: 30px; padding: 0 10px; font-size: 13px; border-width: 1px; border-radius: 999px; }
+.sh-note-input { width: 100%; min-height: 110px; padding: 10px 12px; font: 14.5px/1.55 var(--f-ui); resize: vertical; border-width: 1px; }
+.sh-note-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+@media (max-width: 900px) {
+  .sh { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .sh-side-toggle { display: inline-flex; justify-self: start; background: var(--sheet); box-shadow: var(--shadow-sm); }
+  .sh-side-chev { transform: rotate(90deg); transition: transform 0.2s var(--ease); }
+  .sh-side-toggle[aria-expanded='true'] .sh-side-chev { transform: rotate(-90deg); }
+  .sh-side { display: none; position: static; max-height: none; overflow: visible; grid-template-columns: minmax(0, 1fr); padding: 12px; border-radius: 16px; background: var(--sheet); border: 1px solid var(--rule-2); }
+  .sh-side.is-open { display: grid; animation: popIn 0.18s var(--ease); }
+  .sh-row-more { opacity: 1; }
+  .sh-row .sh-view-n { visibility: hidden; }
+}
+@media (max-width: 560px) {
+  .sh-head { align-items: flex-start; }
+  .sh-seg { width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sh-seg button { padding: 6px 4px; }
+  .sh-bulk-sel { flex: 1 1 130px; }
+  .sh-card-tools { margin-left: 0; }
+}
