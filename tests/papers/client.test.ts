@@ -24,6 +24,7 @@ describe('papersConfig', () => {
       apiKey: null,
       baseUrl: 'https://api.openalex.org',
       timeoutMs: 10_000,
+      maxQueryChars: 1500,
       dailySearchesPerUser: 100,
       dailyAlertUsd: 0.8,
       dailyCapUsd: 2,
@@ -38,6 +39,12 @@ describe('papersConfig', () => {
     expect(c.baseUrl).toBe('https://x.org');
     expect(c.dailySearchesPerUser).toBe(25);
     expect(c.dailyCapUsd).toBe(2);
+  });
+
+  it('keeps the search length within what OpenAlex allows', () => {
+    expect(papersConfig({ OPENALEX_MAX_QUERY_CHARS: '2000' }).maxQueryChars).toBe(2000);
+    expect(papersConfig({ OPENALEX_MAX_QUERY_CHARS: '5000' }).maxQueryChars).toBe(2000);
+    expect(papersConfig({ OPENALEX_MAX_QUERY_CHARS: '10' }).maxQueryChars).toBe(100);
   });
 });
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PapersError } from '../errors';
+import { capText, DEFAULT_QUERY_CHARS } from './query-length';
 
 /* The search request the browser sends, validated and normalized.
    Shared by the main search and the related-paper lists. */
@@ -25,7 +26,6 @@ export type SearchMode = (typeof SEARCH_MODES)[number];
 export type SortKey = (typeof SORTS)[number];
 export type WorkType = (typeof WORK_TYPES)[number];
 
-export const MAX_QUERY_CHARS = 2000; // OpenAlex semantic search reads only this much
 export const MAX_INPUT_CHARS = 10_000; // longer input is rejected outright
 export const MAX_PAGE = 100;
 export const MIN_YEAR = 1000;
@@ -42,8 +42,8 @@ export type SearchFilters = {
 };
 
 export type SearchRequest = {
-  query: string; // trimmed and capped at MAX_QUERY_CHARS
-  truncated: boolean; // the user's text was longer than MAX_QUERY_CHARS
+  query: string; // trimmed and capped at the configured search length
+  truncated: boolean; // the user's text was longer than that
   mode: SearchMode;
   sort: SortKey;
   page: number;
@@ -93,7 +93,10 @@ const schema = z
 
 /* Search params → SearchRequest. `requireQuery` is false for related lists,
    which are driven by a paper ID instead of text. */
-export function parseSearchRequest(params: URLSearchParams, { requireQuery = true } = {}): SearchRequest {
+export function parseSearchRequest(
+  params: URLSearchParams,
+  { requireQuery = true, maxQueryChars = DEFAULT_QUERY_CHARS }: { requireQuery?: boolean; maxQueryChars?: number } = {},
+): SearchRequest {
   const raw: Record<string, unknown> = {};
   for (const key of ['q', 'mode', 'sort', 'page', 'from', 'to', 'oa', 'lang', 'abstract', 'retracted', 'minCites']) {
     const v = params.get(key);
@@ -110,8 +113,8 @@ export function parseSearchRequest(params: URLSearchParams, { requireQuery = tru
   if (requireQuery && !full) throw new PapersError('bad_request', 'Type a topic, question or paragraph to search.');
 
   return {
-    query: full.slice(0, MAX_QUERY_CHARS).trim(),
-    truncated: full.length > MAX_QUERY_CHARS,
+    query: capText(full, maxQueryChars),
+    truncated: full.length > maxQueryChars,
     mode: v.mode,
     sort: v.sort,
     page: v.page,

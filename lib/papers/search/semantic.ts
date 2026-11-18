@@ -5,7 +5,8 @@ import type { OpenAlexList } from '../openalex/types';
 import type { Paper } from '../types';
 import { buildFilter } from './filters';
 import { applyServerFilters, paginate, sortPapers } from './postprocess';
-import { MAX_QUERY_CHARS, type SearchFilters, type SearchRequest } from './request';
+import { capText, QUERY_CHARS_LIMIT } from './query-length';
+import type { SearchFilters, SearchRequest } from './request';
 import type { PaperListResult, SearchNotice } from './types';
 
 /* OpenAlex returns at most 50 semantic results and can't sort them, so we
@@ -18,7 +19,7 @@ export type Pool = { papers: Paper[]; costUsd: number };
 /* The top results by meaning (`/works?search.semantic=`), with only the filters semantic search supports. */
 export async function semanticPool(client: OpenAlexClient, text: string, filters: SearchFilters): Promise<Pool> {
   const { body, costUsd } = await client.get<OpenAlexList>('/works', {
-    'search.semantic': text.slice(0, MAX_QUERY_CHARS),
+    'search.semantic': capText(text, QUERY_CHARS_LIMIT),
     filter: buildFilter(filters, 'semantic') || undefined,
     per_page: SEMANTIC_MAX,
     select: selectParam(CARD_FIELDS),

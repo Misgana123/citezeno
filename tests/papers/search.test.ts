@@ -4,7 +4,8 @@ import { userMessage } from '@/lib/papers/messages';
 import type { OpenAlexClient } from '@/lib/papers/openalex/client';
 import { buildFilter, sortParam, unsupportedBySemantic } from '@/lib/papers/search/filters';
 import { keywordSearch } from '@/lib/papers/search/keyword';
-import { DEFAULT_FILTERS, MAX_QUERY_CHARS, parseSearchRequest } from '@/lib/papers/search/request';
+import { capText, DEFAULT_QUERY_CHARS } from '@/lib/papers/search/query-length';
+import { DEFAULT_FILTERS, parseSearchRequest } from '@/lib/papers/search/request';
 
 const parse = (qs: string, opts?: { requireQuery?: boolean }) => parseSearchRequest(new URLSearchParams(qs), opts);
 
@@ -45,10 +46,19 @@ describe('parseSearchRequest', () => {
     });
   });
 
-  it('caps long text and flags it', () => {
-    const r = parse(`q=${'a'.repeat(MAX_QUERY_CHARS + 10)}`);
-    expect(r.query).toHaveLength(MAX_QUERY_CHARS);
+  it('caps long text at the search length limit and flags it', () => {
+    const r = parse(`q=${'a'.repeat(DEFAULT_QUERY_CHARS + 10)}`);
+    expect(r.query).toHaveLength(DEFAULT_QUERY_CHARS);
     expect(r.truncated).toBe(true);
+    const paid = parseSearchRequest(new URLSearchParams(`q=${'a'.repeat(1800)}`), { maxQueryChars: 2000 });
+    expect([paid.query.length, paid.truncated]).toEqual([1800, false]);
+  });
+
+  it('cuts at a word break when one is near the end', () => {
+    expect(capText('alpha beta gamma', 12)).toBe('alpha beta');
+    expect(capText('one two three', 9)).toBe('one two t'); // no break near the end: hard cut
+    expect(capText('abcdefghij', 5)).toBe('abcde');
+    expect(capText('short', 10)).toBe('short');
   });
 
   it('rejects bad input with readable messages', () => {
