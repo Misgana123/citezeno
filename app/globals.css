@@ -211,17 +211,7 @@ img, svg { display: block; }
   mask-image: radial-gradient(900px 520px at 50% 22%, #000 30%, transparent 75%); -webkit-mask-image: radial-gradient(900px 520px at 50% 22%, #000 30%, transparent 75%);
 }
 .hero-in { position: relative; }
-.hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; border-radius: 999px; text-decoration: none; font-size: 13.5px; color: var(--on-prussian-2);
-  background: rgba(233, 241, 246, 0.07); box-shadow: inset 0 0 0 1px rgba(233, 241, 246, 0.14); transition: background 0.2s, color 0.2s;
-}
-.hero-eyebrow:hover { background: rgba(233, 241, 246, 0.12); color: var(--on-prussian); }
-.hero-eyebrow b { padding: 3px 9px; border-radius: 999px; background: var(--thread); color: var(--thread-ink); font-size: 11.5px; letter-spacing: 0.02em; }
-.hero-eyebrow svg { width: 14px; height: 14px; color: var(--thread); transition: transform 0.25s var(--ease); }
-.hero-eyebrow:hover svg { transform: translateX(2px); }
-.hero-eyebrow-short { display: none; }
-@media (max-width: 560px) { .hero-eyebrow-long { display: none; } .hero-eyebrow-short { display: inline; } }
-.hero h1 { margin: 26px auto 0; max-width: 15ch; font-size: clamp(42px, 6.4vw, 86px); line-height: 1.02; letter-spacing: -0.04em; font-weight: 750; color: #fff; text-wrap: balance; }
+.hero h1 { margin: 0 auto; max-width: 15ch; font-size: clamp(42px, 6.4vw, 86px); line-height: 1.02; letter-spacing: -0.04em; font-weight: 750; color: #fff; text-wrap: balance; }
 .hero h1 em { font-family: var(--f-read); font-style: italic; font-weight: 400; letter-spacing: -0.02em; color: #f2b83a; }
 .hero h1 sup { font: 600 0.26em var(--f-mono); color: var(--thread); vertical-align: 1.9em; margin-left: 0.08em; letter-spacing: 0; }
 .hero .lede { max-width: 60ch; margin: 24px auto 0; font-size: 18.5px; color: var(--on-prussian-2); text-wrap: pretty; }

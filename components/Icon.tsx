@@ -51,6 +51,7 @@ const PATHS: Record<string, string> = {
   sliders: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4',
   paste: 'M9 3h6v4H9zM9 5H6v16h12V5h-3M9 12h6M9 16h4',
   menu: 'M4 7h16M4 12h16M4 17h10',
+  database: 'M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3zM4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6',
   undo: 'M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11',
   redo: 'm15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
   zip: 'M6 3h12v18H6zM11 3v2h2v2h-2v2h2v2h-2M10.5 14h3v3h-3z',
