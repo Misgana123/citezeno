@@ -60,8 +60,9 @@ export function errorFor(status: number, body: unknown, headers: Headers): Paper
   }
   if (status === 404) return new PapersError('not_found', 'Paper not found.', { status });
   if (status === 400 || status === 403) {
-    const msg = typeof b.message === 'string' ? b.message : typeof b.error === 'string' ? b.error : 'OpenAlex rejected the request.';
-    return new PapersError('bad_request', msg, { status });
+    // OpenAlex's own wording (which can mention its plans) stays in the details; the user gets ours
+    const vendor = typeof b.message === 'string' ? b.message : typeof b.error === 'string' ? b.error : undefined;
+    return new PapersError('bad_request', 'This search could not be run. Try fewer or simpler words, or remove a filter.', { status, reason: vendor?.slice(0, 300) });
   }
   return new PapersError('unavailable', `OpenAlex answered ${status}.`, { status });
 }

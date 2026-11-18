@@ -94,7 +94,9 @@ describe('OpenAlex client', () => {
   it('maps 404, 400 and 5xx', async () => {
     expect((await failure(createOpenAlexClient({ config: CONFIG, fetch: respond(404, {}) }).get('/works/W1'))).code).toBe('not_found');
     const bad = await failure(createOpenAlexClient({ config: CONFIG, fetch: respond(400, { message: 'bad filter' }) }).get('/works'));
-    expect([bad.code, bad.message]).toEqual(['bad_request', 'bad filter']);
+    expect(bad.code).toBe('bad_request');
+    expect(bad.message).toMatch(/could not be run/);
+    expect(bad.details.reason).toBe('bad filter'); // OpenAlex's wording is kept for debugging, not shown
     expect((await failure(createOpenAlexClient({ config: CONFIG, fetch: respond(503, 'down') }).get('/works'))).code).toBe('unavailable');
   });
 
