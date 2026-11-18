@@ -68,6 +68,7 @@ export const activeFilterCount = (f: ShelfFilters) => [f.status, f.from, f.to, f
 export const STATUS_LABELS: Record<ReadingStatus, string> = { to_read: 'To read', reading: 'Reading', done: 'Done' };
 
 export const SORT_LABELS: Record<ListSort, string> = {
+  relevance: 'Best match',
   added_desc: 'Newest added',
   added_asc: 'Oldest added',
   year_desc: 'Year (newest)',

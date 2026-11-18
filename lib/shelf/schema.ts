@@ -162,4 +162,23 @@ create table if not exists shelf_import_entry (
   primary key ("importId", idx)
 );
 create index if not exists shelf_import_entry_pending on shelf_import_entry ("importId", idx) where status = 'pending';
+
+-- Shelf search (v11): full-text vectors for the paper details, the note and PDF
+-- text ('simple' keeps every language's words as written; searches match prefixes).
+alter table shelf_paper add column if not exists "searchText" text;
+update shelf_paper set "searchText" = concat_ws(' ',
+    (select string_agg(a->>'name', ' ') from jsonb_array_elements(case when jsonb_typeof(data->'authors') = 'array' then data->'authors' else '[]'::jsonb end) a),
+    data->>'source', data->>'abstract')
+  where "searchText" is null;
+alter table shelf_paper add column if not exists tsv tsvector
+  generated always as (setweight(to_tsvector('simple', coalesce(title, '')), 'A') || setweight(to_tsvector('simple', left(coalesce("searchText", ''), 100000)), 'B')) stored;
+create index if not exists shelf_paper_tsv on shelf_paper using gin (tsv);
+
+alter table shelf_item add column if not exists tsv tsvector
+  generated always as (to_tsvector('simple', left(coalesce(note, ''), 20000))) stored;
+create index if not exists shelf_item_tsv on shelf_item using gin (tsv);
+
+alter table shelf_pdf add column if not exists tsv tsvector;
+update shelf_pdf set tsv = to_tsvector('simple', left("text", 400000)) where "text" is not null and tsv is null;
+create index if not exists shelf_pdf_tsv on shelf_pdf using gin (tsv);
 `;

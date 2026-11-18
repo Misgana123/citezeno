@@ -198,3 +198,28 @@
 .sh-import-counts li.is-bad b { color: var(--warn); }
 .sh-import-failed summary { cursor: pointer; font-size: 13.5px; font-weight: 650; color: var(--ink-2); }
 .sh-import-failed ul { margin: 8px 0 0; padding-left: 18px; max-height: 220px; overflow-y: auto; font-size: 13px; color: var(--ink-2); display: grid; gap: 4px; }
+
+/* ---------- search ---------- */
+.sh-search-wrap { display: grid; gap: 10px; }
+.sh-search-row { display: flex; gap: 8px; align-items: center; }
+.sh-search {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 6px 0 14px; border-radius: 14px;
+  background: var(--sheet); border: 1px solid var(--rule-2); box-shadow: var(--shadow-sm); transition: border-color 0.15s, box-shadow 0.15s;
+}
+.sh-search:focus-within { border-color: var(--thread); box-shadow: 0 0 0 3px var(--thread-soft); }
+.sh-search > svg { flex: none; width: 17px; height: 17px; color: var(--ink-3); }
+.sh-search input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 15px; color: var(--ink); }
+.sh-search .icon-btn { width: 32px; height: 32px; color: var(--ink-3); }
+.sh-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 22px; padding: 14px 16px; border-radius: 14px; background: var(--sheet); border: 1px solid var(--rule-2); animation: popIn 0.18s var(--ease); }
+.sh-filters .fp-years { width: 210px; }
+.sh-filters .input { height: 38px; min-height: 38px; font-size: 14px; border-width: 1px; }
+.sh-filters .check { font-size: 13.5px; padding-bottom: 8px; }
+
+/* ---------- export ---------- */
+.sh-results-tools { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sh-export { position: relative; }
+.sh-export .btn { background: var(--sheet); box-shadow: var(--shadow-sm); }
+.sh-export-menu { width: 280px; top: calc(100% + 6px); }
+.sh-export-all { border-top: 1px solid var(--rule-2) !important; border-radius: 0 0 9px 9px !important; margin-top: 4px; }
+.sh-bulk .sh-export .btn { box-shadow: none; }
+.sh-bulk .sh-export-menu { left: 0; right: auto; }

@@ -50,6 +50,9 @@ function stored(p: Details) {
     isOpenAccess: !!p.isOpenAccess,
     isRetracted: !!p.isRetracted,
     data: JSON.stringify(rest),
+    // what search looks at besides the title
+    // the DOI also as plain words, since search splits typed text into words
+    searchText: [p.authors.map((a) => a.name).join(' '), p.source, doi, doi?.replace(/[^\p{L}\p{N}]+/gu, ' '), p.abstract].filter(Boolean).join(' ').slice(0, 100_000),
   };
 }
 
@@ -59,12 +62,12 @@ const SELECT = `select id, "ownerId", "openalexId", doi, origin, data from shelf
 export async function putShared(q: Queryable, paper: Paper): Promise<ShelfPaper> {
   const s = stored(paper);
   const { rows } = await q.query<PaperRow>(
-    `insert into shelf_paper (id, "ownerId", "openalexId", doi, title, year, "citedByCount", "isOpenAccess", "isRetracted", origin, data, "refreshDue")
-     values ($1, null, $1, $2, $3, $4, $5, $6, $7, 'openalex', $8, false)
+    `insert into shelf_paper (id, "ownerId", "openalexId", doi, title, year, "citedByCount", "isOpenAccess", "isRetracted", origin, data, "refreshDue", "searchText")
+     values ($1, null, $1, $2, $3, $4, $5, $6, $7, 'openalex', $8, false, $9)
      on conflict (id) do update set doi = excluded.doi, title = excluded.title, year = excluded.year, "citedByCount" = excluded."citedByCount",
-       "isOpenAccess" = excluded."isOpenAccess", "isRetracted" = excluded."isRetracted", data = excluded.data, "refreshDue" = false, "updatedAt" = now()
+       "isOpenAccess" = excluded."isOpenAccess", "isRetracted" = excluded."isRetracted", data = excluded.data, "refreshDue" = false, "searchText" = excluded."searchText", "updatedAt" = now()
      returning id, "ownerId", "openalexId", doi, origin, data`,
-    [paper.openalexId, s.doi, s.title, s.year, s.citedByCount, s.isOpenAccess, s.isRetracted, s.data],
+    [paper.openalexId, s.doi, s.title, s.year, s.citedByCount, s.isOpenAccess, s.isRetracted, s.data, s.searchText],
   );
   return toShelfPaper(rows[0]);
 }
@@ -75,10 +78,10 @@ export async function putShared(q: Queryable, paper: Paper): Promise<ShelfPaper>
 export async function ensureShared(q: Queryable, paper: Paper): Promise<ShelfPaper> {
   const s = stored(paper);
   await q.query(
-    `insert into shelf_paper (id, "ownerId", "openalexId", doi, title, year, "citedByCount", "isOpenAccess", "isRetracted", origin, data, "refreshDue")
-     values ($1, null, $1, $2, $3, $4, $5, $6, $7, 'openalex', $8, true)
+    `insert into shelf_paper (id, "ownerId", "openalexId", doi, title, year, "citedByCount", "isOpenAccess", "isRetracted", origin, data, "refreshDue", "searchText")
+     values ($1, null, $1, $2, $3, $4, $5, $6, $7, 'openalex', $8, true, $9)
      on conflict (id) do nothing`,
-    [paper.openalexId, s.doi, s.title, s.year, s.citedByCount, s.isOpenAccess, s.isRetracted, s.data],
+    [paper.openalexId, s.doi, s.title, s.year, s.citedByCount, s.isOpenAccess, s.isRetracted, s.data, s.searchText],
   );
   return (await getPaper(q, paper.openalexId)) as ShelfPaper;
 }
@@ -87,10 +90,10 @@ export async function ensureShared(q: Queryable, paper: Paper): Promise<ShelfPap
 export async function createPrivate(q: Queryable, ownerId: string, paper: Details, origin: Exclude<PaperOrigin, 'openalex'>): Promise<ShelfPaper> {
   const s = stored(paper);
   const { rows } = await q.query<PaperRow>(
-    `insert into shelf_paper (id, "ownerId", "openalexId", doi, title, year, "citedByCount", "isOpenAccess", "isRetracted", origin, data)
-     values ($1, $2, null, $3, $4, $5, $6, $7, $8, $9, $10)
+    `insert into shelf_paper (id, "ownerId", "openalexId", doi, title, year, "citedByCount", "isOpenAccess", "isRetracted", origin, data, "searchText")
+     values ($1, $2, null, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      returning id, "ownerId", "openalexId", doi, origin, data`,
-    [`p_${randomUUID()}`, ownerId, s.doi, s.title, s.year, s.citedByCount, s.isOpenAccess, s.isRetracted, origin, s.data],
+    [`p_${randomUUID()}`, ownerId, s.doi, s.title, s.year, s.citedByCount, s.isOpenAccess, s.isRetracted, origin, s.data, s.searchText],
   );
   return toShelfPaper(rows[0]);
 }
@@ -99,10 +102,10 @@ export async function createPrivate(q: Queryable, ownerId: string, paper: Detail
 export async function updatePrivate(q: Queryable, ownerId: string, id: string, paper: Details): Promise<ShelfPaper | null> {
   const s = stored(paper);
   const { rows } = await q.query<PaperRow>(
-    `update shelf_paper set doi = $3, title = $4, year = $5, "citedByCount" = $6, "isOpenAccess" = $7, "isRetracted" = $8, data = $9, "updatedAt" = now()
+    `update shelf_paper set doi = $3, title = $4, year = $5, "citedByCount" = $6, "isOpenAccess" = $7, "isRetracted" = $8, data = $9, "searchText" = $10, "updatedAt" = now()
      where id = $1 and "ownerId" = $2
      returning id, "ownerId", "openalexId", doi, origin, data`,
-    [id, ownerId, s.doi, s.title, s.year, s.citedByCount, s.isOpenAccess, s.isRetracted, s.data],
+    [id, ownerId, s.doi, s.title, s.year, s.citedByCount, s.isOpenAccess, s.isRetracted, s.data, s.searchText],
   );
   return rows[0] ? toShelfPaper(rows[0]) : null;
 }

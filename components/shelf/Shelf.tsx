@@ -18,6 +18,8 @@ import { runBulk } from './bulk';
 import { ItemDrawer } from './ItemDrawer';
 import { markSaved } from './saved-store';
 import { ShelfCard } from './ShelfCard';
+import { ExportMenu } from './export/ExportMenu';
+import { ShelfSearch } from './ShelfSearch';
 import { ShelfSidebar, type ViewPick } from './ShelfSidebar';
 import { filtersFromParams, filtersToParams, SORT_LABELS, STATUS_LABELS, type ShelfFilters } from './shelf-state';
 import { useShelfGroups } from './useShelfGroups';
@@ -194,6 +196,8 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
           />
         ) : (
           <>
+            <ShelfSearch filters={filters} onChange={patchFilters} />
+
             <div className="sh-tools">
               <div className="seg sh-seg" role="group" aria-label="Reading status">
                 <button type="button" aria-pressed={!filters.status} onClick={() => patchFilters({ status: '' })}>
@@ -211,16 +215,21 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
               <p className="fp-count" role="status">
                 {list.status === 'loading' ? 'Loading…' : `${formatCount(list.total)} paper${list.total === 1 ? '' : 's'}`}
               </p>
-              <label className="fp-sort">
-                Sort
-                <select className="select" value={filters.sort} onChange={(e) => patchFilters({ sort: e.target.value as ListSort })}>
-                  {Object.entries(SORT_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <span className="sh-results-tools">
+                <ExportMenu groups={groups} query={new URLSearchParams(query)} baseName={exportName(title)} />
+                <label className="fp-sort">
+                  Sort
+                  <select className="select" value={filters.sort} onChange={(e) => patchFilters({ sort: e.target.value as ListSort })}>
+                    {Object.entries(SORT_LABELS)
+                      .filter(([k]) => k !== 'relevance' || filters.q.trim())
+                      .map(([k, v]) => (
+                        <option key={k} value={k}>
+                          {v}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </span>
             </div>
 
             {selected.size > 0 && (
@@ -233,6 +242,7 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
                 onDelete={bulkDelete}
                 onClear={() => setSelected(new Set())}
                 onSelectAll={selected.size < list.items.length ? () => setSelected(new Set(list.items.map((i) => i.id))) : undefined}
+                extra={<ExportMenu groups={groups} query={new URLSearchParams({ ids: [...selected].join(',') })} baseName="citezeno-selected" label="Export" everything={false} />}
               />
             )}
 
@@ -313,6 +323,9 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
     </div>
   );
 }
+
+/* "citezeno-thesis" for a project called Thesis. */
+const exportName = (title: string) => `citezeno-${title.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'shelf'}`;
 
 function viewTitle(f: ShelfFilters, g: ReturnType<typeof useShelfGroups>): string {
   if (f.folder) return g.folders.find((x) => x.id === f.folder)?.name ?? 'Folder';

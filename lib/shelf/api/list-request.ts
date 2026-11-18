@@ -23,9 +23,15 @@ const schema = z.object({
   sort: z.enum(LIST_SORTS).optional().default('added_desc'),
   page: z.coerce.number().int().min(1).max(10_000).optional().default(1),
   perPage: z.coerce.number().int().min(1).max(100).optional().default(25),
+  ids: z
+    .string()
+    .max(50_000)
+    .optional()
+    .transform((v) => (v ? [...new Set(v.split(',').map((x) => x.trim()).filter(Boolean))] : undefined))
+    .refine((v) => !v || v.length <= 500, 'Export at most 500 selected papers at a time.'),
 });
 
-export type ListRequest = ListQuery & { q?: string; hasPdf?: boolean };
+export type ListRequest = ListQuery;
 
 export function parseListRequest(params: URLSearchParams): ListRequest {
   const raw: Record<string, string> = {};
@@ -35,6 +41,7 @@ export function parseListRequest(params: URLSearchParams): ListRequest {
   const v = r.data;
   return {
     q: v.q || undefined,
+    ids: v.ids,
     project: v.project,
     folder: v.folder,
     tag: v.tag,

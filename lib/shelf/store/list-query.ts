@@ -5,10 +5,14 @@ import type { ReadingStatus } from '../types';
    always the user's ID, so a listing can never reach another user's items.
    Tables are aliased i (shelf_item) and p (shelf_paper). */
 
-export const LIST_SORTS = ['added_desc', 'added_asc', 'year_desc', 'year_asc', 'title', 'cited'] as const;
+export const LIST_SORTS = ['relevance', 'added_desc', 'added_asc', 'year_desc', 'year_asc', 'title', 'cited'] as const;
 export type ListSort = (typeof LIST_SORTS)[number];
 
 export type ListQuery = {
+  /* words to search for in the details, tags, note and PDF text */
+  q?: string;
+  /* only these items (for exporting a selection) */
+  ids?: string[];
   /* a project ID, or "unsorted" for items in no project */
   project?: string;
   folder?: string;
@@ -26,7 +30,7 @@ export type ListQuery = {
 
 export const UNSORTED = 'unsorted';
 
-const ORDER: Record<ListSort, string> = {
+const ORDER: Record<Exclude<ListSort, 'relevance'>, string> = {
   added_desc: `i."addedAt" desc, i.id`,
   added_asc: `i."addedAt" asc, i.id`,
   year_desc: `p.year desc nulls last, i."addedAt" desc, i.id`,
@@ -34,6 +38,14 @@ const ORDER: Record<ListSort, string> = {
   title: `lower(p.title) asc, i.id`,
   cited: `p."citedByCount" desc, i."addedAt" desc, i.id`,
 };
+
+/* Search words → a prefix query: every word must match the start of a word
+   ("flood" finds "floods"). Only letters and digits get through, so the
+   user's text can never be read as query syntax. */
+export function toPrefixQuery(q: string | undefined): string | null {
+  const words = (q ?? '').normalize('NFKC').toLowerCase().match(/[\p{L}\p{N}]+/gu)?.slice(0, 12) ?? [];
+  return words.length ? words.map((w) => `${w}:*`).join(' & ') : null;
+}
 
 export type BuiltQuery = { where: string; values: unknown[]; orderBy: string; limit: number; offset: number };
 
@@ -45,6 +57,16 @@ export function buildListQuery(userId: string, query: ListQuery): BuiltQuery {
     return `$${values.length}`;
   };
 
+  const tsq = toPrefixQuery(query.q);
+  let relevance: string | null = null;
+  if (tsq) {
+    const Q = `to_tsquery('simple', ${param(tsq)})`;
+    where.push(`(p.tsv @@ ${Q} or i.tsv @@ ${Q}
+      or exists (select 1 from shelf_item_tag x join shelf_tag t on t.id = x."tagId" where x."itemId" = i.id and to_tsvector('simple', t.name) @@ ${Q})
+      or exists (select 1 from shelf_pdf f where f."itemId" = i.id and f.tsv @@ ${Q}))`);
+    relevance = `ts_rank(p.tsv, ${Q}) + ts_rank(i.tsv, ${Q}) + 0.5 * coalesce((select max(ts_rank(f.tsv, ${Q})) from shelf_pdf f where f."itemId" = i.id), 0) desc, i."addedAt" desc, i.id`;
+  }
+  if (query.ids) where.push(`i.id = any(${param(query.ids)})`);
   if (query.project === UNSORTED) {
     where.push(`not exists (select 1 from shelf_item_project ip where ip."itemId" = i.id)`);
   } else if (query.project) {
@@ -61,5 +83,6 @@ export function buildListQuery(userId: string, query: ListQuery): BuiltQuery {
 
   const perPage = Math.min(100, Math.max(1, Math.floor(query.perPage)));
   const page = Math.max(1, Math.floor(query.page));
-  return { where: where.join(' and '), values, orderBy: ORDER[query.sort] ?? ORDER.added_desc, limit: perPage, offset: (page - 1) * perPage };
+    const orderBy = query.sort === 'relevance' ? (relevance ?? ORDER.added_desc) : (ORDER[query.sort] ?? ORDER.added_desc);
+  return { where: where.join(' and '), values, orderBy, limit: perPage, offset: (page - 1) * perPage };
 }

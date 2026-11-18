@@ -45,7 +45,9 @@ export async function markReady(
   f: { sizeBytes: number; pageCount: number | null; textStatus: PdfTextStatus; text: string | null; found: PdfFound },
 ): Promise<PdfRow | null> {
   const { rows } = await q.query(
-    `update shelf_pdf set status = 'ready', "sizeBytes" = $3, "pageCount" = $4, "textStatus" = $5, "text" = $6, found = $7 where "userId" = $1 and id = $2 returning ${COLS}`,
+    `update shelf_pdf set status = 'ready', "sizeBytes" = $3, "pageCount" = $4, "textStatus" = $5, "text" = $6, found = $7,
+       tsv = case when $6::text is null then null else to_tsvector('simple', left($6::text, 400000)) end
+     where "userId" = $1 and id = $2 returning ${COLS}`,
     [userId, id, f.sizeBytes, f.pageCount, f.textStatus, f.text, JSON.stringify(f.found)],
   );
   return rows[0] ? toRow(rows[0]) : null;
