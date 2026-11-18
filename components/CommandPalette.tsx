@@ -87,6 +87,7 @@ export function CommandPalette() {
       { id: 'go-account', group: 'Go to', label: 'Account', icon: 'user', keywords: 'profile password sign in', run: () => router.push('/account') },
       { id: 'go-library', group: 'Go to', label: 'Library', icon: 'history', keywords: 'saved traces history share', run: () => router.push('/library') },
       { id: 'go-papers', group: 'Go to', label: 'Find papers', icon: 'book', keywords: 'search research papers articles openalex literature', run: () => router.push('/papers') },
+      { id: 'go-shelf', group: 'Go to', label: 'My shelf', icon: 'layers', keywords: 'shelf saved papers keep library reading list projects', run: () => router.push('/shelf') },
       { id: 'go-history', group: 'Go to', label: 'History', icon: 'clock', keywords: 'activity log timeline past', run: () => router.push('/history') },
       { id: 'go-pricing', group: 'Go to', label: 'Pricing and credits', icon: 'bolt', keywords: 'buy credits plan billing', run: () => router.push('/pricing') },
       { id: 'go-contact', group: 'Go to', label: 'Contact us', icon: 'mail', keywords: 'email help support feedback', run: () => router.push('/contact') },

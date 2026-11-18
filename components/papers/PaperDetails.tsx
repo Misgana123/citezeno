@@ -1,6 +1,7 @@
 import type { Paper } from '@/lib/papers/types';
 import { Icon } from '../Icon';
 import { citationLabel, languageName, typeLabel } from './format';
+import { SaveButton } from '../shelf/SaveButton';
 import { PaperLinks } from './PaperBadges';
 
 /* Everything the preview shows about one paper. */
@@ -44,6 +45,7 @@ export function PaperDetails({ paper, loading }: { paper: Paper; loading: boolea
       </div>
 
       <div className="fp-detail-links">
+        <SaveButton paper={paper} menuAlign="left" />
         {paper.pdfUrl && (
           <a className="btn btn-thread btn-sm" href={paper.pdfUrl} target="_blank" rel="noopener noreferrer">
             <Icon name="pdf" /> Free PDF

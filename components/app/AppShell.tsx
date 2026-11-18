@@ -11,7 +11,7 @@ import { useCredits } from '../useCredits';
    (library, history, account, admin): a navigation rail and a top bar, with the
    page scrolling between them. Styles live in app/atelier.css. */
 
-export type AppSection = 'library' | 'history' | 'papers' | 'account' | 'admin' | null;
+export type AppSection = 'library' | 'history' | 'papers' | 'shelf' | 'account' | 'admin' | null;
 
 /* One destination in the rail. `short` is its caption when the rail is the phone's bottom bar. */
 export function RailLink({ href, icon, label, short, current, cls }: { href: string; icon: IconName; label: string; short?: string; current?: boolean; cls?: string }) {
@@ -57,6 +57,7 @@ export function AppShell({ current, title, children }: { current: AppSection; ti
             <RailLink href="/library" icon="history" label="Library" current={current === 'library'} />
             <RailLink href="/history" icon="clock" label="History" current={current === 'history'} />
             <RailLink href="/papers" icon="book" label="Find papers" short="Papers" current={current === 'papers'} />
+            <RailLink href="/shelf" icon="layers" label="My shelf" short="Shelf" current={current === 'shelf'} />
             <button className="at-rb at-only-phone" onClick={openPalette} aria-label="Commands">
               <Icon name="search" />
               <span className="at-rb-lbl" data-short="Search">

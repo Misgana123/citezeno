@@ -1,0 +1,14 @@
+/* My shelf (/shelf). Reuses Find Papers' cards and states (papers.css) and the
+   workspace patterns in atelier.css; only shelf-specific pieces live here. */
+
+.sh { display: grid; gap: 22px; }
+.sh-card .fp-title span { color: var(--ink); }
+.sh-note {
+  margin: 4px 0 0; padding: 8px 12px; border-left: 3px solid var(--thread); border-radius: 0 10px 10px 0; background: var(--ground-2);
+  font-size: 13.5px; line-height: 1.5; color: var(--ink-2); white-space: pre-line;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+}
+.sh-card-tools { display: inline-flex; align-items: center; gap: 6px; }
+.sh-status { width: auto; height: 34px; min-height: 34px; padding: 0 30px 0 12px; font-size: 13px; border-width: 1px; border-radius: 999px; }
+.sh-remove { width: 34px; height: 34px; color: var(--ink-3); }
+.sh-remove:hover { color: var(--warn); }

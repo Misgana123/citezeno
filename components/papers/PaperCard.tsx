@@ -1,5 +1,6 @@
 import type { Paper } from '@/lib/papers/types';
 import { authorsShort, citationLabel, typeLabel } from './format';
+import { SaveButton } from '../shelf/SaveButton';
 import { PaperBadges, PaperLinks } from './PaperBadges';
 
 /* One search result. With `onOpen`, the title opens the preview panel;
@@ -29,7 +30,10 @@ export function PaperCard({ paper, onOpen, active = false }: { paper: Paper; onO
       <p className="fp-authors">{authorsShort(paper.authors)}</p>
       {meta.length > 0 && <p className="fp-meta">{meta.join(' · ')}</p>}
       <p className={`fp-abstract${paper.abstract ? '' : ' is-empty'}`}>{paper.abstract ?? 'No abstract available.'}</p>
-      <PaperLinks paper={paper} />
+      <div className="fp-card-actions">
+        <PaperLinks paper={paper} />
+        <SaveButton paper={paper} />
+      </div>
     </li>
   );
 }

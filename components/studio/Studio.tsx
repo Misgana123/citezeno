@@ -716,6 +716,7 @@ export function Studio() {
           {rail('search', 'Commands', openPalette, { cls: 'at-only-phone', short: 'Search' })}
           <RailLink href="/history" icon="clock" label="History" cls="at-hide-phone" />
           <RailLink href="/papers" icon="book" label="Find papers" cls="at-hide-phone" />
+          <RailLink href="/shelf" icon="layers" label="My shelf" cls="at-hide-phone" />
         </div>
         <div className="at-rail-end">
           <RailLink href="/#method" icon="help" label="How it works" cls="at-hide-phone" />
