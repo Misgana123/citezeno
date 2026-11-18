@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Paper } from '@/lib/papers/types';
 import { Icon } from '../Icon';
 import { listUrl } from './api';
 import { FilterPanel } from './FilterPanel';
 import { ModeSwitch } from './ModeSwitch';
+import { PaperPreview } from './PaperPreview';
 import { PaperResults } from './PaperResults';
 import { SearchBox } from './SearchBox';
 import { SortSelect } from './SortSelect';
@@ -20,6 +22,8 @@ export function FindPapers({ initialQuery, maxQueryChars }: { initialQuery: stri
   const [draft, setDraft] = useState<SearchState>(initial);
   const [applied, setApplied] = useState<SearchState | null>(initial.q.trim() ? initial : null);
   const [showFilters, setShowFilters] = useState(activeFilterCount(initial) > 0);
+  const [preview, setPreview] = useState<Paper | null>(null);
+  const closePreview = useCallback(() => setPreview(null), []);
   const draftRef = useRef(draft);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -101,6 +105,8 @@ export function FindPapers({ initialQuery, maxQueryChars }: { initialQuery: stri
         <PaperResults
           list={list}
           maxQueryChars={maxQueryChars}
+          onOpen={setPreview}
+          activeId={preview?.id}
           toolbar={<SortSelect value={draft.sort} onChange={(sort) => patch({ sort })} />}
           empty={
             <NoResults
@@ -112,6 +118,8 @@ export function FindPapers({ initialQuery, maxQueryChars }: { initialQuery: stri
           }
         />
       )}
+
+      {preview && <PaperPreview paper={preview} filters={applied ?? draft} maxQueryChars={maxQueryChars} onClose={closePreview} />}
     </div>
   );
 }
