@@ -57,6 +57,23 @@ function Found({ display }: { display: ToolDisplay }) {
           {display.items.length > 12 && <li className="ch-more">and {display.items.length - 12} more on your shelf</li>}
         </ul>
       )}
+      {display.sources && (
+        <ul className="ch-sources">
+          {display.sources.length === 0 && <li className="ch-more">No matching source was found.</li>}
+          {display.sources.map((src, k) => (
+            <li key={k}>
+              <p className="ch-ref">
+                {src.reference} {src.retracted && <span className="tag ch-retracted">Retracted</span>}
+              </p>
+              {src.link && /^https?:\/\//i.test(src.link) && (
+                <a href={src.link} target="_blank" rel="noopener noreferrer">
+                  <Icon name="external" /> {src.link.replace(/^https?:\/\//, '')}
+                </a>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
       {display.file && (
         <button type="button" className="btn btn-thread btn-sm ch-file" onClick={() => download(display.file!)}>
           <Icon name="download" /> Download {display.file.name}

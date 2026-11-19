@@ -76,6 +76,11 @@
 .ch-items svg { flex: none; width: 13px; height: 13px; color: var(--ink-3); }
 .ch-retracted { color: var(--warn); }
 .ch-file { justify-self: start; }
+.ch-sources { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ch-sources li { display: grid; gap: 4px; padding: 10px 14px; border: 1px solid var(--rule-2); border-radius: 12px; background: var(--sheet); }
+.ch-ref { margin: 0; font-family: var(--f-read); font-size: 15px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+.ch-sources a { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-3); overflow-wrap: anywhere; }
+.ch-sources a svg { flex: none; width: 13px; height: 13px; }
 
 /* ---------- asking first ---------- */
 .ch-confirm { display: grid; gap: 10px; max-width: 78ch; padding: 14px 16px; border: 1px solid var(--thread); border-radius: 14px; background: color-mix(in srgb, var(--thread-soft) 55%, var(--sheet)); }

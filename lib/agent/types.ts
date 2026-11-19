@@ -21,7 +21,7 @@ export type Pending = {
   calls: ToolCall[];
   results: ToolResult[];
   steps: StepView[];
-  waiting: { callId: string; kind: 'confirm'; question: string };
+  waiting: { callId: string; kind: 'confirm'; question: string } | { callId: string; kind: 'client'; name: string; input: unknown; label: string };
   /* model calls already made for the user's message */
   turns: number;
 };
@@ -33,5 +33,7 @@ export type AgentEvent =
   | { type: 'step_done'; step: StepView }
   | { type: 'text'; text: string }
   | { type: 'confirm'; callId: string; question: string; label: string }
+  /* the page should run this tool in the browser and send back the result */
+  | { type: 'client_tool'; callId: string; name: string; input: unknown; label: string }
   | { type: 'done'; reason: 'answered' | 'waiting' | 'step_limit' | 'time_limit' }
   | { type: 'error'; message: string };

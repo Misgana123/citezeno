@@ -3,6 +3,7 @@ import type { AgentContext } from './context';
 import { asData, systemPrompt } from './prompt';
 import { toolSpecs } from './tools';
 import { failureMessage, runTool } from './tools/run';
+import type { ToolDisplay } from './tools/types';
 import type { AgentEvent, Pending, StepView, StoredMessage } from './types';
 
 /* The agent loop for one user message: ask the model, run the tools it asks
@@ -61,6 +62,11 @@ async function runCalls(d: LoopDeps, calls: ToolCall[], from: number, results: T
       d.emit({ type: 'confirm', callId: call.id, question: o.question, label: run.label });
       return { status: 'paused' };
     }
+    if (o.status === 'client') {
+      await d.setPending({ calls, results, steps, waiting: { callId: call.id, kind: 'client', name: call.name, input: run.input, label: run.label }, turns });
+      d.emit({ type: 'client_tool', callId: call.id, name: call.name, input: run.input, label: run.label });
+      return { status: 'paused' };
+    }
     const step: StepView =
       o.status === 'done'
         ? { callId: call.id, name: call.name, label: run.label, input: run.input, status: 'done', ...(o.output.display ? { display: o.output.display } : {}) }
@@ -115,29 +121,48 @@ export async function answer(d: LoopDeps, history: ChatMessage[], text: string):
 }
 
 /* The user's yes / no to the step that was waiting; then carry on. */
+/* Carry on with the rest of a paused turn's calls (from `from`), then think again. */
+async function finishTurn(d: LoopDeps, history: ChatMessage[], pending: Pending, from: number, results: ToolResult[], steps: StepView[], confirmed?: string): Promise<void> {
+  const r = await runCalls(d, pending.calls, from, results, steps, pending.turns, confirmed);
+  if (r.status === 'paused') {
+    d.emit({ type: 'done', reason: 'waiting' });
+    return;
+  }
+  const tool: ChatMessage = { role: 'tool', results: r.results };
+  await d.save([{ message: tool, ui: r.steps }]);
+  await think(d, [...history, tool], pending.turns);
+}
+
+/* The user's yes / no to the step that was waiting; then carry on. */
 export async function resume(d: LoopDeps, history: ChatMessage[], pending: Pending, approved: boolean): Promise<void> {
   await guarded(d, async () => {
     await d.setPending(null);
     const at = pending.calls.findIndex((c) => c.id === pending.waiting.callId);
-    let results = pending.results;
-    let steps = pending.steps;
-    let from = at;
-    if (!approved) {
-      const call = pending.calls[at];
-      const step: StepView = { callId: call.id, name: call.name, label: pending.waiting.question, input: call.input, status: 'declined' };
-      steps = [...steps, step];
-      results = [...results, { callId: call.id, name: call.name, content: 'The user said no. Do not do this, and do not try another way to do it.', isError: true }];
-      d.emit({ type: 'step_done', step });
-      from = at + 1;
-    }
-    const r = await runCalls(d, pending.calls, from, results, steps, pending.turns, approved ? pending.waiting.callId : undefined);
-    if (r.status === 'paused') {
-      d.emit({ type: 'done', reason: 'waiting' });
-      return;
-    }
-    const tool: ChatMessage = { role: 'tool', results: r.results };
-    await d.save([{ message: tool, ui: r.steps }]);
-    await think(d, [...history, tool], pending.turns);
+    if (approved) return finishTurn(d, history, pending, at, pending.results, pending.steps, pending.waiting.callId);
+    const call = pending.calls[at];
+    const question = pending.waiting.kind === 'confirm' ? pending.waiting.question : pending.waiting.label;
+    const step: StepView = { callId: call.id, name: call.name, label: question, input: call.input, status: 'declined' };
+    d.emit({ type: 'step_done', step });
+    const result: ToolResult = { callId: call.id, name: call.name, content: 'The user said no. Do not do this, and do not try another way to do it.', isError: true };
+    await finishTurn(d, history, pending, at + 1, [...pending.results, result], [...pending.steps, step]);
+  });
+}
+
+/* What the user's browser sent back for a tool it ran (or why it couldn't). */
+export type ClientOutcome = { ok: true; result: unknown; display?: ToolDisplay } | { ok: false; error: string };
+
+export async function resumeWithClientResult(d: LoopDeps, history: ChatMessage[], pending: Pending, outcome: ClientOutcome): Promise<void> {
+  await guarded(d, async () => {
+    await d.setPending(null);
+    const at = pending.calls.findIndex((c) => c.id === pending.waiting.callId);
+    const call = pending.calls[at];
+    const label = pending.waiting.kind === 'client' ? pending.waiting.label : call.name;
+    const step: StepView = outcome.ok
+      ? { callId: call.id, name: call.name, label, input: call.input, status: 'done', ...(outcome.display ? { display: outcome.display } : {}) }
+      : { callId: call.id, name: call.name, label, input: call.input, status: 'error', error: outcome.error };
+    d.emit({ type: 'step_done', step });
+    const result: ToolResult = outcome.ok ? { callId: call.id, name: call.name, content: asData(call.name, outcome.result) } : { callId: call.id, name: call.name, content: outcome.error, isError: true };
+    await finishTurn(d, history, pending, at + 1, [...pending.results, result], [...pending.steps, step]);
   });
 }
 

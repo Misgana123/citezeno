@@ -4,6 +4,7 @@ import { isProviderError } from '@/lib/providers/errors';
 import { papersErrorCode } from '@/lib/shelf/papers-error';
 import type { AgentContext } from '../context';
 import { findTool } from './index';
+import type { ClientTool } from './client';
 import type { AgentTool, ToolOutput } from './types';
 
 /* Running one tool call the model asked for: check the input, ask the user
@@ -13,9 +14,11 @@ import type { AgentTool, ToolOutput } from './types';
 export type ToolOutcome =
   | { status: 'done'; output: ToolOutput }
   | { status: 'needs_confirmation'; question: string }
+  /* runs in the user's browser: the page is asked to run it with this input */
+  | { status: 'client' }
   | { status: 'error'; message: string; code?: string };
 
-export type ToolRun = { tool: AgentTool | null; input: unknown; label: string; outcome: ToolOutcome };
+export type ToolRun = { tool: AgentTool | ClientTool | null; input: unknown; label: string; outcome: ToolOutcome };
 
 /* A failure in words the user can read (never a stack trace or vendor detail). */
 export function failureMessage(e: unknown): { message: string; code?: string } {
@@ -45,6 +48,7 @@ export async function runTool(ctx: AgentContext, name: string, rawInput: unknown
   const input = parsed.data;
   const label = tool.label(input);
   opts.onStart?.(label, input);
+  if (tool.kind === 'client') return { tool, input, label, outcome: { status: 'client' } };
 
   try {
     if (!opts.confirmed && tool.confirm) {

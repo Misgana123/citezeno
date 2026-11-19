@@ -71,3 +71,9 @@ export const sendMessage = (body: { conversationId: string | null; text: string;
 
 export const answerQuestion = (body: { conversationId: string; callId: string; approve: boolean }, onEvent: (e: AgentEvent) => void, signal?: AbortSignal) =>
   streamReply('/api/agent/chat/confirm', body, onEvent, signal);
+
+export const sendClientResult = (
+  body: { conversationId: string; callId: string; outcome: { ok: true; sources: unknown[]; note?: string } | { ok: false; error: string } },
+  onEvent: (e: AgentEvent) => void,
+  signal?: AbortSignal,
+) => streamReply('/api/agent/chat/client-result', body, onEvent, signal);

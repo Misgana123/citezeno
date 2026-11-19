@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import type { Paper } from '@/lib/papers/types';
 import type { ShelfItem } from '@/lib/shelf/types';
 import type { AgentContext } from '../context';
+import type { CitedSource } from './client';
 
 /* An agent tool is one action a user can take in the app, with a clear name,
    a plain description of what it does and when to use it, a validated input,
@@ -12,6 +13,7 @@ export type ToolDisplay = {
   papers?: Paper[];
   items?: ShelfItem[];
   file?: { name: string; mime: string; text: string };
+  sources?: CitedSource[];
 };
 
 export type ToolOutput = {

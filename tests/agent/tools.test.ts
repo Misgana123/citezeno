@@ -64,7 +64,7 @@ describe('the tool registry', () => {
 
   it('asks before deleting, merging and changing many papers, never before reading', () => {
     for (const t of AGENT_TOOLS.filter((t) => t.kind === 'read' && t.name !== 'export_library')) expect(t.confirm).toBeUndefined();
-    for (const n of ['delete_papers', 'resolve_duplicate', 'organize_papers', 'delete_project', 'delete_folder', 'delete_tag', 'export_library']) expect(findTool(n)?.confirm).toBeTruthy();
+    for (const n of ['delete_papers', 'resolve_duplicate', 'organize_papers', 'delete_project', 'delete_folder', 'delete_tag', 'export_library']) expect((findTool(n) as { confirm?: unknown })?.confirm).toBeTruthy();
   });
 });
 

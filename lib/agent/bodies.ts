@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { citedSourceSchema } from './tools/client';
 
 /* The JSON bodies the /api/agent routes accept. */
 const ID = z.string().trim().min(1).max(80);
@@ -12,6 +13,16 @@ export const messageBody = z.object({
 });
 
 export const confirmBody = z.object({ conversationId: ID, callId: z.string().trim().min(1).max(200), approve: z.boolean() });
+
+/* What the browser sends back for a tool it ran. Kept small: it becomes data the model reads. */
+export const clientResultBody = z.object({
+  conversationId: ID,
+  callId: z.string().trim().min(1).max(200),
+  outcome: z.discriminatedUnion('ok', [
+    z.object({ ok: z.literal(true), sources: z.array(citedSourceSchema).max(10), note: z.string().max(500).optional() }),
+    z.object({ ok: z.literal(false), error: z.string().trim().min(1).max(500) }),
+  ]),
+});
 
 export const renameBody = z.object({ title: z.string().trim().min(1, 'Give it a title.').max(80) });
 

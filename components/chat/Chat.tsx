@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgentEvent } from '@/lib/agent/types';
+import type { ConversationView } from '@/lib/agent/view';
 import { Icon } from '../Icon';
 import { InlineName } from '../shelf/InlineName';
-import { answerQuestion, deleteChat, listChats, openChat, renameChat, sendMessage, type ChatList } from './api';
+import { answerQuestion, deleteChat, listChats, openChat, renameChat, sendClientResult, sendMessage, type ChatList } from './api';
+import { runClientTool } from './citations';
 import { Markdown } from './Markdown';
 import { applyEvent, type Entry } from './events';
 import { Steps } from './Steps';
@@ -12,7 +14,8 @@ import { Steps } from './Steps';
 /* The research assistant: a conversation list, the conversation, and a
    message box. Each step the assistant takes shows up as it happens. */
 
-type Waiting = { callId: string; question: string };
+type Waiting = NonNullable<ConversationView['waiting']>;
+type ClientTask = { callId: string; name: string; input: unknown; label: string };
 
 const EXAMPLES = [
   'Find recent papers on sleep and memory, save the five most relevant to my Thesis project, and tag them “memory”.',
@@ -94,21 +97,27 @@ export function Chat({ initialId }: { initialId: string | null }) {
     endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
   }, [entries, waiting]);
 
-  /* Run a streamed reply, folding its events into the page. */
-  const run = async (start: (onEvent: (e: AgentEvent) => void, signal: AbortSignal) => Promise<void>) => {
+  /* Run a streamed reply, folding its events into the page. When the reply
+     asks the browser to run a step (the citation search), it runs once the
+     stream ends and its result starts the next part of the reply. */
+  const run = async (start: (onEvent: (e: AgentEvent) => void, signal: AbortSignal) => Promise<void>): Promise<void> => {
     const ctrl = new AbortController();
     abort.current = ctrl;
     setBusy(true);
     setError(null);
     let newId: string | null = null;
+    let conversationId = activeId;
+    let task: ClientTask | null = null;
     try {
       await start((e) => {
         if (e.type === 'conversation') {
           newId = e.id;
+          conversationId = e.id;
           setActiveId(e.id);
           setTitle(e.title);
           setUrl(e.id);
-        } else if (e.type === 'confirm') setWaiting({ callId: e.callId, question: e.question });
+        } else if (e.type === 'confirm') setWaiting({ callId: e.callId, kind: 'confirm', question: e.question });
+        else if (e.type === 'client_tool') task = { callId: e.callId, name: e.name, input: e.input, label: e.label };
         else if (e.type === 'error') setError(e.message);
         else setEntries((prev) => applyEvent(prev, e));
       }, ctrl.signal);
@@ -118,6 +127,14 @@ export function Chat({ initialId }: { initialId: string | null }) {
       if (abort.current === ctrl) setBusy(false);
       if (newId) refreshList();
     }
+    if (task && conversationId && !ctrl.signal.aborted) await runInBrowser(conversationId, task);
+  };
+
+  /* Run a step in the browser, then send its result to carry on the reply. */
+  const runInBrowser = async (conversationId: string, task: ClientTask) => {
+    setBusy(true);
+    const outcome = await runClientTool(task.name, task.input);
+    await run((onEvent, signal) => sendClientResult({ conversationId, callId: task.callId, outcome }, onEvent, signal));
   };
 
   const send = async (raw: string) => {
@@ -133,6 +150,11 @@ export function Chat({ initialId }: { initialId: string | null }) {
     if (!waiting || !activeId || busy) return;
     const w = waiting;
     setWaiting(null);
+    if (w.kind === 'client' && approve) {
+      // reopened while a browser step was waiting: run it now
+      setEntries((prev) => applyEvent(prev, { type: 'step', callId: w.callId, name: w.name, label: w.label, input: w.input }));
+      return runInBrowser(activeId, w);
+    }
     setEntries((prev) => [...prev, { kind: 'user', text: approve ? 'Yes' : 'No' }]);
     await run((onEvent, signal) => answerQuestion({ conversationId: activeId, callId: w.callId, approve }, onEvent, signal));
   };
@@ -231,13 +253,13 @@ export function Chat({ initialId }: { initialId: string | null }) {
           )}
           {waiting && (
             <div className="ch-confirm" role="alertdialog" aria-label="The assistant is asking first">
-              <p>{waiting.question}</p>
+              <p>{waiting.kind === 'confirm' ? waiting.question : `${waiting.label}. This uses 1 credit.`}</p>
               <div className="ch-confirm-acts">
                 <button type="button" className="btn btn-thread btn-sm" onClick={() => answer(true)} disabled={busy}>
-                  Yes
+                  {waiting.kind === 'confirm' ? 'Yes' : 'Run it'}
                 </button>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => answer(false)} disabled={busy}>
-                  No
+                  {waiting.kind === 'confirm' ? 'No' : 'Skip'}
                 </button>
               </div>
             </div>

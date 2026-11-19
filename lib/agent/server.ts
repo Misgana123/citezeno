@@ -9,8 +9,9 @@ import { allow } from '@/lib/ratelimit';
 import { shelfConfig } from '@/lib/shelf/config';
 import type { AgentContext } from './context';
 import { searchReservations } from './limits';
-import { answer, repairHistory, resume, type LoopDeps } from './loop';
+import { answer, repairHistory, resume, resumeWithClientResult, type ClientOutcome, type LoopDeps } from './loop';
 import { claimRun, createConversation, getConversation, loadMessages, releaseRun, setModel, setPending, titleFrom, appendMessages, type Conversation } from './store';
+import type { ToolDisplay } from './tools/types';
 import type { AgentEvent, Pending } from './types';
 
 /* The research agent on the server: who is asking, their limits, the chosen
@@ -153,7 +154,29 @@ export function replyToConfirmation(req: Request, userId: string, body: { conver
       if (!conversation) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
       const pending: Pending | null = conversation.pending;
       if (!pending || pending.waiting.callId !== body.callId) throw new AgentHttpError(409, 'That question was already answered.', 'bad_request');
+      // a browser-run tool the user chose to skip counts as "no"; a "yes" is sent as its result instead
+      if (pending.waiting.kind === 'client' && body.approve) throw new AgentHttpError(409, 'Send the result of that step instead.', 'bad_request');
       return { conversation, run: (deps, history) => resume(deps, history, pending, body.approve) };
+    },
+    null,
+  );
+}
+
+/* The result of a tool the user's browser ran (the citation search), or why it couldn't run. */
+export function replyToClientResult(req: Request, userId: string, body: { conversationId: string; callId: string; outcome: { ok: true; sources: ToolDisplay['sources']; note?: string } | { ok: false; error: string } }) {
+  return streamReply(
+    userId,
+    req,
+    async () => {
+      const conversation = await getConversation(pool, userId, body.conversationId);
+      if (!conversation) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
+      const pending: Pending | null = conversation.pending;
+      if (!pending || pending.waiting.kind !== 'client' || pending.waiting.callId !== body.callId) throw new AgentHttpError(409, 'That step was already finished.', 'bad_request');
+      const o = body.outcome;
+      const outcome: ClientOutcome = o.ok
+        ? { ok: true, result: { found: o.sources?.length ?? 0, sources: o.sources ?? [], ...(o.note ? { note: o.note } : {}) }, display: { sources: o.sources ?? [] } }
+        : { ok: false, error: o.error };
+      return { conversation, run: (deps, history) => resumeWithClientResult(deps, history, pending, outcome) };
     },
     null,
   );
