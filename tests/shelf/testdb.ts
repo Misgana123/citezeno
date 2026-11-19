@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
+import { AGENT_SQL } from '@/lib/agent/schema';
 import { SHELF_SQL } from '@/lib/shelf/schema';
 
 /* A throwaway Postgres schema for the Shelf store tests, so they run the real
@@ -19,6 +20,7 @@ export async function openTestDb(): Promise<TestDb> {
   // the app's "user" table, reduced to what the foreign keys need
   await pool.query(`create table "user" (id text primary key)`);
   await pool.query(SHELF_SQL);
+  await pool.query(AGENT_SQL);
   return {
     pool,
     async addUser(id = `u_${randomUUID()}`) {

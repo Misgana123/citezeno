@@ -4,6 +4,7 @@
 import { getMigrations } from 'better-auth/db/migration';
 import { authOptions } from '../lib/auth';
 import { pool } from '../lib/db';
+import { AGENT_SQL } from '../lib/agent/schema';
 import { OLD_SHELF_CHECK, SHELF_RESET_SQL, SHELF_SQL } from '../lib/shelf/schema';
 
 const APP_SQL = `
@@ -162,7 +163,8 @@ async function main() {
     console.log('Old shelf tables removed (SHELF_RESET=1).');
   }
   await pool.query(SHELF_SQL);
-  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity, papers, provider gateway, shelf).');
+  await pool.query(AGENT_SQL);
+  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity, papers, provider gateway, shelf, agent).');
 }
 
 main()
