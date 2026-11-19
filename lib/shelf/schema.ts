@@ -4,27 +4,28 @@
    Every table holding a user's data carries "userId" with on delete cascade,
    so deleting an account removes the whole shelf. */
 export const SHELF_SQL = `
--- Shelf (v8). One record per paper. OpenAlex papers ("ownerId" null) are shared
--- by everyone who saves them; manual and unmatched imported papers belong to one user.
+-- Shelf (v8). One record per paper. Papers from a paper provider ("ownerId"
+-- null, origin 'provider') are shared by everyone who saves them, under their
+-- Citezeno ID ("openalex:W123"); manual and unmatched imported papers belong to
+-- one user ("p_…" IDs).
 create table if not exists shelf_paper (
   id              text        primary key,
   "ownerId"       text        references "user"(id) on delete cascade,
-  "openalexId"    text,
+  provider        text,
   doi             text,
   title           text        not null,
   year            integer,
   "citedByCount"  integer     not null default 0,
   "isOpenAccess"  boolean     not null default false,
   "isRetracted"   boolean     not null default false,
-  origin          text        not null check (origin in ('openalex', 'manual', 'import')),
+  origin          text        not null check (origin in ('provider', 'manual', 'import')),
   data            jsonb       not null,
   "refreshDue"    boolean     not null default false,
   "createdAt"     timestamptz not null default now(),
   "updatedAt"     timestamptz not null default now(),
-  check (("ownerId" is null) = (origin = 'openalex')),
-  check (origin <> 'openalex' or "openalexId" is not null)
+  check (("ownerId" is null) = (origin = 'provider')),
+  check ((origin = 'provider') = (provider is not null))
 );
-create unique index if not exists shelf_paper_openalex on shelf_paper ("openalexId") where "ownerId" is null;
 create index if not exists shelf_paper_doi on shelf_paper (doi) where doi is not null;
 create index if not exists shelf_paper_owner on shelf_paper ("ownerId") where "ownerId" is not null;
 
@@ -183,7 +184,7 @@ update shelf_pdf set tsv = to_tsvector('simple', left("text", 400000)) where "te
 create index if not exists shelf_pdf_tsv on shelf_pdf using gin (tsv);
 
 -- Keeping saved papers up to date (v12): when each shared record was last
--- refreshed from OpenAlex, and notices for papers retracted since they were saved.
+-- refreshed from its provider, and notices for papers retracted since they were saved.
 alter table shelf_paper add column if not exists "refreshedAt" timestamptz;
 create index if not exists shelf_paper_refresh on shelf_paper ("refreshDue" desc, "refreshedAt" nulls first) where "ownerId" is null;
 
@@ -197,4 +198,18 @@ create table if not exists shelf_notice (
   "readAt"    timestamptz
 );
 create index if not exists shelf_notice_unread on shelf_notice ("userId", "createdAt" desc) where "readAt" is null;
+`;
+
+/* Shelf tables from before paper IDs named their provider (shelf_paper had an
+   "openalexId" column). They can't be upgraded in place; resetting removes
+   every shelf. Stored PDFs are queued for removal from storage first, so the
+   background job still deletes the files. */
+export const OLD_SHELF_CHECK = `select 1 from information_schema.columns
+  where table_schema = current_schema() and table_name = 'shelf_paper' and column_name = 'openalexId'`;
+
+export const SHELF_RESET_SQL = `
+insert into shelf_storage_trash (key) select "storageKey" from shelf_pdf on conflict do nothing;
+drop table if exists shelf_notice, shelf_import_entry, shelf_import, shelf_pdf, shelf_not_duplicate,
+  shelf_item_tag, shelf_item_folder, shelf_item_project, shelf_tag, shelf_folder, shelf_project,
+  shelf_item, shelf_paper cascade;
 `;

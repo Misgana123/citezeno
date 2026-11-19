@@ -33,11 +33,11 @@ describe.skipIf(!TEST_DB_URL)('bulk actions (Postgres)', () => {
     user = await db.addUser();
     other = await db.addUser();
     ids = [];
-    for (const id of ['W1', 'W2', 'W3']) {
+    for (const id of ['openalex:W1', 'openalex:W2', 'openalex:W3']) {
       await putShared(db.pool, paper(id));
       ids.push((await addItem(db.pool, user, id, 'search')).item.id);
     }
-    foreign = (await addItem(db.pool, other, 'W1', 'search')).item.id;
+    foreign = (await addItem(db.pool, other, 'openalex:W1', 'search')).item.id;
   });
   afterAll(async () => db?.close());
 

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { QueryParams } from '@/lib/providers/openalex/client';
-import { openAlexOver } from '../papers/fake-openalex';
+import { openAlexOver, sourcesOver } from '../papers/fake-openalex';
 import { shelfConfig } from '@/lib/shelf/config';
 import { parseBibtex } from '@/lib/shelf/import/bibtex';
 import { parseReferenceFile } from '@/lib/shelf/import/parse';
@@ -151,7 +151,7 @@ describe.skipIf(!TEST_DB_URL)('importing (Postgres)', () => {
     expect(items.total).toBe(120);
     expect(items.items.every((i) => i.addedVia === 'import')).toBe(true);
     const { rows } = await db.pool.query(`select p.origin, count(*)::int as n from shelf_item i join shelf_paper p on p.id = i."paperId" where i."userId" = $1 group by p.origin order by p.origin`, [user]);
-    expect(rows).toEqual([{ origin: 'import', n: 60 }, { origin: 'openalex', n: 60 }]);
+    expect(rows).toEqual([{ origin: 'import', n: 60 }, { origin: 'provider', n: 60 }]);
   }, 60_000);
 
   it('skips papers already on the shelf, including repeats inside the file', async () => {
@@ -184,8 +184,8 @@ describe.skipIf(!TEST_DB_URL)('importing (Postgres)', () => {
     const store = memoryStore();
     store.put('shelf/x/old.pdf', new Uint8Array(1));
     await db.pool.query(`insert into shelf_storage_trash (key) values ('shelf/x/old.pdf')`);
-    const { client } = fakeClient();
-    const report = await runShelfJobs({ db: db.pool, papers: () => client, store }, 20_000, DEFAULT_STEPS);
+    const { get } = fakeClient();
+    const report = await runShelfJobs({ db: db.pool, sources: () => sourcesOver(get as never), store }, 20_000, DEFAULT_STEPS);
     expect(report).toMatchObject({ filesRemoved: 1 });
     expect((await getImport(db.pool, user, id))?.status).toBe('done');
     expect(store.has('shelf/x/old.pdf')).toBe(false);

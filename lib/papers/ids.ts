@@ -1,15 +1,17 @@
-/* Identifier helpers for OpenAlex work IDs and DOIs. */
+/* Identifier helpers: Citezeno paper IDs, DOIs and ORCIDs. No imports: safe for
+   client components. Each provider's own ID format lives in its adapter. */
 
-const WORK_ID = /^W\d{1,12}$/;
+/* Provider names: lowercase letters, digits and dashes. */
+const PAPER_ID = /^([a-z][a-z0-9-]{0,31}):(\S{1,200})$/;
 
-/* "https://openalex.org/W123" or "w123" → "W123"; anything else → null. */
-export function toWorkId(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const tail = value.trim().replace(/^https?:\/\/(www\.)?openalex\.org\//i, '').toUpperCase();
-  return WORK_ID.test(tail) ? tail : null;
+/* "openalex" + "W123" → "openalex:W123". */
+export const paperId = (provider: string, providerId: string) => `${provider}:${providerId}`;
+
+/* "openalex:W123" → { provider: "openalex", providerId: "W123" }; anything else → null. */
+export function splitPaperId(id: string | null | undefined): { provider: string; providerId: string } | null {
+  const m = id?.trim().match(PAPER_ID);
+  return m ? { provider: m[1], providerId: m[2] } : null;
 }
-
-export const isWorkId = (value: string) => WORK_ID.test(value);
 
 /* "https://doi.org/10.1/ABC" or "doi:10.1/abc" → "10.1/abc" (DOIs are case-insensitive). */
 export function toDoi(value: string | null | undefined): string | null {
@@ -19,7 +21,6 @@ export function toDoi(value: string | null | undefined): string | null {
 }
 
 export const doiUrl = (doi: string) => `https://doi.org/${doi}`;
-export const openalexUrl = (workId: string) => `https://openalex.org/${workId}`;
 
 /* "https://orcid.org/0000-0001-2345-6789" → "0000-0001-2345-6789". */
 export function toOrcid(value: string | null | undefined): string | null {

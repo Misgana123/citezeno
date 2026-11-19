@@ -9,7 +9,7 @@ export const NAME = z.string().trim().min(1, 'Give it a name.').max(80, 'Keep th
 export const NOTE_MAX = 20_000;
 
 /* POST /api/shelf/papers: the ways a paper reaches the shelf. */
-const PAPER_ID = z.string().trim().min(1).max(60);
+const PAPER_ID = z.string().trim().min(1).max(240);
 export const saveBody = z.discriminatedUnion('via', [
   z.object({ via: z.literal('search'), paperId: PAPER_ID, paper: z.unknown().optional(), projectId: ID.nullish() }),
   z.object({ via: z.enum(['doi', 'link', 'title']), paperId: PAPER_ID, projectId: ID.nullish() }),
@@ -69,7 +69,7 @@ export const pdfBeginBody = z.object({
 
 /* POST /api/shelf/pdfs/:id/confirm: which paper the PDF is. */
 export const pdfConfirmBody = z.union([
-  z.object({ paperId: z.string().trim().min(1).max(60), projectId: ID.nullish() }),
+  z.object({ paperId: PAPER_ID, projectId: ID.nullish() }),
   z.object({ itemId: ID }),
   z.object({ details: manualPaperSchema, projectId: ID.nullish() }),
 ]);

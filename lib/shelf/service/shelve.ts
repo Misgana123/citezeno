@@ -16,7 +16,7 @@ export async function shelve(
   db: Db,
   userId: string,
   opts: {
-    keys: { openalexId?: string | null; doi?: string | null };
+    keys: { paperId?: string | null; doi?: string | null };
     paper: (q: Queryable) => Promise<ShelfPaper>;
     via: AddedVia;
     projectId?: string | null;
@@ -40,7 +40,7 @@ export async function shelve(
 export async function shelveLean(
   q: Queryable,
   userId: string,
-  opts: { keys: { openalexId?: string | null; doi?: string | null }; paper: (q: Queryable) => Promise<{ id: string }>; via: AddedVia; projectId?: string | null },
+  opts: { keys: { paperId?: string | null; doi?: string | null }; paper: (q: Queryable) => Promise<{ id: string }>; via: AddedVia; projectId?: string | null },
 ): Promise<string> {
   {
     const dup = await findExactDuplicate(q, userId, opts.keys);

@@ -61,7 +61,7 @@ export function PdfUploadTab({ projectId, onAdded, onManageFiles }: { projectId:
     patch(r.key, { busy: true });
     try {
       const out = await shelfFetch<{ item: ShelfItem; possibleDuplicates: DupSummary[] }>(`/api/shelf/pdfs/${r.result!.pdf.id}/confirm`, { method: 'POST', body: { ...body, projectId } });
-      if (out.item.paper.openalexId) markSaved(out.item.paper.openalexId, out.item.id);
+      if (out.item.paper.provider) markSaved(out.item.paper.id, out.item.id);
       patch(r.key, { stage: 'done', item: out.item, busy: false, manual: false });
       savedToast('PDF added to your shelf', out.possibleDuplicates);
       onAdded(out.item);
@@ -157,7 +157,7 @@ export function PdfUploadTab({ projectId, onAdded, onManageFiles }: { projectId:
               <Matches
                 result={r.result}
                 busy={!!r.busy}
-                onPick={(p: Paper) => confirm(r, { paperId: p.openalexId })}
+                onPick={(p: Paper) => confirm(r, { paperId: p.id })}
                 onExisting={(itemId) => confirm(r, { itemId })}
                 onManual={() => patch(r.key, { manual: true })}
                 onSkip={() => skip(r)}
@@ -210,7 +210,7 @@ function Matches({
       </p>
       <ul className="sh-match-list">
         {m.candidates.map((p) => {
-          const saved = m.saved[p.openalexId];
+          const saved = m.saved[p.id];
           return (
             <li key={p.id} className="sh-match">
               <div>

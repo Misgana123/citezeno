@@ -4,7 +4,7 @@
 import { getMigrations } from 'better-auth/db/migration';
 import { authOptions } from '../lib/auth';
 import { pool } from '../lib/db';
-import { SHELF_SQL } from '../lib/shelf/schema';
+import { OLD_SHELF_CHECK, SHELF_RESET_SQL, SHELF_SQL } from '../lib/shelf/schema';
 
 const APP_SQL = `
 create table if not exists trace (
@@ -151,6 +151,16 @@ async function main() {
     console.log('Auth tables are up to date.');
   }
   await pool.query(APP_SQL);
+  if ((await pool.query(OLD_SHELF_CHECK)).rowCount) {
+    if (process.env.SHELF_RESET !== '1') {
+      throw new Error(
+        'The shelf tables are from before paper IDs named their provider and must be recreated, which deletes every shelf. ' +
+          'Run again with SHELF_RESET=1 to do that (stored PDFs are queued for removal from storage).',
+      );
+    }
+    await pool.query(SHELF_RESET_SQL);
+    console.log('Old shelf tables removed (SHELF_RESET=1).');
+  }
   await pool.query(SHELF_SQL);
   console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity, papers, provider gateway, shelf).');
 }

@@ -23,8 +23,9 @@ const MAX_LOOKUP_FAILURES = 3;
 export type ImportRunDeps = { db: Db; papers: PaperSource; now?: () => number };
 export type SliceResult = 'done' | 'more' | 'waiting' | 'busy';
 
-export function entryDetails(e: ImportEntry): Omit<Paper, 'id' | 'openalexId'> {
+export function entryDetails(e: ImportEntry): Omit<Paper, 'id' | 'provider'> {
   return {
+    record: null,
     doi: e.doi,
     title: e.title ?? 'Untitled',
     authors: e.authors.map((name) => ({ name, orcid: null })),
@@ -40,7 +41,7 @@ export function entryDetails(e: ImportEntry): Omit<Paper, 'id' | 'openalexId'> {
     landingUrl: e.url,
     isRetracted: false,
     topics: [],
-    referencedWorkIds: [],
+    referenceIds: [],
   };
 }
 
@@ -51,7 +52,7 @@ async function addEntry(q: Queryable, job: ClaimedImport, e: ImportEntry, match:
     await q.query('savepoint entry');
     try {
       const id = await shelveLean(q, job.userId, {
-        keys: match ? { openalexId: match.openalexId, doi: match.doi } : { doi: e.doi },
+        keys: match ? { paperId: match.id, doi: match.doi } : { doi: e.doi },
         via: 'import',
         projectId,
         paper: (qq) => (match ? putShared(qq, match) : createPrivate(qq, job.userId, entryDetails(e), 'import')),

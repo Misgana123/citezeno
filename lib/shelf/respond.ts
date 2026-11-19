@@ -6,7 +6,7 @@ import { isShelfError, SHELF_STATUS } from './errors';
 import { papersErrorCode } from './papers-error';
 
 /* Any error thrown inside a /api/shelf route → a JSON error the UI can show.
-   OpenAlex failures keep Find Papers' wording; unknown errors are logged. */
+   Paper provider failures keep Find Papers' wording; unknown errors are logged. */
 export function shelfErrorResponse(e: unknown): Response {
   if (isShelfError(e)) {
     return json({ error: e.message, code: e.code, ...(e.details.itemId ? { itemId: e.details.itemId } : {}), ...(e.details.resetsAt ? { resetsAt: e.details.resetsAt } : {}) }, SHELF_STATUS[e.code]);

@@ -11,7 +11,7 @@ export function csvCell(v: string | number | boolean | null | undefined): string
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export const CSV_COLUMNS = ['Title', 'Authors', 'Year', 'Source', 'Type', 'DOI', 'Link', 'OpenAlex ID', 'Citations', 'Open access', 'Retracted', 'Reading status', 'Added', 'Projects', 'Folders', 'Tags', 'Note', 'PDF files'];
+export const CSV_COLUMNS = ['Title', 'Authors', 'Year', 'Source', 'Type', 'DOI', 'Link', 'Paper ID', 'Citations', 'Open access', 'Retracted', 'Reading status', 'Added', 'Projects', 'Folders', 'Tags', 'Note', 'PDF files'];
 
 export function toCsv(rows: ExportRow[]): string {
   const lines = rows.map(({ item, projects, folders, tags }) => {
@@ -24,8 +24,8 @@ export function toCsv(rows: ExportRow[]): string {
       p.type,
       p.doi,
       p.landingUrl ?? (p.doi ? `https://doi.org/${p.doi}` : ''),
-      p.openalexId,
-      p.origin === 'openalex' ? p.citedByCount : '',
+      p.provider ? p.id : '',
+      p.origin === 'provider' ? p.citedByCount : '',
       p.isOpenAccess,
       p.isRetracted,
       STATUS[item.readingStatus],

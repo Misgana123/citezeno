@@ -1,6 +1,6 @@
 import type { Paper } from '@/lib/papers/types';
 import type { PdfTextReader } from '@/lib/providers/pdf-text/types';
-import type { PaperSource } from '@/lib/providers/papers/types';
+import type { PaperSources } from '@/lib/providers/papers/sources';
 import type { FileStore, UploadTarget } from '@/lib/providers/storage/types';
 import type { ManualPaperInput } from '../api/manual-schema';
 import type { ShelfConfig } from '../config';
@@ -14,7 +14,7 @@ import { getItem, savedMap } from '../store/items';
 import { attachPdf, createPending, deletePdf, getPdfRow, markReady, storageUsed, type PdfFound, type PdfRow } from '../store/pdfs';
 import type { ShelfItem } from '../types';
 import { saveManualPaper } from './save-manual';
-import { saveOpenAlexPaper } from './save-openalex';
+import { saveFoundPaper } from './save-found';
 
 /* Uploading a PDF, in three steps:
 
@@ -63,7 +63,7 @@ export async function beginUpload(deps: PdfDeps, userId: string, f: { fileName: 
 export type Match = { found: PdfFound; candidates: Paper[]; saved: Record<string, string>; matching: 'doi' | 'title' | 'none' | 'unavailable' };
 export type CompleteResult = { pdf: PdfSummary; item: ShelfItem | null; match: Match | null };
 
-export type MatchDeps = { papers: () => PaperSource; reserveSearch: () => Promise<void> };
+export type MatchDeps = { sources: () => PaperSources; reserveSearch: () => Promise<void> };
 
 /* Suggest which paper a PDF is: by its DOI (a free lookup), else by its title (a search). */
 export async function suggestMatches(db: Db, userId: string, deps: MatchDeps, found: PdfFound): Promise<Match> {
@@ -72,7 +72,7 @@ export async function suggestMatches(db: Db, userId: string, deps: MatchDeps, fo
   try {
     if (found.doi) {
       matching = 'doi';
-      candidates = (await resolveInput(deps.papers(), { kind: 'doi', doi: found.doi, fromLink: false })).papers;
+      candidates = (await resolveInput(deps.sources(), { kind: 'doi', doi: found.doi, fromLink: false })).papers;
     }
   } catch (e) {
     if (papersErrorCode(e)) matching = 'unavailable';
@@ -82,14 +82,14 @@ export async function suggestMatches(db: Db, userId: string, deps: MatchDeps, fo
     try {
       await deps.reserveSearch();
       matching = 'title';
-      candidates = (await resolveInput(deps.papers(), { kind: 'title', title: found.title })).papers;
+      candidates = (await resolveInput(deps.sources(), { kind: 'title', title: found.title })).papers;
     } catch (e) {
       const code = papersErrorCode(e);
       if (code === 'user_limit' || code === 'busy' || code === 'unavailable' || code === 'budget') matching = 'unavailable';
       else throw e;
     }
   }
-  const saved = await savedMap(db, userId, candidates.map((p) => p.openalexId));
+  const saved = await savedMap(db, userId, candidates.map((p) => p.id));
   return { found, candidates, saved, matching };
 }
 
@@ -134,9 +134,9 @@ export async function completeUpload(deps: PdfDeps & MatchDeps, userId: string, 
 
 export type ConfirmChoice = { paperId: string; projectId?: string | null } | { itemId: string } | { details: ManualPaperInput; projectId?: string | null };
 
-/* Attach a matched PDF: to an OpenAlex paper (saved if needed), to a paper
+/* Attach a matched PDF: to a paper found through a paper provider (saved if needed), to a paper
    already on the shelf, or to a paper typed in by hand. */
-export async function confirmUpload(deps: { db: Db; papers: () => PaperSource }, userId: string, pdfId: string, choice: ConfirmChoice): Promise<ShelfItem> {
+export async function confirmUpload(deps: { db: Db; sources: () => PaperSources }, userId: string, pdfId: string, choice: ConfirmChoice): Promise<ShelfItem> {
   const row = await getPdfRow(deps.db, userId, pdfId);
   if (!row || row.status !== 'ready') throw new ShelfError('not_found', 'That upload no longer exists. Please upload the file again.');
   if (row.itemId) throw new ShelfError('bad_request', 'This PDF is already attached to a paper.');
@@ -146,7 +146,7 @@ export async function confirmUpload(deps: { db: Db; papers: () => PaperSource },
   else if ('details' in choice) itemId = (await saveManualPaper(deps.db, userId, choice.details, choice.projectId, 'upload')).id;
   else {
     try {
-      itemId = (await saveOpenAlexPaper({ db: deps.db, papers: deps.papers() }, userId, { paperId: choice.paperId, via: 'upload', projectId: choice.projectId })).item.id;
+      itemId = (await saveFoundPaper({ db: deps.db, sources: deps.sources() }, userId, { paperId: choice.paperId, via: 'upload', projectId: choice.projectId })).item.id;
     } catch (e) {
       // already on the shelf: the PDF goes to that paper
       if ((e as ShelfError).code === 'duplicate' && (e as ShelfError).details.itemId) itemId = (e as ShelfError).details.itemId!;

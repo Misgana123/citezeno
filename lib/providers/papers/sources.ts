@@ -1,3 +1,4 @@
+import { splitPaperId } from '@/lib/papers/ids';
 import { supports, type PaperCapability, type PaperSource } from './types';
 
 /* The paper sources a request may use, primary first. Features ask for the
@@ -20,4 +21,22 @@ export function paperSources(list: PaperSource[]): PaperSources {
     named: (name) => list.find((s) => s.name === name) ?? null,
     withCapability: (capability) => list.find((s) => supports(s, capability)) ?? null,
   };
+}
+
+/* Which source a paper ID belongs to, and that source's own ID for it.
+   Takes a Citezeno ID ("openalex:W123"), or anything one of the enabled
+   sources recognises (primary first): "W123", a link to its record… */
+export function resolvePaperId(sources: PaperSources, raw: string): { source: PaperSource; id: string } | null {
+  const qualified = splitPaperId(raw);
+  const owner = qualified && sources.named(qualified.provider);
+  if (qualified && owner) {
+    const id = owner.parseId(qualified.providerId);
+    return id ? { source: owner, id } : null;
+  }
+  // not one of ours ("https://…", or a provider that isn't enabled): ask each source
+  for (const source of sources.all) {
+    const id = source.parseId(raw);
+    if (id) return { source, id };
+  }
+  return null;
 }

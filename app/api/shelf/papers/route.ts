@@ -4,7 +4,7 @@ import { savedResponse } from '@/lib/shelf/api/saved-response';
 import { parseListRequest } from '@/lib/shelf/api/list-request';
 import { shelfRoute } from '@/lib/shelf/route';
 import { saveManualPaper } from '@/lib/shelf/service/save-manual';
-import { saveOpenAlexPaper } from '@/lib/shelf/service/save-openalex';
+import { saveFoundPaper } from '@/lib/shelf/service/save-found';
 import { listItems } from '@/lib/shelf/store/items';
 
 export const runtime = 'nodejs';
@@ -24,6 +24,6 @@ export const POST = shelfRoute(async (ctx) => {
     const item = await saveManualPaper(ctx.db, ctx.userId, body.details, body.projectId);
     return json(await savedResponse(ctx.db, ctx.userId, item), 201);
   }
-  const { item, pending } = await saveOpenAlexPaper({ db: ctx.db, papers: ctx.papers() }, ctx.userId, body);
+  const { item, pending } = await saveFoundPaper({ db: ctx.db, sources: ctx.sources() }, ctx.userId, body);
   return json(await savedResponse(ctx.db, ctx.userId, item, pending), 201);
 });

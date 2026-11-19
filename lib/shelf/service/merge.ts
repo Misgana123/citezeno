@@ -21,8 +21,8 @@ export async function mergeItems(db: Db, userId: string, x: string, y: string): 
     if (!a || !b) throw new ShelfError('not_found', 'One of these papers is no longer on your shelf.');
     const [keep, drop] = completeness(b.paper) > completeness(a.paper) ? [b, a] : [a, b];
 
-    if (keep.paper.origin !== 'openalex' && drop.paper.origin !== 'openalex' && keep.paper.id !== drop.paper.id) {
-      const { id: _id, openalexId: _oa, origin: _o, ...details } = fillDetails(keep.paper, drop.paper);
+    if (keep.paper.origin !== 'provider' && drop.paper.origin !== 'provider' && keep.paper.id !== drop.paper.id) {
+      const { id: _id, provider: _pr, origin: _o, ...details } = fillDetails(keep.paper, drop.paper);
       await updatePrivate(q, userId, keep.paper.id, details);
     }
 

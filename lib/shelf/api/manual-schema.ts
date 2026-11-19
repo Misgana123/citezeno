@@ -32,9 +32,10 @@ export const manualPaperSchema = z.object({
 });
 export type ManualPaperInput = z.infer<typeof manualPaperSchema>;
 
-/* The Citezeno Paper details for a manual entry (no OpenAlex ID). */
-export function manualDetails(v: ManualPaperInput): Omit<Paper, 'id' | 'openalexId'> {
+/* The Citezeno Paper details for a manual entry (no provider record). */
+export function manualDetails(v: ManualPaperInput): Omit<Paper, 'id' | 'provider'> {
   return {
+    record: null,
     doi: toDoi(v.doi),
     title: v.title,
     authors: v.authors.map((name) => ({ name, orcid: null })),
@@ -50,6 +51,6 @@ export function manualDetails(v: ManualPaperInput): Omit<Paper, 'id' | 'openalex
     landingUrl: v.url,
     isRetracted: false,
     topics: [],
-    referencedWorkIds: [],
+    referenceIds: [],
   };
 }

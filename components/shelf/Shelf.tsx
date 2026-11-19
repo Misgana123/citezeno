@@ -100,7 +100,7 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
 
   const forget = (items: ShelfItem[]) => {
     list.drop(items.map((i) => i.id));
-    for (const i of items) if (i.paper.openalexId) markSaved(i.paper.openalexId, null);
+    for (const i of items) if (i.paper.provider) markSaved(i.paper.id, null);
     setSelected((s) => new Set([...s].filter((id) => !items.some((i) => i.id === id))));
     setOpen((o) => (o && items.some((i) => i.id === o.id) ? null : o));
     void groups.reload();

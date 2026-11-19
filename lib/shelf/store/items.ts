@@ -89,10 +89,10 @@ export async function deleteItems(q: Queryable, userId: string, ids: string[]): 
   return { deleted: rows.map((r) => r.id) };
 }
 
-/* Which of these OpenAlex papers the user has saved: { W123: itemId }. */
-export async function savedMap(q: Queryable, userId: string, openalexIds: string[]): Promise<Record<string, string>> {
-  if (!openalexIds.length) return {};
-  const { rows } = await q.query<{ paperId: string; id: string }>(`select "paperId", id from shelf_item where "userId" = $1 and "paperId" = any($2)`, [userId, openalexIds]);
+/* Which of these papers the user has saved: { "openalex:W123": itemId }. */
+export async function savedMap(q: Queryable, userId: string, paperIds: string[]): Promise<Record<string, string>> {
+  if (!paperIds.length) return {};
+  const { rows } = await q.query<{ paperId: string; id: string }>(`select "paperId", id from shelf_item where "userId" = $1 and "paperId" = any($2)`, [userId, paperIds]);
   return Object.fromEntries(rows.map((r) => [r.paperId, r.id]));
 }
 

@@ -22,8 +22,9 @@ import { FILE_STORAGE_PROVIDERS } from '@/lib/providers/storage/registry';
 import type { Gate } from '@/lib/providers/types';
 
 const paper = (id: string, over: Partial<Paper> = {}): Paper => ({
-  id,
-  openalexId: id,
+  id: `main:${id}`,
+  provider: 'main',
+  record: null,
   doi: null,
   title: `Paper ${id}`,
   authors: [],
@@ -39,7 +40,7 @@ const paper = (id: string, over: Partial<Paper> = {}): Paper => ({
   landingUrl: null,
   isRetracted: false,
   topics: [],
-  referencedWorkIds: [],
+  referenceIds: [],
   ...over,
 });
 
@@ -50,7 +51,7 @@ function basicSource(name: string, found: Paper[]): PaperSource {
     limits: { maxQueryChars: 500, semanticMax: 20 },
     parseId: (raw) => raw,
     search: vi.fn(async () => ({ papers: found, total: found.length, costUsd: 0 })),
-    getPaper: vi.fn(async (ref) => ({ paper: found.find((p) => (ref.kind === 'doi' ? p.doi === ref.doi : p.id === (ref as { id: string }).id)) ?? null, costUsd: 0 })),
+    getPaper: vi.fn(async (ref) => ({ paper: found.find((p) => (ref.kind === 'doi' ? p.doi === ref.doi : p.id === `main:${(ref as { id: string }).id}`)) ?? null, costUsd: 0 })),
   };
 }
 
@@ -121,12 +122,12 @@ describe('using more than one paper provider', () => {
     const set = paperSources([basicSource('main', [paper('A1'), paper('A2')]), meaningSource([paper('B1'), paper('A2')])]);
     const res = await runSearch(set, req('q=sleep'));
     expect(res.searches).toBe(2);
-    expect(res.list.papers.map((p) => p.id)).toEqual(['A2', 'A1', 'B1']); // found by both ranks first
+    expect(res.list.papers.map((p) => p.id)).toEqual(['main:A2', 'main:A1', 'main:B1']); // found by both ranks first
   });
 
   it('Smart mode falls back to keyword results when no source searches by meaning', async () => {
     const res = await runSearch(paperSources([basicSource('main', [paper('A1')])]), req('q=sleep'));
-    expect(res).toMatchObject({ searches: 1, list: { mode: 'smart', papers: [{ id: 'A1' }] } });
+    expect(res).toMatchObject({ searches: 1, list: { mode: 'smart', papers: [{ id: 'main:A1' }] } });
   });
 
   it('search by meaning says plainly when no source offers it', async () => {
@@ -136,12 +137,13 @@ describe('using more than one paper provider', () => {
   it('"More like this" uses the source’s own similar list, else search by meaning, else says so', async () => {
     const r = parseSearchRequest(new URLSearchParams(), { requireQuery: false });
     const own = { ...basicSource('main', [paper('A1')]), similar: vi.fn(async () => ({ papers: [paper('A1'), paper('S1')], costUsd: 0 })) };
-    expect((await similarTo(paperSources([own]), 'A1', r)).list.papers.map((p) => p.id)).toEqual(['S1']);
+    expect((await similarTo(paperSources([own]), { source: own, id: 'A1' }, r)).list.papers.map((p) => p.id)).toEqual(['main:S1']);
 
     const viaMeaning = paperSources([basicSource('main', [paper('A1')]), meaningSource([paper('M1')])]);
-    expect((await similarTo(viaMeaning, 'A1', r)).list.papers.map((p) => p.id)).toEqual(['M1']);
+    expect((await similarTo(viaMeaning, { source: viaMeaning.primary, id: 'A1' }, r)).list.papers.map((p) => p.id)).toEqual(['main:M1']);
 
-    await expect(similarTo(paperSources([basicSource('main', [paper('A1')])]), 'A1', r)).rejects.toMatchObject({ code: 'bad_request' });
+    const alone = paperSources([basicSource('main', [paper('A1')])]);
+    await expect(similarTo(alone, { source: alone.primary, id: 'A1' }, r)).rejects.toMatchObject({ code: 'bad_request' });
   });
 
   it('looks DOIs up one by one when a source has no batch lookup', async () => {

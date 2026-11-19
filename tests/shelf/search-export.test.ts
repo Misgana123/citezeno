@@ -27,7 +27,7 @@ describe('search words', () => {
 const row = (over: Partial<ShelfItem['paper']> = {}, item: Partial<ShelfItem> = {}, extra: Partial<ExportRow> = {}): ExportRow => ({
   item: {
     id: 'i1',
-    paper: { ...paper('W1'), origin: 'openalex', ...over },
+    paper: { ...paper('openalex:W1'), origin: 'provider', ...over },
     addedAt: '2026-01-02T03:04:05.000Z',
     addedVia: 'search',
     readingStatus: 'reading',
@@ -100,10 +100,10 @@ describe.skipIf(!TEST_DB_URL)('searching the shelf (Postgres)', () => {
   beforeAll(async () => {
     db = await openTestDb();
     user = await db.addUser();
-    await putShared(db.pool, paper('W1', { title: 'Floods in river deltas', authors: [{ name: 'Grace Hopper', orcid: null }], abstract: 'Sediment and water.', doi: '10.4242/deltas' }));
-    await putShared(db.pool, paper('W2', { title: 'Coral reefs', abstract: 'Warm oceans and flooding coasts.' }));
-    await putShared(db.pool, paper('W3', { title: 'Machine translation' }));
-    for (const id of ['W1', 'W2', 'W3']) ids[id] = (await addItem(db.pool, user, id, 'search')).item.id;
+    await putShared(db.pool, paper('openalex:W1', { title: 'Floods in river deltas', authors: [{ name: 'Grace Hopper', orcid: null }], abstract: 'Sediment and water.', doi: '10.4242/deltas' }));
+    await putShared(db.pool, paper('openalex:W2', { title: 'Coral reefs', abstract: 'Warm oceans and flooding coasts.' }));
+    await putShared(db.pool, paper('openalex:W3', { title: 'Machine translation' }));
+    for (const id of ['openalex:W1', 'openalex:W2', 'openalex:W3']) ids[id.replace('openalex:', '')] = (await addItem(db.pool, user, id, 'search')).item.id;
     const own = await createPrivate(db.pool, user, { ...paper('X'), title: 'Grandmother notes', doi: null, abstract: null, authors: [] }, 'manual');
     ids.X = (await addItem(db.pool, user, own.id, 'manual')).item.id;
     await updateItem(db.pool, user, ids.W3, { note: 'Useful for the methodology chapter' });

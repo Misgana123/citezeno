@@ -12,6 +12,6 @@ export const pdfDeps = (ctx: ShelfContext): PdfDeps & MatchDeps => ({
   pdfText: pdfTextReader(),
   config: ctx.config,
   allowUpload: () => allow(`shelf-upload:${ctx.userId}`, 86_400, ctx.config.uploadsPerDay),
-  papers: ctx.papers,
+  sources: ctx.sources,
   reserveSearch: () => ctx.reserveSearches(1),
 });

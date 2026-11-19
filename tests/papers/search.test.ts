@@ -139,7 +139,7 @@ describe('keywordSearch', () => {
     expect(res.costUsd).toBe(0.001);
     expect(res.searches).toBe(1);
     expect(res.list).toMatchObject({ total: 60, page: 2, perPage: 25, hasMore: true, mode: 'keyword', sort: 'newest', notices: ['query_truncated'] });
-    expect(res.list.papers.map((p) => p.id)).toEqual(['W1']);
+    expect(res.list.papers.map((p) => p.id)).toEqual(['openalex:W1']);
   });
 
   it('reports the last page', async () => {

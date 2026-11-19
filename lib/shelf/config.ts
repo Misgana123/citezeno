@@ -6,7 +6,7 @@
      SHELF_UPLOADS_PER_DAY     PDF uploads per user per day (default 50)
      SHELF_IMPORT_MAX_MB       largest .bib / .ris file (default 4; Vercel caps request bodies at 4.5 MB)
      SHELF_IMPORT_MAX_ENTRIES  most references one import may hold (default 10000)
-     SHELF_REFRESH_DAYS        recheck saved papers with OpenAlex this often (default 7)
+     SHELF_REFRESH_DAYS        recheck saved papers with their provider this often (default 7)
      SHELF_REFRESH_BATCHES     batches of 50 papers rechecked per background run (default 2)
 
    Title searches (add by title, PDFs without a DOI) count toward the same daily

@@ -11,7 +11,8 @@ import { sourcesOver } from './fake-openalex';
 
 const paper = (id: string, over: Partial<Paper> = {}): Paper => ({
   id,
-  openalexId: id,
+  provider: 'openalex',
+  record: null,
   doi: null,
   title: id,
   authors: [],
@@ -27,11 +28,12 @@ const paper = (id: string, over: Partial<Paper> = {}): Paper => ({
   landingUrl: null,
   isRetracted: false,
   topics: [],
-  referencedWorkIds: [],
+  referenceIds: [],
   ...over,
 });
 
-const ids = (papers: Paper[]) => papers.map((p) => p.id);
+/* Work IDs, without the "openalex:" of Citezeno paper IDs. */
+const ids = (papers: Paper[]) => papers.map((p) => p.id.replace(/^openalex:/, ''));
 const parse = (qs: string) => parseSearchRequest(new URLSearchParams(qs));
 
 /* A fake client: keyword calls get `keyword`, semantic calls get `semantic`. */

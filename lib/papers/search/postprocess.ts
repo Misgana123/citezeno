@@ -1,7 +1,7 @@
 import type { Paper } from '../types';
 import type { SearchFilters, SortKey } from './request';
 
-/* Server-side steps for modes where OpenAlex can't filter, sort or page for us
+/* Server-side steps for modes where the provider can't filter, sort or page for us
    (semantic search and Smart mode work on a fixed pool of top results). */
 
 /* Filters semantic search doesn't support, applied to its results. */

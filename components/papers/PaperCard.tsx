@@ -7,7 +7,7 @@ import { PaperBadges, PaperLinks } from './PaperBadges';
    without it, it links to the paper's page. */
 export function PaperCard({ paper, onOpen, active = false }: { paper: Paper; onOpen?: (p: Paper) => void; active?: boolean }) {
   const meta = [paper.year, paper.source, typeLabel(paper.type)].filter(Boolean);
-  const href = paper.landingUrl ?? `https://openalex.org/${paper.openalexId}`;
+  const href = paper.landingUrl ?? paper.record?.url ?? (paper.doi ? `https://doi.org/${paper.doi}` : '#');
   return (
     <li className={`fp-card${paper.isRetracted ? ' is-retracted' : ''}${active ? ' is-active' : ''}`}>
       <div className="fp-card-top">

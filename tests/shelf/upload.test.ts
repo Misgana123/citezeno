@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { basicPdfReader } from '@/lib/providers/basic-pdf';
-import { openAlexOver } from '../papers/fake-openalex';
+import { sourcesOver } from '../papers/fake-openalex';
 import { shelfConfig } from '@/lib/shelf/config';
 import { mergeItems } from '@/lib/shelf/service/merge';
 import { beginUpload, completeUpload, confirmUpload, type PdfDeps, type MatchDeps } from '@/lib/shelf/service/pdf-upload';
@@ -34,7 +34,7 @@ describe.skipIf(!TEST_DB_URL)('PDF uploads (Postgres + memory storage)', () => {
     store,
     config,
     allowUpload: async () => uploadsLeft-- > 0,
-    papers: () => openAlexOver(get as never),
+    sources: () => sourcesOver(get as never),
     pdfText: basicPdfReader,
     reserveSearch,
   });
@@ -74,24 +74,24 @@ describe.skipIf(!TEST_DB_URL)('PDF uploads (Postgres + memory storage)', () => {
 
   it('reads the DOI and suggests the paper with a free lookup', async () => {
     const r = await upload(paperPdf());
-    expect(r.match).toMatchObject({ matching: 'doi', found: { doi: '10.5555/rivers.2020', title: 'Rivers and floods in a changing climate' }, candidates: [{ id: 'W900' }] });
+    expect(r.match).toMatchObject({ matching: 'doi', found: { doi: '10.5555/rivers.2020', title: 'Rivers and floods in a changing climate' }, candidates: [{ id: 'openalex:W900' }] });
     expect(reserveSearch).not.toHaveBeenCalled();
-    const item = await confirmUpload({ db: db.pool, papers: deps().papers }, user, r.pdf.id, { paperId: 'W900' });
-    expect(item).toMatchObject({ addedVia: 'upload', paper: { id: 'W900' }, pdfs: [{ id: r.pdf.id, pageCount: 2 }] });
+    const item = await confirmUpload({ db: db.pool, sources: deps().sources }, user, r.pdf.id, { paperId: 'openalex:W900' });
+    expect(item).toMatchObject({ addedVia: 'upload', paper: { id: 'openalex:W900' }, pdfs: [{ id: r.pdf.id, pageCount: 2 }] });
   });
 
   it('a second copy of a saved paper attaches to it', async () => {
     const r = await upload(paperPdf());
-    expect(r.match?.saved).toMatchObject({ W900: expect.any(String) });
-    const item = await confirmUpload({ db: db.pool, papers: deps().papers }, user, r.pdf.id, { paperId: 'W900' });
+    expect(r.match?.saved).toMatchObject({ 'openalex:W900': expect.any(String) });
+    const item = await confirmUpload({ db: db.pool, sources: deps().sources }, user, r.pdf.id, { paperId: 'openalex:W900' });
     expect(item.pdfs).toHaveLength(2);
   });
 
   it('falls back to a title search when there is no DOI, and to manual details', async () => {
     const r = await upload(paperPdf({ doi: '10.9999/unknown.1' }));
     expect(reserveSearch).toHaveBeenCalledTimes(1);
-    expect(r.match).toMatchObject({ matching: 'title', candidates: [{ id: 'W901' }] });
-    const item = await confirmUpload({ db: db.pool, papers: deps().papers }, user, r.pdf.id, { details: { title: 'Typed title', authors: [], year: 2020, source: null, url: null, doi: null, type: null, abstract: null } });
+    expect(r.match).toMatchObject({ matching: 'title', candidates: [{ id: 'openalex:W901' }] });
+    const item = await confirmUpload({ db: db.pool, sources: deps().sources }, user, r.pdf.id, { details: { title: 'Typed title', authors: [], year: 2020, source: null, url: null, doi: null, type: null, abstract: null } });
     expect(item).toMatchObject({ addedVia: 'upload', paper: { origin: 'manual', title: 'Typed title' } });
   });
 
@@ -108,7 +108,7 @@ describe.skipIf(!TEST_DB_URL)('PDF uploads (Postgres + memory storage)', () => {
     const stranger = await db.addUser();
     await expect(beginUpload(deps(), stranger, { fileName: 'x.pdf', sizeBytes: 10, itemId: own.id })).rejects.toMatchObject({ code: 'not_found' });
     const theirs = await upload(paperPdf(), { userId: stranger });
-    await expect(confirmUpload({ db: db.pool, papers: deps().papers }, stranger, theirs.pdf.id, { itemId: own.id })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(confirmUpload({ db: db.pool, sources: deps().sources }, stranger, theirs.pdf.id, { itemId: own.id })).rejects.toMatchObject({ code: 'not_found' });
     await expect(completeUpload(deps(), stranger, r.pdf.id)).rejects.toMatchObject({ code: 'not_found' });
   });
 
@@ -120,8 +120,8 @@ describe.skipIf(!TEST_DB_URL)('PDF uploads (Postgres + memory storage)', () => {
   });
 
   it('merging keeps both papers’ PDFs', async () => {
-    await putShared(db.pool, paper('W950', { title: 'Merge with PDFs please', year: 2001 }));
-    const a = (await addItem(db.pool, user, 'W950', 'search')).item;
+    await putShared(db.pool, paper('openalex:W950', { title: 'Merge with PDFs please', year: 2001 }));
+    const a = (await addItem(db.pool, user, 'openalex:W950', 'search')).item;
     const b = await saveManualPaper(db.pool, user, { title: 'Merge with PDFs please', authors: [], year: 2001, source: null, url: null, doi: null, type: null, abstract: null });
     await upload(paperPdf(), { itemId: a.id });
     await upload(paperPdf(), { itemId: b.id });

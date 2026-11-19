@@ -1,17 +1,20 @@
-import { toDoi, toWorkId } from '@/lib/papers/ids';
+import { toDoi } from '@/lib/papers/ids';
 
 /* What the user pasted into "Add a paper": a DOI, a link, or a title.
    Links are read for an ID only; the page itself is never fetched.
 
    - doi.org links, "doi:…" and bare DOIs
-   - OpenAlex links and IDs (W123…)
    - arXiv links and IDs → the arXiv DOI (10.48550/arXiv.<id>)
    - PubMed and PubMed Central links → PMID / PMCID
-   - any other link with a DOI in its address (most publisher pages) */
+   - any other link with a DOI in its address (most publisher pages)
+   - anything else that may be a paper provider's ID or a link to its record
+     ("id"): each enabled paper source is asked whether it recognises it
+     (OpenAlex: W123…, openalex.org links). A single word nobody recognises is
+     searched as a title. */
 
 export type ParsedInput =
   | { kind: 'doi'; doi: string; fromLink: boolean }
-  | { kind: 'openalex'; id: string; fromLink: boolean }
+  | { kind: 'id'; raw: string; fromLink: boolean }
   | { kind: 'pmid'; id: string }
   | { kind: 'pmcid'; id: string }
   | { kind: 'title'; title: string }
@@ -41,10 +44,6 @@ function fromUrl(url: URL): ParsedInput {
     const doi = cleanDoi(path.slice(1));
     return doi ? { kind: 'doi', doi, fromLink: true } : { kind: 'unreadable_link' };
   }
-  if (host === 'openalex.org' || host === 'api.openalex.org' || host.endsWith('.openalex.org')) {
-    const id = toWorkId(path.split('/').filter(Boolean).pop());
-    return id ? { kind: 'openalex', id, fromLink: true } : { kind: 'unreadable_link' };
-  }
   if (host === 'arxiv.org' || host.endsWith('.arxiv.org')) {
     const m = path.match(/^\/(?:abs|pdf|html)\/(.+?)\/?$/);
     const id = m ? arxivId(m[1]) : null;
@@ -59,14 +58,14 @@ function fromUrl(url: URL): ParsedInput {
   }
   const inPath = (path + (url.search ? decodeURIComponent(url.search) : '')).match(DOI_IN_TEXT);
   const doi = inPath ? cleanDoi(inPath[1]) : null;
-  return doi ? { kind: 'doi', doi, fromLink: true } : { kind: 'unreadable_link' };
+  return doi ? { kind: 'doi', doi, fromLink: true } : { kind: 'id', raw: url.href, fromLink: true };
 }
 
 export function parseInput(raw: string): ParsedInput {
   const text = raw.replace(/\s+/g, ' ').trim();
   if (!text) return { kind: 'empty' };
 
-  if (/^https?:\/\//i.test(text) || /^(www\.|doi\.org\/|dx\.doi\.org\/|arxiv\.org\/|openalex\.org\/|pubmed\.ncbi)/i.test(text)) {
+  if (/^https?:\/\//i.test(text) || /^(www\.|doi\.org\/|dx\.doi\.org\/|arxiv\.org\/|pubmed\.ncbi)/i.test(text)) {
     try {
       return fromUrl(new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`));
     } catch {
@@ -76,8 +75,6 @@ export function parseInput(raw: string): ParsedInput {
 
   const doi = toDoi(text.replace(/[.,;)\]]+$/, ''));
   if (doi) return { kind: 'doi', doi, fromLink: false };
-  const work = toWorkId(text);
-  if (work) return { kind: 'openalex', id: work, fromLink: false };
   const arxiv = /^arxiv:/i.test(text) || ARXIV_NEW.test(text) ? arxivId(text) : null;
   if (arxiv) return { kind: 'doi', doi: arxivDoi(arxiv), fromLink: false };
   const pmid = text.match(/^pmid:?\s*(\d{4,10})$/i);
@@ -90,5 +87,7 @@ export function parseInput(raw: string): ParsedInput {
     const d = cleanDoi(inside[1]);
     if (d) return { kind: 'doi', doi: d, fromLink: false };
   }
+  // one word: maybe a provider's ID ("W2741809807"), else searched as a title
+  if (!/\s/.test(text) && text.length <= 240) return { kind: 'id', raw: text, fromLink: false };
   return { kind: 'title', title: text.slice(0, 500) };
 }

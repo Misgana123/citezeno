@@ -16,7 +16,7 @@ const pairKey = (x: string, y: string) => (x < y ? `${x}|${y}` : `${y}|${x}`);
 
 async function rows(q: Queryable, userId: string): Promise<Row[]> {
   const { rows } = await q.query<Row>(
-    `select i.id, p.title, p.year, p.doi, p."openalexId" from shelf_item i join shelf_paper p on p.id = i."paperId" where i."userId" = $1`,
+    `select i.id, p.title, p.year, p.doi, case when p."ownerId" is null then p.id end as "sharedId" from shelf_item i join shelf_paper p on p.id = i."paperId" where i."userId" = $1`,
     [userId],
   );
   return rows;
@@ -43,7 +43,7 @@ export function findPairs(all: Row[], skip: Set<string> = new Set(), limit = MAX
 
   const byKey = new Map<string, Row[]>();
   for (const r of all) {
-    for (const k of [r.doi && `doi:${r.doi}`, r.openalexId && `oa:${r.openalexId}`]) {
+    for (const k of [r.doi && `doi:${r.doi}`, r.sharedId && `id:${r.sharedId}`]) {
       if (k) byKey.set(k, [...(byKey.get(k) ?? []), r]);
     }
   }

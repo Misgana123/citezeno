@@ -1,6 +1,6 @@
 import type { Paper } from '@/lib/papers/types';
 import { Icon } from '../Icon';
-import { doiHref, openalexHref } from './format';
+import { doiHref } from './format';
 
 /* The Open access / Retracted labels, shared by cards and the preview. */
 export function PaperBadges({ paper }: { paper: Paper }) {
@@ -24,7 +24,7 @@ export function PaperBadges({ paper }: { paper: Paper }) {
   );
 }
 
-/* DOI link when there is one, the OpenAlex record otherwise (or both, `both`). */
+/* DOI link when there is one, the provider's record otherwise (or both, `both`). */
 export function PaperLinks({ paper, both = false }: { paper: Paper; both?: boolean }) {
   return (
     <span className="fp-links">
@@ -33,9 +33,9 @@ export function PaperLinks({ paper, both = false }: { paper: Paper; both?: boole
           <Icon name="external" /> DOI {paper.doi}
         </a>
       )}
-      {(both || !paper.doi) && (
-        <a href={openalexHref(paper.openalexId)} target="_blank" rel="noopener noreferrer">
-          <Icon name="external" /> OpenAlex
+      {(both || !paper.doi) && paper.record && (
+        <a href={paper.record.url} target="_blank" rel="noopener noreferrer">
+          <Icon name="external" /> {paper.record.label}
         </a>
       )}
     </span>

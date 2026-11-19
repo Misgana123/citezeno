@@ -47,13 +47,14 @@ export function titleSimilarity(a: string, b: string): number {
   return (2 * shared) / total;
 }
 
-export type DupKey = { title: string; year: number | null; doi: string | null; openalexId: string | null };
+/* sharedId: the shared record's paper ID (null for private papers). */
+export type DupKey = { title: string; year: number | null; doi: string | null; sharedId: string | null };
 
-/* Why two papers look like the same one, or null. Exact matches (same OpenAlex
-   ID or DOI) are refused when saving, but can still meet here when a refresh
+/* Why two papers look like the same one, or null. Exact matches (same record
+   or DOI) are refused when saving, but can still meet here when a refresh
    fills in a DOI later. */
 export function duplicateReason(a: DupKey, b: DupKey): 'same_id' | 'same_doi' | 'similar_title' | null {
-  if (a.openalexId && a.openalexId === b.openalexId) return 'same_id';
+  if (a.sharedId && a.sharedId === b.sharedId) return 'same_id';
   if (a.doi && a.doi === b.doi) return 'same_doi';
   if (a.year === b.year && titleSimilarity(a.title, b.title) >= TITLE_THRESHOLD) return 'similar_title';
   return null;

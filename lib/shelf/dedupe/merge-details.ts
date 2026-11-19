@@ -2,11 +2,11 @@ import type { ReadingStatus, ShelfPaper } from '../types';
 
 /* Deciding what a merge keeps. */
 
-/* How complete a paper's details are. An OpenAlex record always wins: it is
+/* How complete a paper's details are. A provider's record always wins: it is
    shared, kept up to date and checked for retractions. */
 export function completeness(p: ShelfPaper): number {
   return (
-    (p.origin === 'openalex' ? 100 : 0) +
+    (p.origin === 'provider' ? 100 : 0) +
     (p.doi ? 5 : 0) +
     (p.abstract ? 3 : 0) +
     (p.authors.length ? 2 : 0) +
@@ -37,7 +37,7 @@ export function fillDetails(keep: ShelfPaper, other: ShelfPaper): ShelfPaper {
     landingUrl: pick(keep.landingUrl, other.landingUrl),
     isRetracted: keep.isRetracted || other.isRetracted,
     topics: [...new Set([...keep.topics, ...other.topics])],
-    referencedWorkIds: keep.referencedWorkIds.length ? keep.referencedWorkIds : other.referencedWorkIds,
+    referenceIds: keep.referenceIds.length ? keep.referenceIds : other.referenceIds,
   };
 }
 

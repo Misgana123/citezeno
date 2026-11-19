@@ -1,15 +1,15 @@
 /* Shelf (Keep Papers): each user's personal library of papers.
-   Every paper uses the Citezeno Paper format from Find Papers. Papers found in
-   OpenAlex are one shared record reused by everyone who saves them; papers added
-   by hand, or imported without an OpenAlex match, are private to one user. */
+   Every paper uses the Citezeno Paper format from Find Papers. Papers from a
+   paper provider are one shared record reused by everyone who saves them;
+   papers added by hand, or imported without a match, are private to one user. */
 import type { Paper } from '@/lib/papers/types';
 
-/* Where a paper record's details came from. Only "openalex" records are shared. */
-export type PaperOrigin = 'openalex' | 'manual' | 'import';
+/* Where a paper record's details came from. Only "provider" records are shared. */
+export type PaperOrigin = 'provider' | 'manual' | 'import';
 
-/* A paper as Shelf stores it: the Paper format, except a private record has no OpenAlex ID. */
-export type ShelfPaper = Omit<Paper, 'openalexId'> & {
-  openalexId: string | null;
+/* A paper as Shelf stores it: the Paper format, except a private record has no provider. */
+export type ShelfPaper = Omit<Paper, 'provider'> & {
+  provider: string | null;
   origin: PaperOrigin;
 };
 

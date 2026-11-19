@@ -3,7 +3,9 @@ import type { Paper } from '@/lib/papers/types';
 import type { Env, ProviderDefinition } from '../types';
 
 /* The paper data job. Every paper provider returns the Citezeno Paper format
-   (lib/papers/types.ts); nothing outside its adapter sees the vendor's data. */
+   (lib/papers/types.ts); nothing outside its adapter sees the vendor's data.
+   Papers it returns carry Citezeno IDs ("<provider>:<its ID>"); the methods
+   below take the provider's own IDs (for OpenAlex, "W123"). */
 
 export type PaperFilters = {
   yearFrom: number | null;
@@ -43,7 +45,8 @@ export interface PaperSource {
     semanticMax: number;
   };
 
-  /* The provider's paper ID in any form it accepts (an ID, its URL…), or null. */
+  /* The provider's own paper ID from anything a user may paste (its ID, a link
+     to its record…), or null when this provider doesn't recognise it. */
   parseId(raw: string): string | null;
   search(q: KeywordQuery): Promise<PaperPage>;
   /* One paper with full details; null when it does not exist. */

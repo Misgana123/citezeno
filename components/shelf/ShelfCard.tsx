@@ -3,7 +3,7 @@
 import type { ShelfItem, Tag } from '@/lib/shelf/types';
 import { READING_STATUSES, type ReadingStatus } from '@/lib/shelf/types';
 import { Icon } from '../Icon';
-import { authorsShort, citationLabel, doiHref, openalexHref, typeLabel } from '../papers/format';
+import { authorsShort, citationLabel, doiHref, typeLabel } from '../papers/format';
 import { STATUS_LABELS } from './shelf-state';
 
 /* One paper on the shelf: select it, open it in the drawer, set its status or remove it. */
@@ -59,7 +59,7 @@ export function ShelfCard({
           )}
           {badges}
         </span>
-        {p.origin === 'openalex' && (
+        {p.origin === 'provider' && (
           <span className="fp-cites" title="Times cited">
             {citationLabel(p.citedByCount)}
           </span>
@@ -87,12 +87,12 @@ export function ShelfCard({
               <Icon name="external" /> DOI {p.doi}
             </a>
           )}
-          {!p.doi && p.openalexId && (
-            <a href={openalexHref(p.openalexId)} target="_blank" rel="noopener noreferrer">
-              <Icon name="external" /> OpenAlex
+          {!p.doi && p.record && (
+            <a href={p.record.url} target="_blank" rel="noopener noreferrer">
+              <Icon name="external" /> {p.record.label}
             </a>
           )}
-          {!p.doi && !p.openalexId && p.landingUrl && (
+          {!p.doi && !p.record && p.landingUrl && (
             <a href={p.landingUrl} target="_blank" rel="noopener noreferrer">
               <Icon name="external" /> Link
             </a>

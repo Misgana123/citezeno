@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /* Full details for one paper. */
-export const GET = paperIdRoute(async ({ papers }, id) => {
-  const { paper } = await getPaper(papers, id);
+export const GET = paperIdRoute(async (_ctx, target) => {
+  const { paper } = await getPaper(target);
   return json(paper);
 });

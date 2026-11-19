@@ -1,5 +1,5 @@
 import type { FileStore } from '@/lib/providers/storage/types';
-import type { PaperSource } from '@/lib/providers/papers/types';
+import type { PaperSources } from '@/lib/providers/papers/sources';
 import type { Db } from '../db';
 import { shelfConfig } from '../config';
 import { runImportSlice } from '../service/import-run';
@@ -16,14 +16,14 @@ import { deleteAbandoned } from '../store/pdfs';
    3. refresh  — recheck saved papers with the paper source (citations, retractions)
    4. cleanup  — forget unfinished uploads and old import summaries */
 
-export type RunnerDeps = { db: Db; papers: () => PaperSource; store: FileStore | null; now?: () => number };
+export type RunnerDeps = { db: Db; sources: () => PaperSources; store: FileStore | null; now?: () => number };
 export type RunnerStep = (deps: RunnerDeps, deadline: number) => Promise<Record<string, number | string>>;
 
 export const importStep: RunnerStep = async (deps, deadline) => {
   const now = deps.now ?? Date.now;
   let slices = 0;
   while (now() < deadline - 2000) {
-    const r = await runImportSlice({ db: deps.db, papers: deps.papers(), now }, { budgetMs: deadline - now() - 1000 });
+    const r = await runImportSlice({ db: deps.db, papers: deps.sources().primary, now }, { budgetMs: deadline - now() - 1000 });
     if (r === 'busy') break; // nothing waiting (or all locked by open pages)
     slices++;
   }
@@ -37,7 +37,7 @@ export const storageStep: RunnerStep = async (deps) => {
 
 export const refreshStep: RunnerStep = async (deps, deadline) => {
   const config = shelfConfig();
-  const r = await refreshPapers(deps.db, deps.papers(), { olderThanDays: config.refreshDays, batches: config.refreshBatches, deadline, now: deps.now });
+  const r = await refreshPapers(deps.db, deps.sources(), { olderThanDays: config.refreshDays, batches: config.refreshBatches, deadline, now: deps.now });
   return { papersRefreshed: r.refreshed, newlyRetracted: r.newlyRetracted, retractionNotices: r.notices, papersMissing: r.missing };
 };
 

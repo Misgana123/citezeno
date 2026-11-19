@@ -10,7 +10,7 @@ import { ShelfApiError, shelfFetch } from './api';
 type Pair = { a: ShelfItem; b: ShelfItem; reason: 'same_id' | 'same_doi' | 'similar_title' };
 
 const REASONS: Record<Pair['reason'], string> = {
-  same_id: 'Same OpenAlex record',
+  same_id: 'Same paper record',
   same_doi: 'Same DOI',
   similar_title: 'Very similar title, same year',
 };
@@ -99,7 +99,7 @@ export function DuplicatesView({ onChanged }: { onChanged: (removedId?: string) 
 
 function DupSide({ item }: { item: ShelfItem }) {
   const p = item.paper;
-  const facts = [p.origin === 'openalex' ? 'OpenAlex' : p.origin === 'manual' ? 'Added manually' : 'Imported', p.doi && `DOI ${p.doi}`, item.note && 'has a note', item.tagIds.length && `${item.tagIds.length} tag${item.tagIds.length === 1 ? '' : 's'}`].filter(Boolean);
+  const facts = [p.origin === 'provider' ? (p.record?.label ?? 'Paper database') : p.origin === 'manual' ? 'Added manually' : 'Imported', p.doi && `DOI ${p.doi}`, item.note && 'has a note', item.tagIds.length && `${item.tagIds.length} tag${item.tagIds.length === 1 ? '' : 's'}`].filter(Boolean);
   return (
     <div className="sh-dup-side">
       <b className="sh-match-title">{p.title}</b>

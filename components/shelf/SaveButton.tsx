@@ -15,7 +15,7 @@ import './save-button.css';
    or pick a project from the arrow menu. Once saved, it shows "Saved" and
    links to the paper on the shelf, everywhere the paper appears. */
 export function SaveButton({ paper, menuAlign = 'right' }: { paper: Paper; menuAlign?: 'left' | 'right' }) {
-  const itemId = useSavedItem(paper.openalexId);
+  const itemId = useSavedItem(paper.id);
   const [busy, setBusy] = useState(false);
   const [menu, setMenu] = useState(false);
 
@@ -33,14 +33,14 @@ export function SaveButton({ paper, menuAlign = 'right' }: { paper: Paper; menuA
     try {
       const r = await shelfFetch<{ item: { id: string }; pending: boolean; possibleDuplicates: DupSummary[] }>('/api/shelf/papers', {
         method: 'POST',
-        body: { via: 'search', paperId: paper.openalexId, paper, projectId: project?.id ?? null },
+        body: { via: 'search', paperId: paper.id, paper, projectId: project?.id ?? null },
       });
-      markSaved(paper.openalexId, r.item.id);
+      markSaved(paper.id, r.item.id);
       savedToast(project ? `Saved to ${project.name}` : 'Saved to your shelf', r.possibleDuplicates);
     } catch (e) {
       const err = e as ShelfApiError;
       if (err.code === 'duplicate' && err.itemId) {
-        markSaved(paper.openalexId, err.itemId);
+        markSaved(paper.id, err.itemId);
         toast('Already on your shelf');
       } else toast(err.message || 'Could not save this paper.', true);
     } finally {

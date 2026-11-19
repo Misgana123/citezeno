@@ -7,7 +7,7 @@ import { PapersError } from '@/lib/papers/errors';
 import { reserveSearches, type Reservation } from '@/lib/papers/guard/usage';
 import { papersServer } from '@/lib/papers/server';
 import { newMeter } from '@/lib/providers/gateway/meter';
-import type { PaperSource } from '@/lib/providers/papers/types';
+import type { PaperSources } from '@/lib/providers/papers/sources';
 import { allow } from '@/lib/ratelimit';
 import { shelfConfig, type ShelfConfig } from './config';
 import type { Db } from './db';
@@ -24,8 +24,8 @@ export type ShelfContext = {
   userId: string;
   db: Db;
   config: ShelfConfig;
-  /* The primary paper source (as Find Papers uses it), created on first use. */
-  papers(): PaperSource;
+  /* The enabled paper sources, primary first (as Find Papers uses them), created on first use. */
+  sources(): PaperSources;
   /* Hold n of the user's daily searches for this request; unused ones are given back. */
   reserveSearches(n: number): Promise<void>;
   /* The JSON body, validated. */
@@ -41,7 +41,7 @@ export function shelfRoute<P = Record<string, never>>(handler: (ctx: ShelfContex
     const s = await auth.api.getSession({ headers: req.headers });
     if (!s) return shelfSignedOut();
     const meter = newMeter();
-    let papers: PaperSource | null = null;
+    let sources: PaperSources | null = null;
     let reservation: Reservation | null = null;
     try {
       if (!(await allow(`shelf:${s.user.id}`, 60, PER_MINUTE))) {
@@ -53,7 +53,7 @@ export function shelfRoute<P = Record<string, never>>(handler: (ctx: ShelfContex
           userId: s.user.id,
           db: pool,
           config: shelfConfig(),
-          papers: () => (papers ??= papersServer().sources(meter).primary),
+          sources: () => (sources ??= papersServer().sources(meter)),
           reserveSearches: async (n) => {
             const server = papersServer();
             reservation = await reserveSearches(server.usage, s.user.id, n, server.config.dailySearchesPerUser);

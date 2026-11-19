@@ -41,14 +41,14 @@ export function LookupTab({ projectId, onAdded, onManual }: { projectId: string 
     if (!result) return;
     setAdding(p.id);
     try {
-      const r = await shelfFetch<{ item: ShelfItem; possibleDuplicates: DupSummary[] }>('/api/shelf/papers', { method: 'POST', body: { via: result.via, paperId: p.openalexId, projectId } });
+      const r = await shelfFetch<{ item: ShelfItem; possibleDuplicates: DupSummary[] }>('/api/shelf/papers', { method: 'POST', body: { via: result.via, paperId: p.id, projectId } });
       savedToast('Added to your shelf', r.possibleDuplicates);
-      markSaved(p.openalexId, r.item.id);
-      setResult({ ...result, saved: { ...result.saved, [p.openalexId]: r.item.id } });
+      markSaved(p.id, r.item.id);
+      setResult({ ...result, saved: { ...result.saved, [p.id]: r.item.id } });
       onAdded(r.item);
     } catch (err) {
       const e = err as ShelfApiError;
-      if (e.code === 'duplicate' && e.itemId) setResult({ ...result, saved: { ...result.saved, [p.openalexId]: e.itemId } });
+      if (e.code === 'duplicate' && e.itemId) setResult({ ...result, saved: { ...result.saved, [p.id]: e.itemId } });
       else setError(e);
     } finally {
       setAdding(null);
@@ -102,7 +102,7 @@ export function LookupTab({ projectId, onAdded, onManual }: { projectId: string 
           )}
           <ul className="sh-match-list">
             {result.papers.map((p) => {
-              const saved = result.saved[p.openalexId];
+              const saved = result.saved[p.id];
               return (
                 <li key={p.id} className="sh-match">
                   <div>

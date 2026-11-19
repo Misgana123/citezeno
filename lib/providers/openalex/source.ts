@@ -1,4 +1,4 @@
-import { toWorkId } from '@/lib/papers/ids';
+import { splitPaperId } from '@/lib/papers/ids';
 import { capText } from '@/lib/papers/search/query-length';
 import type { Paper } from '@/lib/papers/types';
 import { isProviderError } from '../errors';
@@ -7,6 +7,7 @@ import type { OpenAlexTransport, QueryParams } from './client';
 import { PROVIDER } from './client';
 import { QUERY_CHARS_LIMIT, type OpenAlexConfig } from './config';
 import { CARD_FIELDS, DETAIL_FIELDS, selectParam } from './fields';
+import { toWorkId } from './ids';
 import { buildFilter, sortParam } from './filters';
 import { toPaper, toPapers } from './mapper';
 import type { OpenAlexList, OpenAlexWork } from './types';
@@ -95,7 +96,7 @@ export function openAlexSource(transport: OpenAlexTransport, config: Pick<OpenAl
         const page = await works({ filter: `${kind === 'doi' ? 'doi' : 'openalex_id'}:${chunk.join('|')}`, per_page: BATCH, select: selectParam(DETAIL_FIELDS) });
         costUsd += page.costUsd;
         for (const p of page.papers) {
-          const key = kind === 'doi' ? p.doi : p.id;
+          const key = kind === 'doi' ? p.doi : splitPaperId(p.id)?.providerId;
           if (key) found.set(key, p);
         }
       }

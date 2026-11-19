@@ -7,7 +7,7 @@ export type PapersErrorCode =
   | 'bad_request' // our request was invalid (input or an unsupported filter)
   | 'not_found' // the paper does not exist
   | 'busy' // rate limited / queue full; try again in a moment
-  | 'unavailable' // OpenAlex is down, timed out or answered badly
+  | 'unavailable' // the paper provider is down, timed out or answered badly
   | 'budget' // the daily spending cap was reached
   | 'user_limit'; // this user's daily search limit was reached
 

@@ -1,7 +1,9 @@
 import { rebuildAbstract } from './abstract';
-import { doiUrl, toDoi, toOrcid, toWorkId } from '@/lib/papers/ids';
+import { doiUrl, paperId, toDoi, toOrcid } from '@/lib/papers/ids';
 import type { OpenAlexWork } from './types';
 import type { Paper } from '@/lib/papers/types';
+import { PROVIDER } from './client';
+import { toWorkId, workUrl } from './ids';
 
 const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
@@ -21,16 +23,17 @@ function uniqueNames(items: ({ display_name?: string | null } | null | undefined
 /* Convert one OpenAlex work into a Paper. Returns null when the record has no
    usable work ID (nothing else in the app can point at it). */
 export function toPaper(work: OpenAlexWork): Paper | null {
-  const openalexId = toWorkId(work.id);
-  if (!openalexId) return null;
+  const workId = toWorkId(work.id);
+  if (!workId) return null;
   const doi = toDoi(work.doi);
   const primary = work.primary_location ?? null;
   const best = work.best_oa_location ?? null;
   const year = Number.isInteger(work.publication_year) ? (work.publication_year as number) : null;
 
   return {
-    id: openalexId,
-    openalexId,
+    id: paperId(PROVIDER, workId),
+    provider: PROVIDER,
+    record: { label: 'OpenAlex', url: workUrl(workId) },
     doi,
     title: text(work.display_name) ?? text(work.title) ?? 'Untitled',
     authors: (work.authorships ?? [])
@@ -48,7 +51,10 @@ export function toPaper(work: OpenAlexWork): Paper | null {
     landingUrl: text(primary?.landing_page_url) ?? (doi ? doiUrl(doi) : null),
     isRetracted: work.is_retracted === true,
     topics: uniqueNames([...(work.topics ?? []), ...(work.keywords ?? [])]),
-    referencedWorkIds: (work.referenced_works ?? []).map(toWorkId).filter((id): id is string => id != null),
+    referenceIds: (work.referenced_works ?? [])
+      .map(toWorkId)
+      .filter((id): id is string => id != null)
+      .map((id) => paperId(PROVIDER, id)),
   };
 }
 

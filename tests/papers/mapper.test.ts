@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { rebuildAbstract } from '@/lib/providers/openalex/abstract';
-import { toDoi, toOrcid, toWorkId } from '@/lib/papers/ids';
+import { paperId, splitPaperId, toDoi, toOrcid } from '@/lib/papers/ids';
+import { toWorkId } from '@/lib/providers/openalex/ids';
 import { toPaper, toPapers } from '@/lib/providers/openalex/mapper';
 import type { OpenAlexWork } from '@/lib/providers/openalex/types';
 
@@ -48,8 +49,18 @@ describe('ids', () => {
   it('normalizes OpenAlex work IDs', () => {
     expect(toWorkId('https://openalex.org/W123')).toBe('W123');
     expect(toWorkId('w123')).toBe('W123');
+    expect(toWorkId('openalex.org/W7')).toBe('W7');
+    expect(toWorkId('https://api.openalex.org/works/W8?select=id')).toBe('W8');
+    expect(toWorkId('https://example.org/W123')).toBeNull();
     expect(toWorkId('A123')).toBeNull();
     expect(toWorkId('')).toBeNull();
+  });
+
+  it('builds and splits Citezeno paper IDs', () => {
+    expect(paperId('openalex', 'W1')).toBe('openalex:W1');
+    expect(splitPaperId('openalex:W1')).toEqual({ provider: 'openalex', providerId: 'W1' });
+    expect(splitPaperId('semantic-scholar:abc123')).toEqual({ provider: 'semantic-scholar', providerId: 'abc123' });
+    for (const bad of ['W1', 'p_123', ':W1', 'OpenAlex:W1', 'openalex:', 'a b:c', null]) expect(splitPaperId(bad)).toBeNull();
   });
 
   it('normalizes DOIs', () => {
@@ -68,8 +79,9 @@ describe('ids', () => {
 describe('toPaper', () => {
   it('maps a full OpenAlex work', () => {
     expect(toPaper(WORK)).toEqual({
-      id: 'W2741809807',
-      openalexId: 'W2741809807',
+      id: 'openalex:W2741809807',
+      provider: 'openalex',
+      record: { label: 'OpenAlex', url: 'https://openalex.org/W2741809807' },
       doi: '10.7717/peerj.4375',
       title: 'The state of OA',
       authors: [
@@ -88,14 +100,14 @@ describe('toPaper', () => {
       landingUrl: 'https://doi.org/10.7717/peerj.4375',
       isRetracted: false,
       topics: ['Open Access', 'Scholarly Publishing', 'Citation advantage'],
-      referencedWorkIds: ['W1', 'W22'],
+      referenceIds: ['openalex:W1', 'openalex:W22'],
     });
   });
 
   it('fills safe defaults for a sparse record', () => {
     const p = toPaper({ id: 'https://openalex.org/W9' });
     expect(p).toMatchObject({
-      id: 'W9',
+      id: 'openalex:W9',
       doi: null,
       title: 'Untitled',
       authors: [],
@@ -108,7 +120,7 @@ describe('toPaper', () => {
       landingUrl: null,
       isRetracted: false,
       topics: [],
-      referencedWorkIds: [],
+      referenceIds: [],
     });
   });
 
@@ -122,7 +134,7 @@ describe('toPaper', () => {
 
   it('drops works without a usable ID', () => {
     expect(toPaper({ display_name: 'x' })).toBeNull();
-    expect(toPapers([{ id: 'W1' }, { id: null }, { id: 'W2' }]).map((p) => p.id)).toEqual(['W1', 'W2']);
+    expect(toPapers([{ id: 'W1' }, { id: null }, { id: 'W2' }]).map((p) => p.id)).toEqual(['openalex:W1', 'openalex:W2']);
     expect(toPapers(undefined)).toEqual([]);
   });
 });

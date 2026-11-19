@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /* Papers this paper cites; takes the same filters, sort and page as search. */
-export const GET = paperIdRoute(async ({ papers, search }, id) => {
-  const { list } = await referencesOf(papers, id, search({ requireQuery: false }));
+export const GET = paperIdRoute(async ({ search }, target) => {
+  const { list } = await referencesOf(target, search({ requireQuery: false }));
   return json(list);
 });

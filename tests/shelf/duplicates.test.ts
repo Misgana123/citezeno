@@ -29,7 +29,7 @@ describe('similar titles', () => {
   });
 
   it('needs the same year for a title match', () => {
-    const k = (over: object) => ({ title: STATE_OA, year: 2018, doi: null, openalexId: null, ...over });
+    const k = (over: object) => ({ title: STATE_OA, year: 2018, doi: null, sharedId: null, ...over });
     expect(duplicateReason(k({}), k({}))).toBe('similar_title');
     expect(duplicateReason(k({}), k({ year: 2017 }))).toBeNull();
     expect(duplicateReason(k({ doi: '10.1/x', year: 1 }), k({ doi: '10.1/x', year: 2 }))).toBe('same_doi');
@@ -37,11 +37,11 @@ describe('similar titles', () => {
 
   it('finds pairs once and skips dismissed ones', () => {
     const rows = [
-      { id: 'a', title: STATE_OA, year: 2018, doi: null, openalexId: null },
-      { id: 'b', title: STATE_OA.toUpperCase(), year: 2018, doi: null, openalexId: null },
-      { id: 'c', title: 'Something else entirely, about rivers', year: 2018, doi: null, openalexId: null },
-      { id: 'd', title: 'Different title', year: 2001, doi: '10.5/q', openalexId: null },
-      { id: 'e', title: 'Another different one', year: 2003, doi: '10.5/q', openalexId: null },
+      { id: 'a', title: STATE_OA, year: 2018, doi: null, sharedId: null },
+      { id: 'b', title: STATE_OA.toUpperCase(), year: 2018, doi: null, sharedId: null },
+      { id: 'c', title: 'Something else entirely, about rivers', year: 2018, doi: null, sharedId: null },
+      { id: 'd', title: 'Different title', year: 2001, doi: '10.5/q', sharedId: null },
+      { id: 'e', title: 'Another different one', year: 2003, doi: '10.5/q', sharedId: null },
     ];
     expect(findPairs(rows)).toEqual([
       { a: 'd', b: 'e', reason: 'same_doi' },
@@ -52,9 +52,9 @@ describe('similar titles', () => {
 });
 
 describe('what a merge keeps', () => {
-  const sp = (over: Partial<ShelfPaper>): ShelfPaper => ({ ...paper('W1'), origin: 'openalex', ...over });
+  const sp = (over: Partial<ShelfPaper>): ShelfPaper => ({ ...paper('openalex:W1'), origin: 'provider', ...over });
   it('prefers OpenAlex, then the more complete record', () => {
-    expect(completeness(sp({ origin: 'openalex', abstract: null }))).toBeGreaterThan(completeness(sp({ origin: 'manual', openalexId: null })));
+    expect(completeness(sp({ origin: 'provider', abstract: null }))).toBeGreaterThan(completeness(sp({ origin: 'manual', provider: null, record: null })));
     expect(completeness(sp({ origin: 'manual', doi: '10.1/x' }))).toBeGreaterThan(completeness(sp({ origin: 'manual', doi: null })));
   });
 
@@ -82,7 +82,7 @@ describe.skipIf(!TEST_DB_URL)('possible duplicates and merging (Postgres)', () =
   afterAll(async () => db?.close());
 
   it('flags a similar paper on save and merges into the OpenAlex record, keeping everything', async () => {
-    await putShared(db.pool, paper('W500', { title: STATE_OA, year: 2018, doi: '10.7717/peerj.4375' }));
+    await putShared(db.pool, paper('openalex:W500', { title: STATE_OA, year: 2018, doi: '10.7717/peerj.4375' }));
     const own = await createPrivate(db.pool, user, { ...paper('X'), title: 'The State of OA - a large scale analysis of the prevalence and impact of open access articles', year: 2018, doi: null }, 'manual');
     const manual = (await addItem(db.pool, user, own.id, 'manual')).item;
     const p1 = await createProject(db.pool, user, 'Thesis');
@@ -91,14 +91,14 @@ describe.skipIf(!TEST_DB_URL)('possible duplicates and merging (Postgres)', () =
     await addTags(db.pool, user, [manual.id], [tag.id]);
     await updateItem(db.pool, user, manual.id, { note: 'My notes', readingStatus: 'done' });
 
-    const oa = (await addItem(db.pool, user, 'W500', 'search')).item;
+    const oa = (await addItem(db.pool, user, 'openalex:W500', 'search')).item;
     const r = await savedResponse(db.pool, user, oa);
     expect(r.possibleDuplicates).toEqual([{ id: manual.id, title: own.title, year: 2018 }]);
     expect(await countDuplicatePairs(db.pool, user)).toBe(1);
 
     const merged = await mergeItems(db.pool, user, manual.id, oa.id);
     expect(merged.removedId).toBe(manual.id);
-    expect(merged.item).toMatchObject({ id: oa.id, readingStatus: 'done', note: 'My notes', projectIds: [p1.id], tagIds: [tag.id], paper: { id: 'W500' } });
+    expect(merged.item).toMatchObject({ id: oa.id, readingStatus: 'done', note: 'My notes', projectIds: [p1.id], tagIds: [tag.id], paper: { id: 'openalex:W500' } });
     expect(await getItem(db.pool, user, manual.id)).toBeNull();
     expect(await getPaper(db.pool, own.id)).toBeNull(); // the unused private record goes
     expect(await duplicatePairs(db.pool, user)).toEqual([]);

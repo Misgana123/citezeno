@@ -49,4 +49,3 @@ export const formatCount = (n: number) => n.toLocaleString('en-US');
 export const citationLabel = (n: number) => `${formatCount(n)} citation${n === 1 ? '' : 's'}`;
 
 export const doiHref = (doi: string) => `https://doi.org/${doi}`;
-export const openalexHref = (id: string) => `https://openalex.org/${id}`;

@@ -7,7 +7,7 @@ import { newMeter } from '@/lib/providers/gateway/meter';
 import type { PaperSources } from '@/lib/providers/papers/sources';
 import type { PaperSource } from '@/lib/providers/papers/types';
 import { reserveSearches, type Reservation } from './guard/usage';
-import { parsePaperId } from './related/paper';
+import { parsePaperId, type PaperTarget } from './related/paper';
 import { errorResponse, signedOut } from './respond';
 import { parseSearchRequest, type SearchRequest } from './search/request';
 import { papersServer } from './server';
@@ -68,6 +68,6 @@ export function papersRoute<P = Record<string, never>>(handler: (ctx: PapersCont
   };
 }
 
-/* For the /api/papers/[id]/... routes. */
-export const paperIdRoute = (handler: (ctx: PapersContext, id: string) => Promise<Response>) =>
-  papersRoute<{ id: string }>((ctx, { id }) => handler(ctx, parsePaperId(id)));
+/* For the /api/papers/[id]/... routes: the paper's source and its ID there. */
+export const paperIdRoute = (handler: (ctx: PapersContext, paper: PaperTarget) => Promise<Response>) =>
+  papersRoute<{ id: string }>((ctx, { id }) => handler(ctx, parsePaperId(ctx.sources, id)));

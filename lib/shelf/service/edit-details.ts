@@ -13,7 +13,7 @@ export async function editDetails(db: Db, userId: string, itemId: string, input:
   return tx(db, async (q) => {
     const item = await getItem(q, userId, itemId);
     if (!item) throw new ShelfError('not_found', 'That paper is not on your shelf.');
-    if (item.paper.origin === 'openalex') throw new ShelfError('bad_request', 'Details of papers found in OpenAlex can’t be edited. They are kept up to date automatically.');
+    if (item.paper.origin === 'provider') throw new ShelfError('bad_request', `Details of papers found in ${item.paper.record?.label ?? 'a paper database'} can’t be edited. They are kept up to date automatically.`);
     const details = { ...manualDetails(input), citedByCount: item.paper.citedByCount, topics: item.paper.topics };
     const dup = details.doi ? await findExactDuplicate(q, userId, { doi: details.doi }) : null;
     if (dup && dup !== itemId) throw alreadySaved(dup);

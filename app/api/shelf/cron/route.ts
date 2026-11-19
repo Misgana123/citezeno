@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { pool } from '@/lib/db';
 import { json } from '@/lib/http';
-import { backgroundPapers } from '@/lib/shelf/jobs/client';
+import { backgroundSources } from '@/lib/shelf/jobs/client';
 import { DEFAULT_STEPS, runShelfJobs } from '@/lib/shelf/jobs/runner';
 import { fileStorage } from '@/lib/providers/server';
 
@@ -21,6 +21,6 @@ function authorized(req: Request): boolean {
 
 export async function GET(req: Request) {
   if (!authorized(req)) return json({ error: 'Not allowed.' }, 401);
-  const report = await runShelfJobs({ db: pool, papers: backgroundPapers, store: fileStorage() }, 50_000, DEFAULT_STEPS);
+  const report = await runShelfJobs({ db: pool, sources: backgroundSources, store: fileStorage() }, 50_000, DEFAULT_STEPS);
   return json({ ok: true, ...report });
 }

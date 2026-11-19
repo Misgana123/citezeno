@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { BulkBody } from '@/lib/shelf/api/bodies';
 import { READING_STATUSES, type ReadingStatus, type ShelfItem } from '@/lib/shelf/types';
 import { Icon } from '../Icon';
-import { authorsShort, citationLabel, doiHref, languageName, openalexHref, typeLabel } from '../papers/format';
+import { authorsShort, citationLabel, doiHref, languageName, typeLabel } from '../papers/format';
 import { toast } from '../toast';
 import { emptyDraft, ManualForm } from './add/ManualForm';
 import { PdfSection } from './pdf/PdfSection';
@@ -86,7 +86,7 @@ export function ItemDrawer({
             <p className="fp-detail-authors">{p.authors.length ? p.authors.map((a) => a.name).join(', ') : authorsShort([])}</p>
             {meta.length > 0 && <p className="fp-meta">{meta.join(' · ')}</p>}
             <div className="fp-detail-facts">
-              {p.origin === 'openalex' && <span className="tag">{citationLabel(p.citedByCount)}</span>}
+              {p.origin === 'provider' && <span className="tag">{citationLabel(p.citedByCount)}</span>}
               {p.origin === 'manual' && <span className="tag">Added manually</span>}
               {p.origin === 'import' && <span className="tag">Imported</span>}
               {p.isOpenAccess && <span className="tag oa">Open access</span>}
@@ -108,15 +108,15 @@ export function ItemDrawer({
                     <Icon name="external" /> DOI {p.doi}
                   </a>
                 )}
-                {p.openalexId && (
-                  <a href={openalexHref(p.openalexId)} target="_blank" rel="noopener noreferrer">
-                    <Icon name="external" /> OpenAlex
+                {p.record && (
+                  <a href={p.record.url} target="_blank" rel="noopener noreferrer">
+                    <Icon name="external" /> {p.record.label}
                   </a>
                 )}
               </span>
             </div>
 
-            {p.origin !== 'openalex' && (
+            {p.origin !== 'provider' && (
               <section className="fp-detail-sec" aria-labelledby="sh-details-h">
                 <h3 id="sh-details-h">Details</h3>
                 {editing ? (

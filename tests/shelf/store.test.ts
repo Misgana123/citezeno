@@ -53,45 +53,45 @@ describe.skipIf(!TEST_DB_URL)('shelf stores (Postgres)', () => {
 
   describe('paper records', () => {
     it('shares one record per OpenAlex paper and refreshes it', async () => {
-      const first = await putShared(db.pool, paper('W1', { citedByCount: 1 }));
-      expect(first).toMatchObject({ id: 'W1', openalexId: 'W1', origin: 'openalex', citedByCount: 1, doi: '10.1000/w1' });
-      await putShared(db.pool, paper('W1', { citedByCount: 9, isRetracted: true }));
-      expect(await getPaper(db.pool, 'W1')).toMatchObject({ citedByCount: 9, isRetracted: true });
+      const first = await putShared(db.pool, paper('openalex:W1', { citedByCount: 1 }));
+      expect(first).toMatchObject({ id: 'openalex:W1', provider: 'openalex', origin: 'provider', citedByCount: 1, doi: '10.1000/w1' });
+      await putShared(db.pool, paper('openalex:W1', { citedByCount: 9, isRetracted: true }));
+      expect(await getPaper(db.pool, 'openalex:W1')).toMatchObject({ citedByCount: 9, isRetracted: true });
     });
 
     it('never overwrites a record with unconfirmed details, and marks new ones for refresh', async () => {
-      await ensureShared(db.pool, paper('W1', { title: 'Poisoned' }));
-      expect((await getPaper(db.pool, 'W1'))?.title).toBe('Paper W1');
-      const fresh = await ensureShared(db.pool, paper('W2'));
-      expect(fresh.id).toBe('W2');
-      const { rows } = await db.pool.query(`select "refreshDue" from shelf_paper where id = 'W2'`);
+      await ensureShared(db.pool, paper('openalex:W1', { title: 'Poisoned' }));
+      expect((await getPaper(db.pool, 'openalex:W1'))?.title).toBe('Paper W1');
+      const fresh = await ensureShared(db.pool, paper('openalex:W2'));
+      expect(fresh.id).toBe('openalex:W2');
+      const { rows } = await db.pool.query(`select "refreshDue" from shelf_paper where id = 'openalex:W2'`);
       expect(rows[0].refreshDue).toBe(true);
     });
 
     it('keeps private papers private', async () => {
       const own = await createPrivate(db.pool, alice, paper('X', { doi: null }), 'manual');
       expect(own.id.startsWith('p_')).toBe(true);
-      expect(own).toMatchObject({ openalexId: null, origin: 'manual', title: 'Paper X' });
+      expect(own).toMatchObject({ provider: null, origin: 'manual', title: 'Paper X' });
     });
   });
 
   describe('items', () => {
     it('saves once; a second save returns the existing item', async () => {
-      const a = await addItem(db.pool, alice, 'W1', 'search');
+      const a = await addItem(db.pool, alice, 'openalex:W1', 'search');
       expect(a.created).toBe(true);
-      const again = await addItem(db.pool, alice, 'W1', 'doi');
+      const again = await addItem(db.pool, alice, 'openalex:W1', 'doi');
       expect(again).toMatchObject({ created: false, item: { id: a.item.id, addedVia: 'search' } });
-      expect(a.item).toMatchObject({ readingStatus: 'to_read', note: null, projectIds: [], paper: { id: 'W1' } });
+      expect(a.item).toMatchObject({ readingStatus: 'to_read', note: null, projectIds: [], paper: { id: 'openalex:W1' } });
     });
 
     it('lets two users save the same shared paper', async () => {
-      const b = await addItem(db.pool, bob, 'W1', 'search');
+      const b = await addItem(db.pool, bob, 'openalex:W1', 'search');
       expect(b.created).toBe(true);
-      expect(await savedMap(db.pool, bob, ['W1', 'W2'])).toEqual({ W1: b.item.id });
+      expect(await savedMap(db.pool, bob, ['openalex:W1', 'openalex:W2'])).toEqual({ 'openalex:W1': b.item.id });
     });
 
     it('only the owner can read, change or delete an item', async () => {
-      const { item } = await addItem(db.pool, alice, 'W2', 'search');
+      const { item } = await addItem(db.pool, alice, 'openalex:W2', 'search');
       expect(await getItem(db.pool, bob, item.id)).toBeNull();
       expect(await updateItem(db.pool, bob, item.id, { note: 'hi' })).toBeNull();
       expect(await deleteItems(db.pool, bob, [item.id])).toEqual({ deleted: [] });
@@ -102,9 +102,9 @@ describe.skipIf(!TEST_DB_URL)('shelf stores (Postgres)', () => {
     });
 
     it('deleting an item keeps the shared record but removes an unused private one', async () => {
-      const shared = await addItem(db.pool, alice, 'W2', 'search');
+      const shared = await addItem(db.pool, alice, 'openalex:W2', 'search');
       await deleteItems(db.pool, alice, [shared.item.id]);
-      expect(await getPaper(db.pool, 'W2')).not.toBeNull();
+      expect(await getPaper(db.pool, 'openalex:W2')).not.toBeNull();
 
       const own = await createPrivate(db.pool, alice, paper('Y', { doi: null }), 'manual');
       const item = await addItem(db.pool, alice, own.id, 'manual');
@@ -128,8 +128,8 @@ describe.skipIf(!TEST_DB_URL)('shelf stores (Postgres)', () => {
     });
 
     it('will not link items and groups across users', async () => {
-      const aliceItem = (await addItem(db.pool, alice, 'W2', 'search')).item;
-      const bobItem = (await addItem(db.pool, bob, 'W2', 'search')).item;
+      const aliceItem = (await addItem(db.pool, alice, 'openalex:W2', 'search')).item;
+      const bobItem = (await addItem(db.pool, bob, 'openalex:W2', 'search')).item;
       const aliceProject = await createProject(db.pool, alice, 'Climate essay');
       const bobTag = await createTag(db.pool, bob, 'bob-only');
       expect(await addToProject(db.pool, bob, [aliceItem.id], aliceProject.id)).toBe(0);
@@ -140,7 +140,7 @@ describe.skipIf(!TEST_DB_URL)('shelf stores (Postgres)', () => {
     });
 
     it('a folder brings its project; leaving the project leaves its folders', async () => {
-      const item = (await addItem(db.pool, alice, 'W1', 'search')).item;
+      const item = (await addItem(db.pool, alice, 'openalex:W1', 'search')).item;
       const p = await createProject(db.pool, alice, 'Folders test');
       const f = await createFolder(db.pool, alice, p.id, 'Methods');
       await addToFolder(db.pool, alice, [item.id], f.id);
@@ -154,7 +154,7 @@ describe.skipIf(!TEST_DB_URL)('shelf stores (Postgres)', () => {
     });
 
     it('moves items between projects and back to Unsorted', async () => {
-      const item = (await addItem(db.pool, alice, 'W1', 'search')).item;
+      const item = (await addItem(db.pool, alice, 'openalex:W1', 'search')).item;
       const a = await findOrCreateProject(db.pool, alice, 'Move A');
       const b = await findOrCreateProject(db.pool, alice, 'Move B');
       await addToProject(db.pool, alice, [item.id], a.id);
@@ -165,7 +165,7 @@ describe.skipIf(!TEST_DB_URL)('shelf stores (Postgres)', () => {
     });
 
     it('creates tags by name once and counts their papers', async () => {
-      const item = (await addItem(db.pool, alice, 'W1', 'search')).item;
+      const item = (await addItem(db.pool, alice, 'openalex:W1', 'search')).item;
       const tags = await findOrCreateTags(db.pool, alice, ['methods', 'Methods', ' important ']);
       expect(tags.map((t) => t.name).sort()).toEqual(['important', 'methods']);
       expect(await findOrCreateTags(db.pool, alice, ['METHODS'])).toHaveLength(1);
@@ -181,23 +181,23 @@ describe.skipIf(!TEST_DB_URL)('shelf stores (Postgres)', () => {
   describe('listing', () => {
     it('filters, sorts, pages and never shows another user’s items', async () => {
       const carol = await db.addUser();
-      for (const [id, year, cites] of [['W10', 2001, 3], ['W11', 2015, 50], ['W12', 2010, 7]] as const) {
+      for (const [id, year, cites] of [['openalex:W10', 2001, 3], ['openalex:W11', 2015, 50], ['openalex:W12', 2010, 7]] as const) {
         await putShared(db.pool, paper(id, { year, citedByCount: cites }));
         await addItem(db.pool, carol, id, 'search');
       }
       const p = await createProject(db.pool, carol, 'Only one');
       const all = await listItems(db.pool, carol, Q());
       expect(all.total).toBe(3);
-      await addToProject(db.pool, carol, [all.items.find((i) => i.paper.id === 'W11')!.id], p.id);
+      await addToProject(db.pool, carol, [all.items.find((i) => i.paper.id === 'openalex:W11')!.id], p.id);
 
-      expect((await listItems(db.pool, carol, Q({ sort: 'year_asc' }))).items.map((i) => i.paper.id)).toEqual(['W10', 'W12', 'W11']);
-      expect((await listItems(db.pool, carol, Q({ sort: 'cited' }))).items[0].paper.id).toBe('W11');
-      expect((await listItems(db.pool, carol, Q({ project: p.id }))).items.map((i) => i.paper.id)).toEqual(['W11']);
+      expect((await listItems(db.pool, carol, Q({ sort: 'year_asc' }))).items.map((i) => i.paper.id)).toEqual(['openalex:W10', 'openalex:W12', 'openalex:W11']);
+      expect((await listItems(db.pool, carol, Q({ sort: 'cited' }))).items[0].paper.id).toBe('openalex:W11');
+      expect((await listItems(db.pool, carol, Q({ project: p.id }))).items.map((i) => i.paper.id)).toEqual(['openalex:W11']);
       expect((await listItems(db.pool, carol, Q({ project: 'unsorted' }))).total).toBe(2);
-      expect((await listItems(db.pool, carol, Q({ yearFrom: 2005, yearTo: 2012 }))).items.map((i) => i.paper.id)).toEqual(['W12']);
+      expect((await listItems(db.pool, carol, Q({ yearFrom: 2005, yearTo: 2012 }))).items.map((i) => i.paper.id)).toEqual(['openalex:W12']);
       const page2 = await listItems(db.pool, carol, Q({ sort: 'year_asc', perPage: 2, page: 2 }));
       expect(page2).toMatchObject({ total: 3, page: 2 });
-      expect(page2.items.map((i) => i.paper.id)).toEqual(['W11']);
+      expect(page2.items.map((i) => i.paper.id)).toEqual(['openalex:W11']);
       expect((await listItems(db.pool, carol, Q({ project: (await listProjects(db.pool, alice))[0].id }))).total).toBe(0);
     });
   });
@@ -207,7 +207,7 @@ describe.skipIf(!TEST_DB_URL)('shelf stores (Postgres)', () => {
       const dave = await db.addUser();
       const own = await createPrivate(db.pool, dave, paper('Z', { doi: null }), 'manual');
       await addItem(db.pool, dave, own.id, 'manual');
-      const item = (await addItem(db.pool, dave, 'W1', 'search')).item;
+      const item = (await addItem(db.pool, dave, 'openalex:W1', 'search')).item;
       const p = await createProject(db.pool, dave, 'Gone');
       await addToProject(db.pool, dave, [item.id], p.id);
       await findOrCreateTags(db.pool, dave, ['gone']);
@@ -219,7 +219,7 @@ describe.skipIf(!TEST_DB_URL)('shelf stores (Postgres)', () => {
         expect(rows[0].n, table).toBe(0);
       }
       expect(await getPaper(db.pool, own.id)).toBeNull();
-      expect(await getPaper(db.pool, 'W1')).not.toBeNull();
+      expect(await getPaper(db.pool, 'openalex:W1')).not.toBeNull();
     });
   });
 });
