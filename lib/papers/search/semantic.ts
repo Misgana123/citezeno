@@ -1,31 +1,25 @@
-import { toPapers } from '../mapper';
-import type { OpenAlexClient } from '../openalex/client';
-import { CARD_FIELDS, selectParam } from '../openalex/fields';
-import type { OpenAlexList } from '../openalex/types';
+import type { PaperSource } from '@/lib/providers/papers/types';
+import { PapersError } from '../errors';
 import type { Paper } from '../types';
-import { buildFilter } from './filters';
 import { applyServerFilters, paginate, sortPapers } from './postprocess';
-import { capText, QUERY_CHARS_LIMIT } from './query-length';
 import type { SearchFilters, SearchRequest } from './request';
 import type { PaperListResult, SearchNotice } from './types';
 
-/* OpenAlex returns at most 50 semantic results and can't sort them, so we
-   fetch all 50 in one call and filter, sort and page them ourselves. */
-export const SEMANTIC_MAX = 50;
+/* Search by meaning returns a fixed pool of top results (OpenAlex: 50) that
+   the provider can't sort, so we fetch the whole pool in one call and filter,
+   sort and page it ourselves. */
 export const SEMANTIC_PER_PAGE = 25;
 
 export type Pool = { papers: Paper[]; costUsd: number };
 
-/* The top results by meaning (`/works?search.semantic=`), with only the filters semantic search supports. */
-export async function semanticPool(client: OpenAlexClient, text: string, filters: SearchFilters): Promise<Pool> {
-  const { body, costUsd } = await client.get<OpenAlexList>('/works', {
-    'search.semantic': capText(text, QUERY_CHARS_LIMIT),
-    filter: buildFilter(filters, 'semantic') || undefined,
-    per_page: SEMANTIC_MAX,
-    select: selectParam(CARD_FIELDS),
-  });
-  return { papers: toPapers(body.results), costUsd };
+/* The source's top results by meaning, with the filters it supports (the rest are applied here afterwards). */
+export async function semanticPool(papers: PaperSource, text: string, filters: SearchFilters): Promise<Pool> {
+  if (!papers.semanticSearch) throw new PapersError('bad_request', 'Search by meaning isn’t available right now. Try a keyword search.');
+  return papers.semanticSearch({ text, filters, limit: papers.limits.semanticMax });
 }
+
+/* Whether a pool came back full, so there may be more matches than it holds. */
+export const poolCapped = (papers: PaperSource, pool: Pool) => pool.papers.length >= papers.limits.semanticMax;
 
 /* Shared tail for pooled modes: server filters, sort, page and notices. */
 export function listFromPool(
@@ -44,10 +38,10 @@ export function listFromPool(
   return { papers: items, total: sorted.length, page: req.page, perPage, hasMore, mode: opts.mode, sort: req.sort, notices };
 }
 
-export async function semanticSearch(client: OpenAlexClient, req: SearchRequest): Promise<PaperListResult> {
-  const pool = await semanticPool(client, req.query, req.filters);
+export async function semanticSearch(papers: PaperSource, req: SearchRequest): Promise<PaperListResult> {
+  const pool = await semanticPool(papers, req.query, req.filters);
   return {
-    list: listFromPool(pool.papers, req, { mode: 'semantic', capped: pool.papers.length >= SEMANTIC_MAX }),
+    list: listFromPool(pool.papers, req, { mode: 'semantic', capped: poolCapped(papers, pool) }),
     costUsd: pool.costUsd,
     searches: 1,
   };

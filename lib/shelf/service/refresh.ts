@@ -1,15 +1,13 @@
-import { toPaper } from '@/lib/papers/mapper';
-import type { OpenAlexClient } from '@/lib/papers/openalex/client';
-import { DETAIL_FIELDS, selectParam } from '@/lib/papers/openalex/fields';
-import type { OpenAlexWork } from '@/lib/papers/openalex/types';
+import type { Paper } from '@/lib/papers/types';
+import type { PaperSource } from '@/lib/providers/papers/types';
 import { tx, type Db } from '../db';
 import { noticeRetracted } from '../store/notices';
 import { putShared } from '../store/papers';
 
 /* Keeping saved papers up to date. Shared records that are on someone's shelf
-   are rechecked with OpenAlex every few days, 50 per call
-   (filter=openalex_id:W1|W2|…, a list call), through the same cache, rate
-   limiter, cost log and daily cap as Find Papers. Citation counts and details
+   are rechecked with the paper source every few days, 50 at a time (OpenAlex:
+   one list call), through the same gateway (cache, rate limiter, cost log,
+   daily cap) as Find Papers. Citation counts and details
    are refreshed; a paper that has become retracted gets a notice for every
    user who saved it. Records saved while OpenAlex was down go first. */
 
@@ -28,19 +26,29 @@ export async function papersToRefresh(db: Db, olderThanDays: number, limit: numb
   return rows;
 }
 
+/* Fresh copies by ID: in few calls when the source can, else one by one. */
+async function fetchMany(source: PaperSource, ids: string[]): Promise<Map<string, Paper>> {
+  if (source.getPapers) return (await source.getPapers('id', ids)).found;
+  const found = new Map<string, Paper>();
+  for (const id of ids) {
+    const { paper } = await source.getPaper({ kind: 'id', id });
+    if (paper) found.set(id, paper);
+  }
+  return found;
+}
+
 export type RefreshReport = { refreshed: number; newlyRetracted: number; notices: number; missing: number };
 
 /* Recheck one batch of papers. */
-export async function refreshBatch(db: Db, client: OpenAlexClient, papers: { id: string; isRetracted: boolean; title: string }[]): Promise<RefreshReport> {
+export async function refreshBatch(db: Db, source: PaperSource, papers: { id: string; isRetracted: boolean; title: string }[]): Promise<RefreshReport> {
   const report: RefreshReport = { refreshed: 0, newlyRetracted: 0, notices: 0, missing: 0 };
   if (!papers.length) return report;
-  const { body } = await client.get<{ results?: OpenAlexWork[] }>('/works', { filter: `openalex_id:${papers.map((p) => p.id).join('|')}`, per_page: REFRESH_BATCH, select: selectParam(DETAIL_FIELDS) });
-  const fresh = new Map((body.results ?? []).map(toPaper).filter((p): p is NonNullable<typeof p> => !!p).map((p) => [p.id, p]));
+  const fresh = await fetchMany(source, papers.map((p) => p.id));
   await tx(db, async (q) => {
     for (const old of papers) {
       const p = fresh.get(old.id);
       if (!p) {
-        // gone from OpenAlex (merged or withdrawn): keep what we have, try again next time round
+        // gone from the source (merged or withdrawn): keep what we have, try again next time round
         await q.query(`update shelf_paper set "refreshedAt" = now(), "refreshDue" = false where id = $1`, [old.id]);
         report.missing++;
         continue;
@@ -56,13 +64,13 @@ export async function refreshBatch(db: Db, client: OpenAlexClient, papers: { id:
   return report;
 }
 
-export async function refreshPapers(db: Db, client: OpenAlexClient, opts: { olderThanDays: number; batches: number; deadline: number; now?: () => number }): Promise<RefreshReport> {
+export async function refreshPapers(db: Db, source: PaperSource, opts: { olderThanDays: number; batches: number; deadline: number; now?: () => number }): Promise<RefreshReport> {
   const now = opts.now ?? Date.now;
   const total: RefreshReport = { refreshed: 0, newlyRetracted: 0, notices: 0, missing: 0 };
   for (let b = 0; b < opts.batches && now() < opts.deadline; b++) {
     const papers = await papersToRefresh(db, opts.olderThanDays, REFRESH_BATCH);
     if (!papers.length) break;
-    const r = await refreshBatch(db, client, papers);
+    const r = await refreshBatch(db, source, papers);
     for (const k of Object.keys(total) as (keyof RefreshReport)[]) total[k] += r[k];
   }
   return total;

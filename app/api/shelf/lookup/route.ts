@@ -15,7 +15,7 @@ export const POST = shelfRoute(async (ctx) => {
   const { input } = await ctx.body(lookupBody);
   const parsed = parseInput(input);
   if (parsed.kind === 'title') await ctx.reserveSearches(1);
-  const result = await resolveInput(ctx.openalex(), parsed);
+  const result = await resolveInput(ctx.papers(), parsed);
   const saved = await savedMap(ctx.db, ctx.userId, result.papers.map((p) => p.openalexId));
   return json({ ...result, saved });
 });

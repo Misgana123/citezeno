@@ -1,7 +1,7 @@
 'use client';
 
 import type { CompleteResult, PdfSummary } from '@/lib/shelf/service/pdf-upload';
-import type { UploadTarget } from '@/lib/shelf/storage/types';
+import type { UploadTarget } from '@/lib/providers/storage/types';
 import { ShelfApiError, shelfFetch } from '../api';
 
 /* Upload one PDF: ask our server for a signed form, send the file straight to

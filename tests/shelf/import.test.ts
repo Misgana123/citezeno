@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { OpenAlexClient, QueryParams } from '@/lib/papers/openalex/client';
+import type { QueryParams } from '@/lib/providers/openalex/client';
+import { openAlexOver } from '../papers/fake-openalex';
 import { shelfConfig } from '@/lib/shelf/config';
 import { parseBibtex } from '@/lib/shelf/import/bibtex';
 import { parseReferenceFile } from '@/lib/shelf/import/parse';
@@ -9,7 +10,7 @@ import { DEFAULT_STEPS, runShelfJobs } from '@/lib/shelf/jobs/runner';
 import { lookupDois } from '@/lib/shelf/lookup/batch';
 import { runImportSlice } from '@/lib/shelf/service/import-run';
 import { startImport } from '@/lib/shelf/service/import-start';
-import { memoryStore } from '@/lib/shelf/storage/memory';
+import { memoryStore } from '@/lib/providers/storage/memory';
 import { getImport } from '@/lib/shelf/store/imports';
 import { listItems } from '@/lib/shelf/store/items';
 import { listProjects } from '@/lib/shelf/store/projects';
@@ -102,7 +103,7 @@ function fakeClient(impl?: (path: string, params: QueryParams) => unknown) {
     if (body instanceof Error) throw body;
     return { body, costUsd: 0.0001, status: 200 };
   });
-  return { client: { get } as unknown as OpenAlexClient, get };
+  return { client: openAlexOver(get as never), get };
 }
 
 describe('batched DOI lookups', () => {
@@ -140,7 +141,7 @@ describe.skipIf(!TEST_DB_URL)('importing (Postgres)', () => {
     const id = await startImport(db.pool, config, user, { fileName: 'big.bib', text: bib(120) + '\n@misc{bad, author={X}}', newProject: 'Imported' });
     expect((await getImport(db.pool, user, id))?.counts).toMatchObject({ pending: 120, failed: 1 });
 
-    expect(await runImportSlice({ db: db.pool, client }, { id, budgetMs: 60_000 })).toBe('done');
+    expect(await runImportSlice({ db: db.pool, papers: client }, { id, budgetMs: 60_000 })).toBe('done');
     const s = await getImport(db.pool, user, id);
     expect(s).toMatchObject({ status: 'done', total: 121, counts: { pending: 0, matched: 60, added: 60, duplicate: 0, failed: 1 }, failed: [{ label: 'bad', reason: 'No title' }] });
     expect(get.mock.calls.length).toBe(3); // 60 DOIs, 50 per call, over three batches of 50 entries
@@ -156,18 +157,18 @@ describe.skipIf(!TEST_DB_URL)('importing (Postgres)', () => {
   it('skips papers already on the shelf, including repeats inside the file', async () => {
     const { client } = fakeClient();
     const id = await startImport(db.pool, config, user, { fileName: 'again.bib', text: bib(4) + '\n' + bib(1, 200) + '\n' + bib(1, 200) });
-    await runImportSlice({ db: db.pool, client }, { id, budgetMs: 60_000 });
+    await runImportSlice({ db: db.pool, papers: client }, { id, budgetMs: 60_000 });
     // k0..k3 were imported before; k200 appears twice (with a DOI) and is new
     expect((await getImport(db.pool, user, id))?.counts).toMatchObject({ duplicate: 3, matched: 1, added: 2 });
   });
 
   it('waits for OpenAlex, then keeps entries as written after three failed tries', async () => {
-    const down = Object.assign(new Error('down'), { name: 'PapersError', code: 'unavailable' });
+    const down = Object.assign(new Error('down'), { name: 'ProviderError', code: 'unavailable' });
     const { client } = fakeClient(() => down);
     const id = await startImport(db.pool, config, user, { fileName: 'outage.bib', text: bib(2, 300) });
-    expect(await runImportSlice({ db: db.pool, client }, { id, budgetMs: 60_000 })).toBe('waiting');
-    expect(await runImportSlice({ db: db.pool, client }, { id, budgetMs: 60_000 })).toBe('waiting');
-    expect(await runImportSlice({ db: db.pool, client }, { id, budgetMs: 60_000 })).toBe('done');
+    expect(await runImportSlice({ db: db.pool, papers: client }, { id, budgetMs: 60_000 })).toBe('waiting');
+    expect(await runImportSlice({ db: db.pool, papers: client }, { id, budgetMs: 60_000 })).toBe('waiting');
+    expect(await runImportSlice({ db: db.pool, papers: client }, { id, budgetMs: 60_000 })).toBe('done');
     expect((await getImport(db.pool, user, id))?.counts).toMatchObject({ added: 2, matched: 0 });
   });
 
@@ -175,7 +176,7 @@ describe.skipIf(!TEST_DB_URL)('importing (Postgres)', () => {
     const other = await db.addUser();
     const id = await startImport(db.pool, config, user, { fileName: 'mine.ris', text: RIS });
     expect(await getImport(db.pool, other, id)).toBeNull();
-    expect(await runImportSlice({ db: db.pool, client: fakeClient().client }, { id, userId: other, budgetMs: 1000 })).toBe('busy');
+    expect(await runImportSlice({ db: db.pool, papers: fakeClient().client }, { id, userId: other, budgetMs: 1000 })).toBe('busy');
   });
 
   it('the background runner finishes waiting imports and empties storage trash', async () => {
@@ -184,7 +185,7 @@ describe.skipIf(!TEST_DB_URL)('importing (Postgres)', () => {
     store.put('shelf/x/old.pdf', new Uint8Array(1));
     await db.pool.query(`insert into shelf_storage_trash (key) values ('shelf/x/old.pdf')`);
     const { client } = fakeClient();
-    const report = await runShelfJobs({ db: db.pool, client: () => client, store }, 20_000, DEFAULT_STEPS);
+    const report = await runShelfJobs({ db: db.pool, papers: () => client, store }, 20_000, DEFAULT_STEPS);
     expect(report).toMatchObject({ filesRemoved: 1 });
     expect((await getImport(db.pool, user, id))?.status).toBe('done');
     expect(store.has('shelf/x/old.pdf')).toBe(false);

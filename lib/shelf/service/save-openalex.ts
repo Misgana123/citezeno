@@ -1,5 +1,5 @@
 import { toWorkId } from '@/lib/papers/ids';
-import type { OpenAlexClient } from '@/lib/papers/openalex/client';
+import type { PaperSource } from '@/lib/providers/papers/types';
 import { getPaper as fetchPaper } from '@/lib/papers/related/paper';
 import { readClientPaper } from '../api/paper-schema';
 import type { Db } from '../db';
@@ -19,7 +19,7 @@ import { alreadySaved, shelve } from './shelve';
    - If OpenAlex can't be reached, the details the browser already showed are
      kept for now and the record is refreshed later ("pending"). */
 
-export type SaveDeps = { db: Db; client: OpenAlexClient };
+export type SaveDeps = { db: Db; papers: PaperSource };
 export type SaveOpenAlexInput = { paperId: string; via?: Exclude<AddedVia, 'manual'>; paper?: unknown; projectId?: string | null };
 export type SaveResult = { item: ShelfItem; pending: boolean };
 
@@ -37,7 +37,7 @@ export async function saveOpenAlexPaper(deps: SaveDeps, userId: string, input: S
   let fresh: Awaited<ReturnType<typeof fetchPaper>>['paper'] | null = null;
   if (!record) {
     try {
-      fresh = (await fetchPaper(deps.client, id)).paper;
+      fresh = (await fetchPaper(deps.papers, id)).paper;
     } catch (e) {
       const code = papersErrorCode(e);
       const fallback = code && OUTAGE.has(code) ? readClientPaper(input.paper, id) : null;

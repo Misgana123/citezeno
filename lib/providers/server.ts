@@ -1,0 +1,57 @@
+import 'server-only';
+import { chooseProviders, choose } from './config';
+import { sendSpendAlert } from './gateway/alert';
+import { createLimiter, type Limiter } from './gateway/limiter';
+import { newMeter, type Meter } from './gateway/meter';
+import { gateway } from './gateway/stack';
+import { pgCache, pgSlots, pgSpend } from './gateway/store/pg';
+import { DEFAULT_PAPER_PROVIDERS, PAPER_PROVIDERS } from './papers/registry';
+import { paperSources, type PaperSources } from './papers/sources';
+import type { PaperSource } from './papers/types';
+import { DEFAULT_PDF_TEXT, PDF_TEXT_PROVIDERS } from './pdf-text/registry';
+import type { PdfTextReader } from './pdf-text/types';
+import { DEFAULT_FILE_STORAGE, FILE_STORAGE_PROVIDERS } from './storage/registry';
+import type { FileStore } from './storage/types';
+import type { Env, Gate } from './types';
+
+/* Where features get the provider for a job. Each provider is built from
+   configuration with its outside calls wired through the gateway. Importing
+   this from a client component fails the build ("server-only"), which keeps
+   keys out of the browser. */
+
+/* One in-process queue per provider, shared by every request. Parked on
+   globalThis so dev reloads reuse them. */
+const g = globalThis as unknown as { __czLimiters?: Map<string, Limiter> };
+const limiters = (g.__czLimiters ??= new Map());
+
+/* The gate for one request: the gateway's layers, with this request's meter. */
+export function gateFor(meter: Meter): Gate {
+  return (transport, policy) => {
+    let limiter = limiters.get(policy.provider);
+    if (!limiter) limiters.set(policy.provider, (limiter = createLimiter({ concurrency: policy.concurrency, maxQueue: policy.maxQueue, label: policy.label })));
+    return gateway({ transport, policy, cache: pgCache, spend: pgSpend, slots: pgSlots, limiter, alert: sendSpendAlert }, meter);
+  };
+}
+
+/* The enabled paper sources (PAPER_PROVIDERS), primary first. */
+export function paperSourcesFor(meter: Meter = newMeter(), env: Env = process.env): PaperSources {
+  const gate = gateFor(meter);
+  const built = chooseProviders(PAPER_PROVIDERS, choose.papers(env), DEFAULT_PAPER_PROVIDERS, 'paper')
+    .map((d) => d.create(env, gate))
+    .filter((s): s is PaperSource => s != null);
+  return paperSources(built);
+}
+
+/* The configured file storage, or null when it isn't set up. */
+export function fileStorage(env: Env = process.env): FileStore | null {
+  const [def] = chooseProviders(FILE_STORAGE_PROVIDERS, choose.fileStorage(env), DEFAULT_FILE_STORAGE, 'file storage');
+  return def.create(env, gateFor(newMeter()));
+}
+
+/* The configured PDF text reader. */
+export function pdfTextReader(env: Env = process.env): PdfTextReader {
+  const [def] = chooseProviders(PDF_TEXT_PROVIDERS, choose.pdfText(env), DEFAULT_PDF_TEXT, 'PDF text');
+  const reader = def.create(env, gateFor(newMeter()));
+  if (!reader) throw new Error(`The PDF text provider "${def.name}" is not configured.`);
+  return reader;
+}

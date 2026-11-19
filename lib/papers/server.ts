@@ -1,37 +1,18 @@
 import 'server-only';
-import { papersConfig } from './config';
-import { sendSpendAlert } from './guard/alert';
-import { createLimiter } from './guard/limiter';
-import type { GuardDeps } from './guard/stack';
-import { createOpenAlexClient } from './openalex/client';
-import { pgCache, pgSlots, pgSpend, pgUsage } from './store/pg';
+import type { Meter } from '@/lib/providers/gateway/meter';
+import type { PaperSources } from '@/lib/providers/papers/sources';
+import { paperSourcesFor } from '@/lib/providers/server';
+import { papersConfig, type PapersConfig } from './config';
+import { papersFacing } from './source';
+import { pgUsage } from './store/pg';
 import type { UsageStore } from './store/types';
 
 /* The server's shared Find Papers pieces. Importing this file from a client
-   component fails the build ("server-only"), which keeps the key out of the
-   browser. Parked on globalThis so dev reloads reuse one set. */
+   component fails the build ("server-only"). Paper data comes from the
+   provider registry, through the gateway; this never names a vendor. */
 
-export type PapersServer = { guard: GuardDeps; usage: UsageStore };
-
-const g = globalThis as unknown as { __czPapers?: PapersServer };
-
-/* Calls OpenAlex at once, at most this many waiting; past that, "busy". */
-const CONCURRENCY = 8;
-const MAX_QUEUE = 40;
+export type PapersServer = { config: PapersConfig; usage: UsageStore; sources(meter: Meter): PaperSources };
 
 export function papersServer(): PapersServer {
-  if (g.__czPapers) return g.__czPapers;
-  const config = papersConfig();
-  return (g.__czPapers = {
-    guard: {
-      client: createOpenAlexClient({ config }),
-      config,
-      cache: pgCache,
-      spend: pgSpend,
-      slots: pgSlots,
-      limiter: createLimiter({ concurrency: CONCURRENCY, maxQueue: MAX_QUEUE }),
-      alert: sendSpendAlert,
-    },
-    usage: pgUsage,
-  });
+  return { config: papersConfig(), usage: pgUsage, sources: (meter) => papersFacing(paperSourcesFor(meter)) };
 }

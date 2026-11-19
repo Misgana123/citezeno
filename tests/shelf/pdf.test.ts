@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { findArxivDoi, findDoi, readPdfBasic, titleFromText } from '@/lib/shelf/pdf/basic-reader';
+import { basicPdfReader } from '@/lib/providers/basic-pdf';
+import { findArxivDoi, findDoi, readPdfBasic, titleFromText } from '@/lib/providers/basic-pdf/reader';
 import { cleanFileName, looksLikePdf } from '@/lib/shelf/pdf/check';
 import { readPdf } from '@/lib/shelf/pdf/reader';
-import { cloudinaryStore, parseCloudinaryUrl, signParams } from '@/lib/shelf/storage/cloudinary';
+import { cloudinaryStore, parseCloudinaryUrl, signParams } from '@/lib/providers/cloudinary/store';
 import { paperPdf, scannedPdf } from './pdf-fixtures';
 
 describe('PDF checks', () => {
@@ -40,10 +41,10 @@ describe('reading PDFs', () => {
     expect(readPdfBasic(paperPdf({ infoTitle: 'Microsoft Word - draft3.docx' })).title).toBe('Rivers and floods in a changing climate');
   });
 
-  it('marks a scanned PDF as having no text', () => {
-    const r = readPdf(scannedPdf());
+  it('marks a scanned PDF as having no text', async () => {
+    const r = await readPdf(basicPdfReader, scannedPdf());
     expect(r).toMatchObject({ pageCount: 1, hasText: false, doi: null });
-    expect(readPdf(paperPdf()).hasText).toBe(false); // too little text to be worth indexing
+    expect((await readPdf(basicPdfReader, paperPdf())).hasText).toBe(false); // too little text to be worth indexing
   });
 
   it('finds DOIs and arXiv stamps in text', () => {

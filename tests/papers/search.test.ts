@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PapersError } from '@/lib/papers/errors';
 import { userMessage } from '@/lib/papers/messages';
-import type { OpenAlexClient } from '@/lib/papers/openalex/client';
-import { buildFilter, sortParam, unsupportedBySemantic } from '@/lib/papers/search/filters';
+import { buildFilter, sortParam, unsupportedBySemantic } from '@/lib/providers/openalex/filters';
 import { keywordSearch } from '@/lib/papers/search/keyword';
 import { capText, DEFAULT_QUERY_CHARS } from '@/lib/papers/search/query-length';
 import { DEFAULT_FILTERS, parseSearchRequest } from '@/lib/papers/search/request';
+import { openAlexOver } from './fake-openalex';
 
 const parse = (qs: string, opts?: { requireQuery?: boolean }) => parseSearchRequest(new URLSearchParams(qs), opts);
 
@@ -128,7 +128,7 @@ describe('keywordSearch', () => {
       costUsd: 0.001,
       status: 200,
     }));
-    const client = { get } as unknown as OpenAlexClient;
+    const client = openAlexOver(get as never);
     const res = await keywordSearch(client, { ...parse('q=crispr&mode=keyword&sort=newest&page=2&minCites=5'), truncated: true });
 
     const [path, params] = get.mock.calls[0] as unknown as [string, Record<string, unknown>];
@@ -143,7 +143,7 @@ describe('keywordSearch', () => {
   });
 
   it('reports the last page', async () => {
-    const client = { get: async () => ({ body: { meta: { count: 30 }, results: [] }, costUsd: 0, status: 200 }) } as unknown as OpenAlexClient;
+    const client = openAlexOver(async () => ({ body: { meta: { count: 30 }, results: [] }, costUsd: 0, status: 200 }));
     const res = await keywordSearch(client, parse('q=x&page=2'));
     expect(res.list.hasMore).toBe(false);
   });

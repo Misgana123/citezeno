@@ -1,8 +1,6 @@
-/* How much search text OpenAlex accepts. Free and keyless accounts may send
-   1,500 characters per search (keyword or semantic); paid plans up to 2,000,
-   which is also all that semantic search reads. Set by OPENALEX_MAX_QUERY_CHARS. */
+/* Search text length. Each paper provider says how much text it accepts
+   (PaperSource.limits.maxQueryChars); this is the fallback when none is given. */
 
-export const QUERY_CHARS_LIMIT = 2000;
 export const DEFAULT_QUERY_CHARS = 1500;
 
 /* Cut text to `max` characters, at a word break when one is near the end. */

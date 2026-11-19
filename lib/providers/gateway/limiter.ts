@@ -1,14 +1,13 @@
-import { PapersError } from '../errors';
-import type { QueryParams } from '../openalex/client';
-import type { Layer } from './call';
+import { ProviderError } from '../errors';
+import type { Layer } from './types';
 
-/* The in-process queue in front of OpenAlex: at most `concurrency` calls at
+/* The in-process queue in front of one provider: at most `concurrency` calls at
    once, at most `maxQueue` waiting. A full queue answers "busy" straight away
    instead of piling up requests. */
 
 export type Limiter = { run<T>(task: () => Promise<T>): Promise<T>; readonly active: number; readonly waiting: number };
 
-export function createLimiter({ concurrency, maxQueue }: { concurrency: number; maxQueue: number }): Limiter {
+export function createLimiter({ concurrency, maxQueue, label = 'provider' }: { concurrency: number; maxQueue: number; label?: string }): Limiter {
   let active = 0;
   const queue: (() => void)[] = [];
 
@@ -30,7 +29,7 @@ export function createLimiter({ concurrency, maxQueue }: { concurrency: number; 
     },
     async run<T>(task: () => Promise<T>) {
       if (active >= concurrency) {
-        if (queue.length >= maxQueue) throw new PapersError('busy', 'The OpenAlex queue is full.', { reason: 'queue_full' });
+        if (queue.length >= maxQueue) throw new ProviderError('busy', `The ${label} queue is full.`, { reason: 'queue_full' });
         await new Promise<void>((resolve) => queue.push(resolve));
       } else {
         active++;
@@ -45,9 +44,9 @@ export function createLimiter({ concurrency, maxQueue }: { concurrency: number; 
 }
 
 export const withLimiter =
-  (limiter: Limiter): Layer =>
+  <Req>(limiter: Limiter): Layer<Req> =>
   (inner) => ({
-    get<T>(path: string, params: QueryParams = {}) {
-      return limiter.run(() => inner.get<T>(path, params));
+    call<T>(req: Req) {
+      return limiter.run(() => inner.call<T>(req));
     },
   });

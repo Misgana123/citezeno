@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PapersError } from '@/lib/papers/errors';
-import type { OpenAlexClient } from '@/lib/papers/openalex/client';
 import { citedBy, isSameWork, referencesOf, similarText, similarTo } from '@/lib/papers/related/lists';
 import { getPaper, parsePaperId } from '@/lib/papers/related/paper';
 import { parseSearchRequest } from '@/lib/papers/search/request';
+import { openAlexOver, sourcesOver } from './fake-openalex';
 
 const req = (qs = '') => parseSearchRequest(new URLSearchParams(qs), { requireQuery: false });
 
 function client(handler: (path: string, params: Record<string, unknown>) => unknown) {
   const get = vi.fn(async (path: string, params: Record<string, unknown>) => ({ body: handler(path, params), costUsd: 0.0001, status: 200 }));
-  return { client: { get } as unknown as OpenAlexClient, get };
+  return { client: openAlexOver(get as never), sources: sourcesOver(get as never), get };
 }
 
 describe('parsePaperId', () => {
@@ -53,7 +53,7 @@ describe('references and cited-by', () => {
 
 describe('similarTo', () => {
   it('searches by title and abstract and leaves out the paper itself', async () => {
-    const { client: c, get } = client((path) =>
+    const { sources: c, get } = client((path) =>
       path === '/works/W7'
         ? { id: 'W7', display_name: 'Sleep and memory', doi: '10.1000/s', abstract_inverted_index: { Teens: [0], sleep: [1] } }
         : { results: [{ id: 'W7' }, { id: 'W8', doi: '10.1000/S' }, { id: 'W9' }] },
@@ -66,7 +66,7 @@ describe('similarTo', () => {
 
   it('leaves out other copies of the same paper', async () => {
     const title = 'The state of OA: a large-scale analysis';
-    const { client: c } = client((path) =>
+    const { sources: c } = client((path) =>
       path === '/works/W7'
         ? { id: 'W7', display_name: title }
         : { results: [{ id: 'W8', display_name: 'The State of OA — A Large-Scale Analysis' }, { id: 'W9', display_name: 'Short' }, { id: 'W10', display_name: 'Other' }] },

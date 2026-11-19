@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { papersConfig } from '@/lib/papers/config';
-import { PapersError } from '@/lib/papers/errors';
-import { buildUrl, createOpenAlexClient, readCost } from '@/lib/papers/openalex/client';
+import { ProviderError } from '@/lib/providers/errors';
+import { buildUrl, createOpenAlexTransport, readCost, type QueryParams } from '@/lib/providers/openalex/client';
+import { openAlexConfig } from '@/lib/providers/openalex/config';
+
+/* The raw OpenAlex transport, called the way the gateway calls it. */
+const createOpenAlexClient = (deps: Parameters<typeof createOpenAlexTransport>[0]) => {
+  const t = createOpenAlexTransport(deps);
+  return { get: (path: string, params?: QueryParams) => t.call({ path, params }) };
+};
 
 const CONFIG = { apiKey: 'secret-key', baseUrl: 'https://api.example.org', timeoutMs: 1000 };
 
@@ -13,19 +20,18 @@ async function failure(p: Promise<unknown>) {
   try {
     await p;
   } catch (e) {
-    return e as PapersError;
+    return e as ProviderError;
   }
   throw new Error('expected a failure');
 }
 
-describe('papersConfig', () => {
+describe('openAlexConfig', () => {
   it('uses defaults', () => {
-    expect(papersConfig({})).toEqual({
+    expect(openAlexConfig({})).toEqual({
       apiKey: null,
       baseUrl: 'https://api.openalex.org',
       timeoutMs: 10_000,
       maxQueryChars: 1500,
-      dailySearchesPerUser: 100,
       dailyAlertUsd: 0.8,
       dailyCapUsd: 2,
       cacheSearchS: 86_400,
@@ -34,17 +40,23 @@ describe('papersConfig', () => {
   });
 
   it('reads the environment and ignores bad values', () => {
-    const c = papersConfig({ OPENALEX_API_KEY: ' k ', OPENALEX_BASE_URL: 'https://x.org/', PAPERS_DAILY_SEARCHES: '25.7', PAPERS_DAILY_CAP_USD: '-1' });
+    const c = openAlexConfig({ OPENALEX_API_KEY: ' k ', OPENALEX_BASE_URL: 'https://x.org/', PAPERS_DAILY_CAP_USD: '-1' });
     expect(c.apiKey).toBe('k');
     expect(c.baseUrl).toBe('https://x.org');
-    expect(c.dailySearchesPerUser).toBe(25);
     expect(c.dailyCapUsd).toBe(2);
   });
 
   it('keeps the search length within what OpenAlex allows', () => {
-    expect(papersConfig({ OPENALEX_MAX_QUERY_CHARS: '2000' }).maxQueryChars).toBe(2000);
-    expect(papersConfig({ OPENALEX_MAX_QUERY_CHARS: '5000' }).maxQueryChars).toBe(2000);
-    expect(papersConfig({ OPENALEX_MAX_QUERY_CHARS: '10' }).maxQueryChars).toBe(100);
+    expect(openAlexConfig({ OPENALEX_MAX_QUERY_CHARS: '2000' }).maxQueryChars).toBe(2000);
+    expect(openAlexConfig({ OPENALEX_MAX_QUERY_CHARS: '5000' }).maxQueryChars).toBe(2000);
+    expect(openAlexConfig({ OPENALEX_MAX_QUERY_CHARS: '10' }).maxQueryChars).toBe(100);
+  });
+});
+
+describe('papersConfig', () => {
+  it('uses defaults, and the search length of the primary paper provider', () => {
+    expect(papersConfig({})).toEqual({ maxQueryChars: 1500, dailySearchesPerUser: 100 });
+    expect(papersConfig({ OPENALEX_MAX_QUERY_CHARS: '2000', PAPERS_DAILY_SEARCHES: '25.7' })).toEqual({ maxQueryChars: 2000, dailySearchesPerUser: 25 });
   });
 });
 
@@ -81,7 +93,7 @@ describe('OpenAlex client', () => {
   it('maps a per-second 429 to busy with Retry-After', async () => {
     const client = createOpenAlexClient({ config: CONFIG, fetch: respond(429, { reason: 'semantic_search' }, { 'retry-after': '1' }) });
     const e = await failure(client.get('/works'));
-    expect(e).toBeInstanceOf(PapersError);
+    expect(e).toBeInstanceOf(ProviderError);
     expect(e.code).toBe('busy');
     expect(e.details).toMatchObject({ retryAfterS: 1, reason: 'semantic_search', status: 429 });
   });

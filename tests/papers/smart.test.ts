@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { OpenAlexClient } from '@/lib/papers/openalex/client';
-import type { OpenAlexWork } from '@/lib/papers/openalex/types';
+import type { OpenAlexWork } from '@/lib/providers/openalex/types';
 import { fuseRanked } from '@/lib/papers/search/fuse';
 import { applyServerFilters, paginate, sortPapers } from '@/lib/papers/search/postprocess';
 import { parseSearchRequest } from '@/lib/papers/search/request';
@@ -8,6 +7,7 @@ import { runSearch, searchesFor } from '@/lib/papers/search/run';
 import { semanticSearch } from '@/lib/papers/search/semantic';
 import { smartSearch } from '@/lib/papers/search/smart';
 import type { Paper } from '@/lib/papers/types';
+import { sourcesOver } from './fake-openalex';
 
 const paper = (id: string, over: Partial<Paper> = {}): Paper => ({
   id,
@@ -41,7 +41,7 @@ function fakeClient(keyword: OpenAlexWork[], semantic: OpenAlexWork[], keywordCo
       ? { body: { meta: { count: semantic.length }, results: semantic }, costUsd: 0.001, status: 200 }
       : { body: { meta: { count: keywordCount }, results: keyword }, costUsd: 0.001, status: 200 },
   );
-  return { client: { get } as unknown as OpenAlexClient, get };
+  return { client: sourcesOver(get as never), get };
 }
 
 describe('fuseRanked', () => {
@@ -102,7 +102,7 @@ describe('semanticSearch', () => {
       { id: 'W2', cited_by_count: 30 },
       { id: 'W3', cited_by_count: 300 },
     ]);
-    const res = await semanticSearch(client, parse('q=sleep and memory&mode=semantic&sort=cited&minCites=10&oa=1'));
+    const res = await semanticSearch(client.primary, parse('q=sleep and memory&mode=semantic&sort=cited&minCites=10&oa=1'));
     const [, params] = get.mock.calls[0] as unknown as [string, Record<string, unknown>];
     expect(params).toMatchObject({ 'search.semantic': 'sleep and memory', filter: 'is_oa:true,is_retracted:false', per_page: 50 });
     expect(params.sort).toBeUndefined();
@@ -114,7 +114,7 @@ describe('semanticSearch', () => {
 
   it('flags capped results', async () => {
     const works = Array.from({ length: 50 }, (_, i) => ({ id: `W${i + 1}` }));
-    const res = await semanticSearch(fakeClient([], works).client, parse('q=x&mode=semantic'));
+    const res = await semanticSearch(fakeClient([], works).client.primary, parse('q=x&mode=semantic'));
     expect(res.list).toMatchObject({ total: 50, perPage: 25, hasMore: true, notices: ['results_capped'] });
   });
 });

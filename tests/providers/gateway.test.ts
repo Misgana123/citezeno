@@ -1,22 +1,40 @@
 import { describe, expect, it, vi } from 'vitest';
-import { papersConfig } from '@/lib/papers/config';
-import { PapersError } from '@/lib/papers/errors';
-import { withBudget, type SpendAlert } from '@/lib/papers/guard/budget';
-import { cacheKey, ttlFor, withCache } from '@/lib/papers/guard/cache';
-import { callKind } from '@/lib/papers/guard/call';
-import { nextUtcMidnight, utcDay } from '@/lib/papers/guard/day';
-import { createLimiter, withLimiter } from '@/lib/papers/guard/limiter';
-import { newMeter } from '@/lib/papers/guard/meter';
-import { withPacing } from '@/lib/papers/guard/pacer';
-import { backoffMs, withRetry } from '@/lib/papers/guard/retry';
-import { guardedClient } from '@/lib/papers/guard/stack';
-import { reserveSearches } from '@/lib/papers/guard/usage';
-import { resetsIn, userMessage } from '@/lib/papers/messages';
-import type { OpenAlexClient, QueryParams } from '@/lib/papers/openalex/client';
-import { memoryCache, memorySlots, memorySpend, memoryUsage } from '@/lib/papers/store/memory';
+import { ProviderError } from '@/lib/providers/errors';
+import { withBudget, type SpendAlert } from '@/lib/providers/gateway/budget';
+import { withCache } from '@/lib/providers/gateway/cache';
+import { nextUtcMidnight, utcDay } from '@/lib/providers/gateway/day';
+import { createLimiter, withLimiter } from '@/lib/providers/gateway/limiter';
+import { newMeter } from '@/lib/providers/gateway/meter';
+import { withPacing } from '@/lib/providers/gateway/pacer';
+import { backoffMs, withRetry } from '@/lib/providers/gateway/retry';
+import { gateway } from '@/lib/providers/gateway/stack';
+import { memoryCache, memorySlots, memorySpend } from '@/lib/providers/gateway/store/memory';
+import type { GatewayPolicy, Layer, Transport } from '@/lib/providers/gateway/types';
+import type { OpenAlexRequest, QueryParams } from '@/lib/providers/openalex/client';
+import { openAlexConfig } from '@/lib/providers/openalex/config';
+import { cacheKey, callKind, openAlexPolicy, ttlFor } from '@/lib/providers/openalex/policy';
+
+/* The gateway's layers, tested with OpenAlex's policy (the one in use). */
 
 const NOW = Date.UTC(2026, 10, 18, 21, 30);
-const CONFIG = papersConfig({});
+const CONFIG = openAlexConfig({});
+const POLICY = openAlexPolicy(CONFIG);
+
+type Req = OpenAlexRequest;
+type Client = { get(path: string, params?: QueryParams): Promise<{ body: unknown; costUsd: number; status: number }> };
+
+/* A transport called the way the old OpenAlex client was: get(path, params). */
+const asClient = (t: Transport<Req>): Client => ({ get: (path, params = {}) => t.call({ path, params }) });
+const through = (layer: Layer<Req>, t: Transport<Req>) => asClient(layer(t));
+
+/* OpenAlex's policy with a different wait limit for semantic slots. */
+const withMaxWait = (maxWaitMs: number): GatewayPolicy<Req> => ({
+  ...POLICY,
+  describe: (r) => {
+    const info = POLICY.describe(r);
+    return info.pace ? { ...info, pace: { ...info.pace, maxWaitMs } } : info;
+  },
+});
 
 /* A fake OpenAlex: answers every call, charging like OpenAlex does. */
 function fakeOpenAlex(impl?: (path: string, params: QueryParams) => unknown) {
@@ -26,10 +44,11 @@ function fakeOpenAlex(impl?: (path: string, params: QueryParams) => unknown) {
     if (body instanceof Error) throw body;
     return { body, costUsd: kind === 'single' ? 0 : kind === 'list' ? 0.0001 : 0.001, status: 200 };
   });
-  return { client: { get } as unknown as OpenAlexClient, get };
+  const client: Transport<Req> = { call: (r) => get(r.path, r.params) as never };
+  return { client, get };
 }
 
-const busy429 = () => new PapersError('busy', 'rate', { status: 429, retryAfterS: 1 });
+const busy429 = () => new ProviderError('busy', 'rate', { status: 429, retryAfterS: 1 });
 
 describe('call kinds and days', () => {
   it('classifies calls', () => {
@@ -70,7 +89,7 @@ describe('cache', () => {
   it('serves repeats from the cache for free, until they expire', async () => {
     let now = NOW;
     const { client, get } = fakeOpenAlex();
-    const cached = withCache(memoryCache(() => now), CONFIG)(client);
+    const cached = through(withCache(memoryCache(() => now), POLICY), client);
     const first = await cached.get('/works', { search: 'x' });
     const second = await cached.get('/works', { search: 'x' });
     expect(get).toHaveBeenCalledTimes(1);
@@ -85,15 +104,15 @@ describe('cache', () => {
     const broken = { get: async () => Promise.reject(new Error('db down')), set: async () => Promise.reject(new Error('db down')) };
     const { client } = fakeOpenAlex();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    await expect(withCache(broken, CONFIG)(client).get('/works', { search: 'x' })).resolves.toMatchObject({ status: 200 });
+    await expect(through(withCache(broken, POLICY), client).get('/works', { search: 'x' })).resolves.toMatchObject({ status: 200 });
     warn.mockRestore();
   });
 
   it('does not cache failures', async () => {
     let fail = true;
-    const { client, get } = fakeOpenAlex(() => (fail ? new PapersError('unavailable', 'x') : { results: [] }));
-    const cached = withCache(memoryCache(), CONFIG)(client);
-    await expect(cached.get('/works', { search: 'x' })).rejects.toBeInstanceOf(PapersError);
+    const { client, get } = fakeOpenAlex(() => (fail ? new ProviderError('unavailable', 'x') : { results: [] }));
+    const cached = through(withCache(memoryCache(), POLICY), client);
+    await expect(cached.get('/works', { search: 'x' })).rejects.toBeInstanceOf(ProviderError);
     fail = false;
     await cached.get('/works', { search: 'x' });
     await cached.get('/works', { search: 'x' });
@@ -102,13 +121,13 @@ describe('cache', () => {
 });
 
 describe('budget', () => {
-  const config = { dailyAlertUsd: 0.0015, dailyCapUsd: 0.003 };
+  const policy = { ...POLICY, spend: { dailyAlertUsd: 0.0015, dailyCapUsd: 0.003, configHint: 'X' } };
 
   it('logs every call, alerts once at each level, and stops at the cap', async () => {
     const spend = memorySpend();
     const alerts: SpendAlert[] = [];
     const { client, get } = fakeOpenAlex();
-    const guarded = withBudget(spend, config, (a) => void alerts.push(a), () => NOW)(client);
+    const guarded = through(withBudget(spend, policy, (a) => void alerts.push(a), () => NOW), client);
 
     await guarded.get('/works', { search: 'a' }); // 0.001
     expect(alerts).toEqual([]);
@@ -116,8 +135,9 @@ describe('budget', () => {
     await guarded.get('/works/W1', {}); // free
     await guarded.get('/works', { search: 'c' }); // 0.003: hits the cap
     expect(alerts.map((a) => a.kind)).toEqual(['alert', 'cap']);
-    expect(alerts[1]).toMatchObject({ day: '2026-11-18', limitUsd: 0.003 });
-    expect(await spend.spent('2026-11-18')).toBeCloseTo(0.003);
+    expect(alerts[1]).toMatchObject({ provider: 'openalex', label: 'OpenAlex', day: '2026-11-18', limitUsd: 0.003 });
+    expect(await spend.spent('openalex', '2026-11-18')).toBeCloseTo(0.003);
+    expect(await spend.spent('other', '2026-11-18')).toBe(0);
 
     const e = await guarded.get('/works', { search: 'd' }).catch((x) => x);
     expect(e).toMatchObject({ code: 'budget' });
@@ -126,8 +146,8 @@ describe('budget', () => {
 
   it('starts fresh the next UTC day', async () => {
     const spend = memorySpend();
-    await spend.add('2026-11-17', 5, true);
-    const guarded = withBudget(spend, config, () => {}, () => NOW)(fakeOpenAlex().client);
+    await spend.add('openalex', '2026-11-17', 5, true);
+    const guarded = through(withBudget(spend, policy, () => {}, () => NOW), fakeOpenAlex().client);
     await expect(guarded.get('/works', { search: 'x' })).resolves.toBeTruthy();
   });
 });
@@ -136,8 +156,8 @@ describe('limiter', () => {
   it('runs at most `concurrency` at once and answers busy when the queue is full', async () => {
     const limiter = createLimiter({ concurrency: 2, maxQueue: 1 });
     const gates: (() => void)[] = [];
-    const slow = { get: vi.fn(() => new Promise((ok) => gates.push(() => ok({ body: {}, costUsd: 0, status: 200 })))) } as unknown as OpenAlexClient;
-    const client = withLimiter(limiter)(slow);
+    const slow = { call: vi.fn(() => new Promise((ok) => gates.push(() => ok({ body: {}, costUsd: 0, status: 200 })))) } as unknown as Transport<Req>;
+    const client = through(withLimiter(limiter), slow);
 
     const calls = [client.get('/works'), client.get('/works'), client.get('/works')];
     await Promise.resolve();
@@ -155,8 +175,8 @@ describe('limiter', () => {
 
   it('frees the slot when a call fails', async () => {
     const limiter = createLimiter({ concurrency: 1, maxQueue: 0 });
-    const client = withLimiter(limiter)(fakeOpenAlex(() => new PapersError('unavailable', 'x')).client);
-    await expect(client.get('/works')).rejects.toBeInstanceOf(PapersError);
+    const client = through(withLimiter(limiter), fakeOpenAlex(() => new ProviderError('unavailable', 'x')).client);
+    await expect(client.get('/works')).rejects.toBeInstanceOf(ProviderError);
     expect(limiter.active).toBe(0);
   });
 });
@@ -168,7 +188,7 @@ describe('semantic pacing', () => {
     const waits: number[] = [];
     const sleep = async (ms: number) => void waits.push(ms);
     const { client, get } = fakeOpenAlex();
-    const paced = withPacing(slots, { now: () => now, sleep })(client);
+    const paced = through(withPacing(slots, POLICY, { now: () => now, sleep }), client);
 
     await Promise.all([paced.get('/works', { 'search.semantic': 'a' }), paced.get('/works', { 'search.semantic': 'b' }), paced.get('/works', { search: 'c' })]);
     expect(waits).toEqual([1100]);
@@ -183,7 +203,7 @@ describe('semantic pacing', () => {
   it('keeps semantic search at or below one call per second under heavy load', async () => {
     const waits: number[] = [];
     const { client, get } = fakeOpenAlex();
-    const paced = withPacing(memorySlots(), { now: () => NOW, sleep: async (ms) => void waits.push(ms), maxWaitMs: 60_000 })(client);
+    const paced = through(withPacing(memorySlots(), withMaxWait(60_000), { now: () => NOW, sleep: async (ms) => void waits.push(ms) }), client);
     // 20 callers at the same moment: each gets its own slot
     await Promise.all(Array.from({ length: 20 }, (_, i) => paced.get('/works', { 'search.semantic': `q${i}` })));
     const starts = [0, ...waits].sort((a, b) => a - b);
@@ -193,7 +213,7 @@ describe('semantic pacing', () => {
   });
 
   it('answers busy when the next free slot is too far away', async () => {
-    const paced = withPacing(memorySlots(), { now: () => NOW, sleep: async () => {}, maxWaitMs: 2000 })(fakeOpenAlex().client);
+    const paced = through(withPacing(memorySlots(), withMaxWait(2000), { now: () => NOW, sleep: async () => {} }), fakeOpenAlex().client);
     await paced.get('/works', { 'search.semantic': 'a' }); // now
     await paced.get('/works', { 'search.semantic': 'b' }); // in 1.1s
     // the next slot is 2.2s away, past the 2s limit
@@ -214,62 +234,33 @@ describe('retry', () => {
     let n = 0;
     const sleep = vi.fn(async () => {});
     const { client, get } = fakeOpenAlex(() => (++n < 3 ? busy429() : { results: [] }));
-    await expect(withRetry({ sleep })(client).get('/works', { search: 'x' })).resolves.toMatchObject({ status: 200 });
+    await expect(through(withRetry<Req>({ sleep }), client).get('/works', { search: 'x' })).resolves.toMatchObject({ status: 200 });
     expect(get).toHaveBeenCalledTimes(3);
     expect(sleep).toHaveBeenCalledTimes(2);
   });
 
   it('gives up after the set number of tries', async () => {
     const { client, get } = fakeOpenAlex(() => busy429());
-    await expect(withRetry({ tries: 3, sleep: async () => {} })(client).get('/works')).rejects.toMatchObject({ code: 'busy' });
+    await expect(through(withRetry<Req>({ tries: 3, sleep: async () => {} }), client).get('/works')).rejects.toMatchObject({ code: 'busy' });
     expect(get).toHaveBeenCalledTimes(3);
   });
 
   it('does not retry other errors, or our own busy answers', async () => {
-    for (const err of [new PapersError('unavailable', 'x'), new PapersError('busy', 'queue', { reason: 'queue_full' }), new PapersError('budget', 'x', { status: 429 })]) {
+    for (const err of [new ProviderError('unavailable', 'x'), new ProviderError('busy', 'queue', { reason: 'queue_full' }), new ProviderError('budget', 'x', { status: 429 })]) {
       const { client, get } = fakeOpenAlex(() => err);
-      await expect(withRetry({ sleep: async () => {} })(client).get('/works')).rejects.toBe(err);
+      await expect(through(withRetry<Req>({ sleep: async () => {} }), client).get('/works')).rejects.toBe(err);
       expect(get).toHaveBeenCalledTimes(1);
     }
   });
 });
 
-describe('per-user daily limit', () => {
-  it('reserves, refuses past the limit, and gives back unused searches', async () => {
-    const usage = memoryUsage();
-    const a = await reserveSearches(usage, 'u1', 2, 3, NOW);
-    expect(await usage.used('u1', '2026-11-18')).toBe(2);
-    await a.settle(1); // a cache hit saved one
-    expect(await usage.used('u1', '2026-11-18')).toBe(1);
-
-    await reserveSearches(usage, 'u1', 2, 3, NOW);
-    const e = await reserveSearches(usage, 'u1', 1, 3, NOW).catch((x) => x);
-    expect(e).toMatchObject({ code: 'user_limit', details: { resetsAt: '2026-11-19T00:00:00.000Z', limit: 3 } });
-    expect(await usage.used('u2', '2026-11-18')).toBe(0);
-  });
-
-  it('resets the next UTC day and ignores zero-search requests', async () => {
-    const usage = memoryUsage();
-    await reserveSearches(usage, 'u1', 3, 3, NOW);
-    await expect(reserveSearches(usage, 'u1', 1, 3, NOW + 3 * 3_600_000)).resolves.toMatchObject({ reserved: 1 });
-    await expect(reserveSearches(usage, 'u1', 0, 3, NOW)).resolves.toMatchObject({ reserved: 0 });
-  });
-
-  it('tells the user when the limit resets', () => {
-    expect(resetsIn('2026-11-19T00:00:00.000Z', NOW)).toBe('in about 3 hours');
-    expect(resetsIn('2026-11-19T00:00:00.000Z', Date.UTC(2026, 10, 18, 23, 35))).toBe('in 25 minutes');
-    const e = new PapersError('user_limit', 'x', { resetsAt: '2026-11-19T00:00:00.000Z' });
-    expect(userMessage(e, NOW)).toBe("You've reached today's search limit. It resets at midnight UTC (in about 3 hours).");
-  });
-});
-
-describe('the full guard stack', () => {
+describe('the full gateway', () => {
   function stack() {
     const { client, get } = fakeOpenAlex();
     const spend = memorySpend();
     const deps = {
-      client,
-      config: CONFIG,
+      transport: client,
+      policy: POLICY,
       cache: memoryCache(() => NOW),
       spend,
       slots: memorySlots(),
@@ -281,17 +272,17 @@ describe('the full guard stack', () => {
     return { deps, get, spend };
   }
 
-  it('meters only calls that reach OpenAlex and logs their cost', async () => {
+  it('meters only calls that reach the provider and logs their cost', async () => {
     const { deps, get, spend } = stack();
     const m1 = newMeter();
-    await guardedClient(deps, m1).get('/works', { search: 'x' });
-    await guardedClient(deps, m1).get('/works', { 'search.semantic': 'x' });
+    await asClient(gateway(deps, m1)).get('/works', { search: 'x' });
+    await asClient(gateway(deps, m1)).get('/works', { 'search.semantic': 'x' });
     expect(m1).toEqual({ searches: 2, costUsd: 0.002, calls: 2 });
 
     const m2 = newMeter();
-    await guardedClient(deps, m2).get('/works', { search: 'x' });
+    await asClient(gateway(deps, m2)).get('/works', { search: 'x' });
     expect(m2).toEqual({ searches: 0, costUsd: 0, calls: 0 });
     expect(get).toHaveBeenCalledTimes(2);
-    expect(await spend.spent('2026-11-18')).toBeCloseTo(0.002);
+    expect(await spend.spent('openalex', '2026-11-18')).toBeCloseTo(0.002);
   });
 });

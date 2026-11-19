@@ -1,5 +1,5 @@
-import type { OpenAlexClient } from '@/lib/papers/openalex/client';
 import type { Paper } from '@/lib/papers/types';
+import type { PaperSource } from '@/lib/providers/papers/types';
 import { tx, type Db, type Queryable } from '../db';
 import { ShelfError } from '../errors';
 import type { ImportEntry } from '../import/types';
@@ -20,7 +20,7 @@ import { shelveLean } from './shelve';
 export const IMPORT_BATCH = 50;
 const MAX_LOOKUP_FAILURES = 3;
 
-export type ImportRunDeps = { db: Db; client: OpenAlexClient; now?: () => number };
+export type ImportRunDeps = { db: Db; papers: PaperSource; now?: () => number };
 export type SliceResult = 'done' | 'more' | 'waiting' | 'busy';
 
 export function entryDetails(e: ImportEntry): Omit<Paper, 'id' | 'openalexId'> {
@@ -95,7 +95,7 @@ export async function runClaimedImport(deps: ImportRunDeps, job: ClaimedImport, 
       const dois = batch.map((b) => b.data.doi).filter((d): d is string => !!d);
       if (dois.length && failures < MAX_LOOKUP_FAILURES) {
         try {
-          found = await lookupDois(deps.client, dois);
+          found = await lookupDois(deps.papers, dois);
         } catch (e) {
           if (!papersErrorCode(e)) throw e;
           failures = await noteLookupFailure(deps.db, job.id);

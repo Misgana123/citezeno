@@ -17,7 +17,7 @@ export const GET = shelfRoute(async ({ db, userId }) => json({ imports: await re
 export const POST = shelfRoute(async (ctx) => {
   const body = await ctx.body(importBody);
   const id = await startImport(ctx.db, ctx.config, ctx.userId, body);
-  const client = ctx.openalex();
-  after(() => runImportSlice({ db: ctx.db, client }, { id, budgetMs: 45_000 }).catch((e) => console.error('[citezeno] shelf: import run failed', e)));
+  const papers = ctx.papers();
+  after(() => runImportSlice({ db: ctx.db, papers }, { id, budgetMs: 45_000 }).catch((e) => console.error('[citezeno] shelf: import run failed', e)));
   return json(await getImport(ctx.db, ctx.userId, id), 201);
 });

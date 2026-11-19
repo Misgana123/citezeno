@@ -205,9 +205,26 @@ Every user's personal library of papers, at `/shelf` (named Shelf because "libra
 - **Tables**: `npm run db:migrate` creates the `shelf_*` tables. Deleting an account removes the whole shelf.
 - **PDF storage (Cloudinary)**: set `CLOUDINARY_URL` (Cloudinary → Settings → API Keys → "API environment variable") and turn on Settings → Security → "Allow delivery of PDF and ZIP files". Files are private ("authenticated") and downloaded through links that expire after five minutes. The browser uploads straight to Cloudinary with a signed form, because Vercel caps request bodies at 4.5 MB. Without `CLOUDINARY_URL`, uploads are switched off with a clear message.
 - **Background work (Vercel Cron)**: `vercel.json` calls `/api/shelf/cron` every minute (needs Vercel Pro). Set `CRON_SECRET` to any long random string; Vercel sends it, and the route refuses calls without it. Each run works through imports, removes deleted PDFs from storage, rechecks saved papers with OpenAlex (citations, retractions) and clears abandoned uploads.
-- **OpenAlex**: every call goes through Find Papers' cache, rate limiter, cost log and daily cap. Title searches count toward the user's daily search limit.
+- **Paper data**: comes from the paper source (see Providers below), through the same gateway as Find Papers: cache, rate limiter, cost log and daily cap. Title searches count toward the user's daily search limit.
 - **Limits**: `SHELF_PDF_MAX_MB`, `SHELF_STORAGE_MB`, `SHELF_UPLOADS_PER_DAY`, `SHELF_IMPORT_MAX_MB`, `SHELF_IMPORT_MAX_ENTRIES`, `SHELF_REFRESH_DAYS`, `SHELF_REFRESH_BATCHES` (see `.env.example`).
 - **Tests**: the Shelf database tests run against a throwaway schema when `TEST_DATABASE_URL` is set (for example to your local `DATABASE_URL`); without it they are skipped.
+
+## Providers
+
+Every outside service a feature depends on is a **provider**, plugged in by the **job** it does, in `lib/providers/`. Features ask for the job ("the paper source"), never for a vendor. The chain is always: feature → service → gateway → provider.
+
+| Job | Interface | Providers today | Chosen by |
+|---|---|---|---|
+| Paper data | `PaperSource` (`papers/types.ts`) | `openalex` | `PAPER_PROVIDERS` (comma-separated, primary first; default `openalex`) |
+| File storage | `FileStore` (`storage/types.ts`) | `cloudinary` | `FILE_STORAGE_PROVIDER` (default `cloudinary`) |
+| PDF text | `PdfTextReader` (`pdf-text/types.ts`) | `basic` (our own reader) | `PDF_TEXT_PROVIDER` (default `basic`) |
+
+- **Paper sources** return the Citezeno `Paper` format. Search, single lookups (ID, DOI, PMID, PMCID) are required; search by meaning, references, cited-by, "similar" and batch lookups are optional capabilities (`supports(source, 'semantic_search')`). Features adapt when a source lacks one: Smart mode falls back to keyword results, batch lookups to one-by-one. With several sources enabled, keyword search uses the primary and search by meaning the first source that offers it (`PaperSources.withCapability`).
+- **The gateway** (`gateway/`) is the one place outside calls go through: per-provider cache, rate limit and queue, retries with backoff for 429s, shared per-second slots, cost logging, daily spending alerts and hard caps (`provider_spend` table), and one set of errors (`ProviderError`). What a call means (priced search? cacheable? paced?) comes from each provider's policy.
+- **Adding a provider**: write an adapter in `lib/providers/<name>/` that implements the job's interface and makes its outside calls through the `gate` it is given, add it to that job's `registry.ts`, and list its name in the job's environment variable. No feature code changes. A second paper provider with its own paper IDs will also need a provider-qualified paper ID (today `Paper.id` is the OpenAlex work ID, and the shelf stores it).
+- **Enforced by tests**: `tests/providers/boundaries.test.ts` fails if app code outside `lib/providers/` names an outside API address, imports a vendor SDK or imports an adapter directly.
+- **Exempt**: the citation feature's browser-side searches in `lib/sources.ts` (OpenAlex, Crossref, Open Library, Wikipedia) are unchanged. Infrastructure (Better Auth, Polar, Resend, Postgres, Vercel) isn't a provider job.
+- **Upgrading**: run `npm run db:migrate` once to create `provider_spend` (today's OpenAlex spending is carried over from `papers_spend`).
 
 ## Optional settings
 

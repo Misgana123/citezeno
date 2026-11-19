@@ -1,6 +1,6 @@
 import { PapersError } from '../errors';
 import type { UsageStore } from '../store/types';
-import { nextUtcMidnight, utcDay } from './day';
+import { nextUtcMidnight, utcDay } from '@/lib/providers/gateway/day';
 
 /* Each signed-in user's daily search limit (PAPERS_DAILY_SEARCHES).
    A request reserves the searches it may run before it starts, and gives back

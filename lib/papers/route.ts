@@ -3,22 +3,25 @@ import { auth } from '@/lib/auth';
 import { allow } from '@/lib/ratelimit';
 import type { PapersConfig } from './config';
 import { PapersError } from './errors';
-import { newMeter } from './guard/meter';
-import { guardedClient } from './guard/stack';
+import { newMeter } from '@/lib/providers/gateway/meter';
+import type { PaperSources } from '@/lib/providers/papers/sources';
+import type { PaperSource } from '@/lib/providers/papers/types';
 import { reserveSearches, type Reservation } from './guard/usage';
-import type { OpenAlexClient } from './openalex/client';
 import { parsePaperId } from './related/paper';
 import { errorResponse, signedOut } from './respond';
 import { parseSearchRequest, type SearchRequest } from './search/request';
 import { papersServer } from './server';
 
 /* Wraps every /api/papers handler: signed-in users only, a per-user request
-   rate, the guarded OpenAlex client, the daily search limit, and every error
-   turned into a friendly JSON response. */
+   rate, the paper sources (through the gateway), the daily search limit, and
+   every error turned into a friendly JSON response. */
 export type PapersContext = {
   req: Request;
   userId: string;
-  client: OpenAlexClient;
+  /* The primary paper source. */
+  papers: PaperSource;
+  /* Every enabled paper source, for features that use more than one. */
+  sources: PaperSources;
   config: PapersConfig;
   /* The validated search settings from the query string. */
   search(opts?: { requireQuery?: boolean }): SearchRequest;
@@ -40,13 +43,15 @@ export function papersRoute<P = Record<string, never>>(handler: (ctx: PapersCont
         throw new PapersError('busy', 'Too many requests from this user.', { reason: 'user_rate', retryAfterS: 30 });
       }
       const server = papersServer();
-      const { config } = server.guard;
+      const { config } = server;
+      const sources = server.sources(meter);
       const query = new URL(req.url).searchParams;
       return await handler(
         {
           req,
           userId: s.user.id,
-          client: guardedClient(server.guard, meter),
+          papers: sources.primary,
+          sources,
           config,
           search: (opts = {}) => parseSearchRequest(query, { ...opts, maxQueryChars: config.maxQueryChars }),
           reserve: async (n) => {

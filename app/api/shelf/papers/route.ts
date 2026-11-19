@@ -24,6 +24,6 @@ export const POST = shelfRoute(async (ctx) => {
     const item = await saveManualPaper(ctx.db, ctx.userId, body.details, body.projectId);
     return json(await savedResponse(ctx.db, ctx.userId, item), 201);
   }
-  const { item, pending } = await saveOpenAlexPaper({ db: ctx.db, client: ctx.openalex() }, ctx.userId, body);
+  const { item, pending } = await saveOpenAlexPaper({ db: ctx.db, papers: ctx.papers() }, ctx.userId, body);
   return json(await savedResponse(ctx.db, ctx.userId, item, pending), 201);
 });

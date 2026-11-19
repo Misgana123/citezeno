@@ -1,3 +1,5 @@
+import { isProviderError } from '@/lib/providers/errors';
+
 /* Every Find Papers failure becomes a PapersError with a code the API route
    turns into a status and the UI turns into a friendly message. */
 
@@ -21,6 +23,16 @@ export class PapersError extends Error {
 }
 
 export const isPapersError = (e: unknown): e is PapersError => e instanceof PapersError;
+
+/* A paper provider's error in Find Papers' terms. Something the active
+   provider can't do becomes a bad request the user can read. Anything else is
+   returned as it is. */
+export function toPapersError(e: unknown): unknown {
+  if (!isProviderError(e)) return e;
+  const { provider: _provider, ...details } = e.details ?? {};
+  if (e.code === 'unsupported') return new PapersError('bad_request', e.message, details);
+  return new PapersError(e.code, e.message, details);
+}
 
 export const HTTP_STATUS: Record<PapersErrorCode, number> = {
   bad_request: 400,

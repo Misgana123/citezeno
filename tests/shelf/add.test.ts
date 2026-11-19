@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { PapersError } from '@/lib/papers/errors';
-import type { OpenAlexClient, QueryParams } from '@/lib/papers/openalex/client';
+import { ProviderError } from '@/lib/providers/errors';
+import type { QueryParams } from '@/lib/providers/openalex/client';
+import { openAlexOver } from '../papers/fake-openalex';
 import { manualDetails, manualPaperSchema } from '@/lib/shelf/api/manual-schema';
 import { parseInput } from '@/lib/shelf/lookup/parse-input';
 import { resolveInput } from '@/lib/shelf/lookup/resolve';
@@ -45,7 +46,7 @@ function fakeClient(impl: (path: string, params: QueryParams) => unknown) {
     if (body instanceof Error) throw body;
     return { body, costUsd: 0, status: 200 };
   });
-  return { client: { get } as unknown as OpenAlexClient, get };
+  return { client: openAlexOver(get as never), get };
 }
 
 describe('looking papers up', () => {
@@ -67,13 +68,13 @@ describe('looking papers up', () => {
   });
 
   it('explains a missing DOI and an unreadable link', async () => {
-    const { client } = fakeClient(() => new PapersError('not_found', 'nope'));
+    const { client } = fakeClient(() => new ProviderError('not_found', 'nope'));
     await expect(resolveInput(client, parseInput('10.9999/missing'))).rejects.toMatchObject({ code: 'not_found', message: expect.stringContaining('couldn’t find this DOI') });
     await expect(resolveInput(client, parseInput('https://example.com/x'))).rejects.toMatchObject({ code: 'bad_request', message: expect.stringContaining('couldn’t read a paper from this link') });
   });
 
   it('passes OpenAlex outages through', async () => {
-    const { client } = fakeClient(() => new PapersError('unavailable', 'down'));
+    const { client } = fakeClient(() => new ProviderError('unavailable', 'down'));
     await expect(resolveInput(client, parseInput('10.1234/x'))).rejects.toMatchObject({ code: 'unavailable' });
   });
 });
@@ -116,7 +117,7 @@ describe.skipIf(!TEST_DB_URL)('adding by hand and editing (Postgres)', () => {
 
   it('saves a looked-up paper with how it was found', async () => {
     const { client } = fakeClient(() => work('W77'));
-    const r = await saveOpenAlexPaper({ db: db.pool, client }, user, { paperId: 'W77', via: 'link' });
+    const r = await saveOpenAlexPaper({ db: db.pool, papers: client }, user, { paperId: 'W77', via: 'link' });
     expect(r.item.addedVia).toBe('link');
   });
 
@@ -124,7 +125,7 @@ describe.skipIf(!TEST_DB_URL)('adding by hand and editing (Postgres)', () => {
     const item = await saveManualPaper(db.pool, user, input({ title: 'Typo' }));
     expect((await editDetails(db.pool, user, item.id, input({ title: 'Fixed' }))).paper.title).toBe('Fixed');
     const { client } = fakeClient(() => work('W78'));
-    const oa = (await saveOpenAlexPaper({ db: db.pool, client }, user, { paperId: 'W78' })).item;
+    const oa = (await saveOpenAlexPaper({ db: db.pool, papers: client }, user, { paperId: 'W78' })).item;
     await expect(editDetails(db.pool, user, oa.id, input())).rejects.toMatchObject({ code: 'bad_request' });
     await expect(editDetails(db.pool, user, item.id, input({ doi: '10.1000/w78' }))).rejects.toMatchObject({ code: 'duplicate' });
     const stranger = await db.addUser();

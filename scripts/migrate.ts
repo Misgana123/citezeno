@@ -120,6 +120,24 @@ create table if not exists papers_slot (
   key       text   primary key,
   "nextAt"  bigint not null
 );
+
+-- Provider gateway (v8): spending per provider per UTC day (totals only: no
+-- queries, no users). papers_cache and papers_slot above now serve every
+-- provider, with keys that start with the provider's name.
+create table if not exists provider_spend (
+  provider    text             not null,
+  day         text             not null,
+  usd         double precision not null default 0,
+  calls       integer          not null default 0,
+  searches    integer          not null default 0,
+  "alertedAt" timestamptz,
+  "cappedAt"  timestamptz,
+  primary key (provider, day)
+);
+-- carry OpenAlex's spending over from before the gateway (papers_spend is no longer written)
+insert into provider_spend (provider, day, usd, calls, searches, "alertedAt", "cappedAt")
+  select 'openalex', day, usd, calls, searches, "alertedAt", "cappedAt" from papers_spend
+  on conflict (provider, day) do nothing;
 `;
 
 async function main() {
@@ -134,7 +152,7 @@ async function main() {
   }
   await pool.query(APP_SQL);
   await pool.query(SHELF_SQL);
-  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity, papers, shelf).');
+  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity, papers, provider gateway, shelf).');
 }
 
 main()

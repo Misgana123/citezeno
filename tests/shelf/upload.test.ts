@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { OpenAlexClient } from '@/lib/papers/openalex/client';
+import { basicPdfReader } from '@/lib/providers/basic-pdf';
+import { openAlexOver } from '../papers/fake-openalex';
 import { shelfConfig } from '@/lib/shelf/config';
 import { mergeItems } from '@/lib/shelf/service/merge';
 import { beginUpload, completeUpload, confirmUpload, type PdfDeps, type MatchDeps } from '@/lib/shelf/service/pdf-upload';
 import { emptyTrash } from '@/lib/shelf/service/trash';
 import { saveManualPaper } from '@/lib/shelf/service/save-manual';
-import { memoryStore } from '@/lib/shelf/storage/memory';
+import { memoryStore } from '@/lib/providers/storage/memory';
 import { addItem, deleteItems, getItem, listItems } from '@/lib/shelf/store/items';
 import { deleteAbandoned, getPdfRow } from '@/lib/shelf/store/pdfs';
 import { putShared } from '@/lib/shelf/store/papers';
@@ -24,7 +25,7 @@ describe.skipIf(!TEST_DB_URL)('PDF uploads (Postgres + memory storage)', () => {
     if (path === '/works/doi:10.5555/rivers.2020') return { body: work('W900', '10.5555/rivers.2020'), costUsd: 0, status: 200 };
     if (path === '/works/W900') return { body: work('W900', '10.5555/rivers.2020'), costUsd: 0, status: 200 };
     if (path === '/works') return { body: { results: [work('W901', '10.1/x')] }, costUsd: 0.001, status: 200 };
-    throw Object.assign(new Error('nf'), { name: 'PapersError', code: 'not_found' });
+    throw Object.assign(new Error('nf'), { name: 'ProviderError', code: 'not_found' });
   });
   const reserveSearch = vi.fn(async () => {});
   let uploadsLeft = 100;
@@ -33,7 +34,8 @@ describe.skipIf(!TEST_DB_URL)('PDF uploads (Postgres + memory storage)', () => {
     store,
     config,
     allowUpload: async () => uploadsLeft-- > 0,
-    client: () => ({ get }) as unknown as OpenAlexClient,
+    papers: () => openAlexOver(get as never),
+    pdfText: basicPdfReader,
     reserveSearch,
   });
 
@@ -74,14 +76,14 @@ describe.skipIf(!TEST_DB_URL)('PDF uploads (Postgres + memory storage)', () => {
     const r = await upload(paperPdf());
     expect(r.match).toMatchObject({ matching: 'doi', found: { doi: '10.5555/rivers.2020', title: 'Rivers and floods in a changing climate' }, candidates: [{ id: 'W900' }] });
     expect(reserveSearch).not.toHaveBeenCalled();
-    const item = await confirmUpload({ db: db.pool, client: deps().client }, user, r.pdf.id, { paperId: 'W900' });
+    const item = await confirmUpload({ db: db.pool, papers: deps().papers }, user, r.pdf.id, { paperId: 'W900' });
     expect(item).toMatchObject({ addedVia: 'upload', paper: { id: 'W900' }, pdfs: [{ id: r.pdf.id, pageCount: 2 }] });
   });
 
   it('a second copy of a saved paper attaches to it', async () => {
     const r = await upload(paperPdf());
     expect(r.match?.saved).toMatchObject({ W900: expect.any(String) });
-    const item = await confirmUpload({ db: db.pool, client: deps().client }, user, r.pdf.id, { paperId: 'W900' });
+    const item = await confirmUpload({ db: db.pool, papers: deps().papers }, user, r.pdf.id, { paperId: 'W900' });
     expect(item.pdfs).toHaveLength(2);
   });
 
@@ -89,7 +91,7 @@ describe.skipIf(!TEST_DB_URL)('PDF uploads (Postgres + memory storage)', () => {
     const r = await upload(paperPdf({ doi: '10.9999/unknown.1' }));
     expect(reserveSearch).toHaveBeenCalledTimes(1);
     expect(r.match).toMatchObject({ matching: 'title', candidates: [{ id: 'W901' }] });
-    const item = await confirmUpload({ db: db.pool, client: deps().client }, user, r.pdf.id, { details: { title: 'Typed title', authors: [], year: 2020, source: null, url: null, doi: null, type: null, abstract: null } });
+    const item = await confirmUpload({ db: db.pool, papers: deps().papers }, user, r.pdf.id, { details: { title: 'Typed title', authors: [], year: 2020, source: null, url: null, doi: null, type: null, abstract: null } });
     expect(item).toMatchObject({ addedVia: 'upload', paper: { origin: 'manual', title: 'Typed title' } });
   });
 
@@ -106,7 +108,7 @@ describe.skipIf(!TEST_DB_URL)('PDF uploads (Postgres + memory storage)', () => {
     const stranger = await db.addUser();
     await expect(beginUpload(deps(), stranger, { fileName: 'x.pdf', sizeBytes: 10, itemId: own.id })).rejects.toMatchObject({ code: 'not_found' });
     const theirs = await upload(paperPdf(), { userId: stranger });
-    await expect(confirmUpload({ db: db.pool, client: deps().client }, stranger, theirs.pdf.id, { itemId: own.id })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(confirmUpload({ db: db.pool, papers: deps().papers }, stranger, theirs.pdf.id, { itemId: own.id })).rejects.toMatchObject({ code: 'not_found' });
     await expect(completeUpload(deps(), stranger, r.pdf.id)).rejects.toMatchObject({ code: 'not_found' });
   });
 

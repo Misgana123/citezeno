@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { PaperFilters } from '@/lib/providers/papers/types';
 import { PapersError } from '../errors';
 import { MAX_INPUT_CHARS, MAX_PAGE, MIN_YEAR, SEARCH_MODES, SORTS, WORK_TYPES, type SearchMode, type SortKey, type WorkType } from './options';
 import { capText, DEFAULT_QUERY_CHARS } from './query-length';
@@ -9,16 +10,8 @@ import { capText, DEFAULT_QUERY_CHARS } from './query-length';
 export { MAX_INPUT_CHARS, MAX_PAGE, MIN_YEAR, SEARCH_MODES, SORTS, WORK_TYPES };
 export type { SearchMode, SortKey, WorkType };
 
-export type SearchFilters = {
-  yearFrom: number | null;
-  yearTo: number | null;
-  openAccess: boolean;
-  types: WorkType[];
-  language: string | null; // ISO 639-1, e.g. "en"
-  hasAbstract: boolean;
-  hideRetracted: boolean;
-  minCitations: number | null;
-};
+/* The filters every paper provider takes (lib/providers/papers/types.ts). */
+export type SearchFilters = PaperFilters;
 
 export type SearchRequest = {
   query: string; // trimmed and capped at the configured search length

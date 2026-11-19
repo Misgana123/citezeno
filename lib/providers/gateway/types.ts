@@ -1,0 +1,47 @@
+/* The gateway's building blocks. A provider adapter makes its raw calls through
+   a Transport; the gateway wraps that Transport in layers (cache, cost log,
+   limits, retries…) that know nothing about the vendor. What a call means for
+   those layers comes from the adapter's policy. */
+
+/* One raw call's answer, with what the provider charged for it. */
+export type ProviderResponse<T> = { body: T; costUsd: number; status: number };
+
+/* Makes a provider's raw calls. `Req` is the adapter's own request shape. */
+export interface Transport<Req> {
+  call<T>(req: Req): Promise<ProviderResponse<T>>;
+}
+
+/* A gateway layer wraps one transport in another with the same shape. */
+export type Layer<Req> = (inner: Transport<Req>) => Transport<Req>;
+
+/* What one call means to the gateway. */
+export type CallInfo = {
+  /* Priced per search by the provider, and counted toward users' daily search limits. */
+  search: boolean;
+  /* Cache key for this call (no readable request text), or null to skip the cache. */
+  cacheKey: string | null;
+  cacheTtlS: number;
+  /* A shared slot this call must take first, for a provider's per-second limit. */
+  pace?: { key: string; intervalMs: number; maxWaitMs: number };
+};
+
+export type SpendLimits = {
+  dailyAlertUsd: number;
+  dailyCapUsd: number;
+  /* Where an admin changes the limits, for the alert message. */
+  configHint: string;
+};
+
+/* Everything the gateway needs to know about one provider. */
+export type GatewayPolicy<Req> = {
+  provider: string; // registry name, e.g. "openalex"
+  label: string; // for logs and alerts, e.g. "OpenAlex"
+  describe(req: Req): CallInfo;
+  /* Daily spending alert and hard cap; null for providers not billed per call. */
+  spend: SpendLimits | null;
+  /* Calls at once, and how many may wait, before callers get "busy". */
+  concurrency: number;
+  maxQueue: number;
+  /* Attempts in all for rate-limited (429) calls. */
+  retryTries: number;
+};

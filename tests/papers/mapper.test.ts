@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { rebuildAbstract } from '@/lib/papers/abstract';
+import { rebuildAbstract } from '@/lib/providers/openalex/abstract';
 import { toDoi, toOrcid, toWorkId } from '@/lib/papers/ids';
-import { toPaper, toPapers } from '@/lib/papers/mapper';
-import type { OpenAlexWork } from '@/lib/papers/openalex/types';
+import { toPaper, toPapers } from '@/lib/providers/openalex/mapper';
+import type { OpenAlexWork } from '@/lib/providers/openalex/types';
 
 const WORK: OpenAlexWork = {
   id: 'https://openalex.org/W2741809807',

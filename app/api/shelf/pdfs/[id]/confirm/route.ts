@@ -10,6 +10,6 @@ export const dynamic = 'force-dynamic';
 /* Which paper the PDF is: an OpenAlex match, a paper already on the shelf, or details typed in. */
 export const POST = shelfRoute<{ id: string }>(async (ctx, { id }) => {
   const choice = await ctx.body(pdfConfirmBody);
-  const item = await confirmUpload({ db: ctx.db, client: ctx.openalex }, ctx.userId, id, choice);
+  const item = await confirmUpload({ db: ctx.db, papers: ctx.papers }, ctx.userId, id, choice);
   return json(await savedResponse(ctx.db, ctx.userId, item));
 });

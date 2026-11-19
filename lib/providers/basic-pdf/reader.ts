@@ -10,13 +10,9 @@ import { inflateSync } from 'node:zlib';
    through each font's ToUnicode table. It does not measure glyphs, so spacing
    on unusual layouts can be rough. Scanned PDFs (pictures of pages) have no text. */
 
-export type PdfInfo = {
-  pageCount: number | null;
-  title: string | null;
-  doi: string | null;
-  /* the document's text, pages in order; '' for scanned PDFs */
-  text: string;
-};
+import type { PdfText } from '../pdf-text/types';
+
+export type PdfInfo = PdfText;
 
 const MAX_TEXT = 2_000_000;
 const MAX_OBJECTS = 200_000;

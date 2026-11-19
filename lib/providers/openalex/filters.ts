@@ -1,4 +1,4 @@
-import type { SearchFilters, SortKey } from './request';
+import type { PaperFilters as SearchFilters, PaperSort as SortKey } from '../papers/types';
 
 /* SearchFilters → OpenAlex `filter=` and `sort=` values. */
 

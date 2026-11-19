@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { OpenAlexClient, QueryParams } from '@/lib/papers/openalex/client';
+import type { QueryParams } from '@/lib/providers/openalex/client';
+import { openAlexOver } from '../papers/fake-openalex';
 import { papersToRefresh, refreshPapers } from '@/lib/shelf/service/refresh';
 import { addItem, getItem } from '@/lib/shelf/store/items';
 import { markNoticesRead, unreadNotices } from '@/lib/shelf/store/notices';
@@ -42,7 +43,7 @@ describe.skipIf(!TEST_DB_URL)('keeping saved papers up to date (Postgres)', () =
       // W1 is gone from OpenAlex; W2 has been retracted
       return { body: { results: ids.filter((id) => id !== 'W1').map((id) => work(id, id === 'W2' ? { is_retracted: true } : {})) }, costUsd: 0.0001, status: 200 };
     });
-    const r = await refreshPapers(db.pool, { get } as unknown as OpenAlexClient, { olderThanDays: 7, batches: 5, deadline: Date.now() + 10_000 });
+    const r = await refreshPapers(db.pool, openAlexOver(get as never), { olderThanDays: 7, batches: 5, deadline: Date.now() + 10_000 });
     expect(r).toEqual({ refreshed: 2, newlyRetracted: 1, notices: 2, missing: 1 });
     expect(get).toHaveBeenCalledTimes(1);
     expect(get.mock.calls[0][1]).toMatchObject({ per_page: 50 });
@@ -51,7 +52,7 @@ describe.skipIf(!TEST_DB_URL)('keeping saved papers up to date (Postgres)', () =
     expect(rows[0].refreshDue).toBe(false);
 
     // nothing more is due, so a second run asks OpenAlex nothing
-    await refreshPapers(db.pool, { get } as unknown as OpenAlexClient, { olderThanDays: 7, batches: 5, deadline: Date.now() + 10_000 });
+    await refreshPapers(db.pool, openAlexOver(get as never), { olderThanDays: 7, batches: 5, deadline: Date.now() + 10_000 });
     expect(get).toHaveBeenCalledTimes(1);
   });
 
@@ -68,7 +69,7 @@ describe.skipIf(!TEST_DB_URL)('keeping saved papers up to date (Postgres)', () =
   it('an already retracted paper does not notify again', async () => {
     await age('W2', 10);
     const get = vi.fn(async () => ({ body: { results: [work('W2', { is_retracted: true })] }, costUsd: 0, status: 200 }));
-    const r = await refreshPapers(db.pool, { get } as unknown as OpenAlexClient, { olderThanDays: 7, batches: 1, deadline: Date.now() + 10_000 });
+    const r = await refreshPapers(db.pool, openAlexOver(get as never), { olderThanDays: 7, batches: 1, deadline: Date.now() + 10_000 });
     expect(r.newlyRetracted).toBe(0);
   });
 });

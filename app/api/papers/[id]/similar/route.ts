@@ -6,9 +6,9 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /* "More like this": papers close in meaning to this one (one semantic search). */
-export const GET = paperIdRoute(async ({ client, config, search, reserve }, id) => {
+export const GET = paperIdRoute(async ({ sources, config, search, reserve }, id) => {
   const request = search({ requireQuery: false });
   await reserve(1);
-  const { list } = await similarTo(client, id, request, config.maxQueryChars);
+  const { list } = await similarTo(sources, id, request, config.maxQueryChars);
   return json(list);
 });

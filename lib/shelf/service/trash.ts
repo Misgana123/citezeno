@@ -1,5 +1,5 @@
 import type { Db } from '../db';
-import type { FileStore } from '../storage/types';
+import type { FileStore } from '@/lib/providers/storage/types';
 import { settleTrash, takeTrash } from '../store/pdfs';
 
 /* Remove queued files from storage. Failures are retried on later runs. */

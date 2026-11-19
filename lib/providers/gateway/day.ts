@@ -1,4 +1,4 @@
-/* OpenAlex budgets and our daily limits reset at midnight UTC. */
+/* Provider budgets and our daily limits reset at midnight UTC. */
 
 export const utcDay = (now: number) => new Date(now).toISOString().slice(0, 10);
 

@@ -1,9 +1,9 @@
 import { timingSafeEqual } from 'node:crypto';
 import { pool } from '@/lib/db';
 import { json } from '@/lib/http';
-import { backgroundClient } from '@/lib/shelf/jobs/client';
+import { backgroundPapers } from '@/lib/shelf/jobs/client';
 import { DEFAULT_STEPS, runShelfJobs } from '@/lib/shelf/jobs/runner';
-import { fileStore } from '@/lib/shelf/storage';
+import { fileStorage } from '@/lib/providers/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,6 +21,6 @@ function authorized(req: Request): boolean {
 
 export async function GET(req: Request) {
   if (!authorized(req)) return json({ error: 'Not allowed.' }, 401);
-  const report = await runShelfJobs({ db: pool, client: backgroundClient, store: fileStore() }, 50_000, DEFAULT_STEPS);
+  const report = await runShelfJobs({ db: pool, papers: backgroundPapers, store: fileStorage() }, 50_000, DEFAULT_STEPS);
   return json({ ok: true, ...report });
 }

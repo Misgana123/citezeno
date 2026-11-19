@@ -1,9 +1,8 @@
-import { isPapersError } from '../errors';
-import type { QueryParams } from '../openalex/client';
-import type { Layer } from './call';
+import { isProviderError } from '../errors';
 import { sleep as realSleep, type Sleep } from './pacer';
+import type { Layer } from './types';
 
-/* Retry OpenAlex's per-second 429s: wait Retry-After (or back off 1s, 2s, 4s…)
+/* Retry a provider's per-second 429s: wait Retry-After (or back off 1s, 2s, 4s…)
    and try again, up to `tries` attempts in all. Anything else fails at once. */
 
 export const DEFAULT_TRIES = 3;
@@ -14,19 +13,19 @@ export function backoffMs(attempt: number, retryAfterS?: number) {
   return Math.min(MAX_BACKOFF_MS, Math.max(250, ms));
 }
 
-const retriable = (e: unknown) => isPapersError(e) && e.code === 'busy' && e.details.status === 429;
+const retriable = (e: unknown) => isProviderError(e) && e.code === 'busy' && e.details.status === 429;
 
 export const withRetry =
-  (opts: { tries?: number; sleep?: Sleep } = {}): Layer =>
+  <Req>(opts: { tries?: number; sleep?: Sleep } = {}): Layer<Req> =>
   (inner) => ({
-    async get<T>(path: string, params: QueryParams = {}) {
+    async call<T>(req: Req) {
       const tries = opts.tries ?? DEFAULT_TRIES;
       for (let attempt = 1; ; attempt++) {
         try {
-          return await inner.get<T>(path, params);
+          return await inner.call<T>(req);
         } catch (e) {
           if (!retriable(e) || attempt >= tries) throw e;
-          await (opts.sleep ?? realSleep)(backoffMs(attempt, isPapersError(e) ? e.details.retryAfterS : undefined));
+          await (opts.sleep ?? realSleep)(backoffMs(attempt, isProviderError(e) ? e.details.retryAfterS : undefined));
         }
       }
     },

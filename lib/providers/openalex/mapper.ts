@@ -1,7 +1,7 @@
 import { rebuildAbstract } from './abstract';
-import { doiUrl, toDoi, toOrcid, toWorkId } from './ids';
-import type { OpenAlexWork } from './openalex/types';
-import type { Paper } from './types';
+import { doiUrl, toDoi, toOrcid, toWorkId } from '@/lib/papers/ids';
+import type { OpenAlexWork } from './types';
+import type { Paper } from '@/lib/papers/types';
 
 const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
