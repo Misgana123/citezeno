@@ -158,7 +158,7 @@ describe.skipIf(!TEST_DB_URL)('shelf tools (Postgres)', () => {
 
   it('asks before changing many papers at once', async () => {
     const r = await runTool(ctx(), 'organize_papers', { itemIds: Array.from({ length: 11 }, (_, i) => `i_${i}`), action: 'set_status', status: 'done' });
-    expect(r.outcome).toMatchObject({ status: 'needs_confirmation', question: expect.stringContaining('11 papers') });
+    expect(r.outcome).toEqual({ status: 'needs_confirmation', question: 'Mark these 11 papers as done?' });
   });
 
   it('exports a file the user can download', async () => {

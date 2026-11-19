@@ -46,8 +46,15 @@ type CallsResult = { status: 'done'; results: ToolResult[]; steps: StepView[] } 
 async function runCalls(d: LoopDeps, calls: ToolCall[], from: number, results: ToolResult[], steps: StepView[], turns: number, confirmed?: string): Promise<CallsResult> {
   for (let i = from; i < calls.length; i++) {
     const call = calls[i];
-    const run = await runTool(d.ctx, call.name, call.input, { confirmed: call.id === confirmed });
-    d.emit({ type: 'step', callId: call.id, name: call.name, label: run.label, input: run.input });
+    let started = false;
+    const run = await runTool(d.ctx, call.name, call.input, {
+      confirmed: call.id === confirmed,
+      onStart: (label, input) => {
+        started = true;
+        d.emit({ type: 'step', callId: call.id, name: call.name, label, input });
+      },
+    });
+    if (!started) d.emit({ type: 'step', callId: call.id, name: call.name, label: run.label, input: run.input });
     const o = run.outcome;
     if (o.status === 'needs_confirmation') {
       await d.setPending({ calls, results, steps, waiting: { callId: call.id, kind: 'confirm', question: o.question }, turns });

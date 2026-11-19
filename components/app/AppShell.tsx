@@ -12,7 +12,7 @@ import { useShelfNotices } from '../shelf/useShelfNotices';
    (library, history, account, admin): a navigation rail and a top bar, with the
    page scrolling between them. Styles live in app/atelier.css. */
 
-export type AppSection = 'library' | 'history' | 'papers' | 'shelf' | 'account' | 'admin' | null;
+export type AppSection = 'chat' | 'library' | 'history' | 'papers' | 'shelf' | 'account' | 'admin' | null;
 
 /* One destination in the rail. `short` is its caption when the rail is the phone's bottom bar. */
 export function RailLink({ href, icon, label, short, current, cls, badge }: { href: string; icon: IconName; label: string; short?: string; current?: boolean; cls?: string; badge?: number }) {
@@ -56,6 +56,7 @@ export function AppShell({ current, title, children }: { current: AppSection; ti
             <LogoMark className="at-logo-mark" />
           </Link>
           <div className="at-rail-main">
+            <RailLink href="/chat" icon="sparkle" label="Assistant" short="Chat" current={current === 'chat'} />
             <RailLink href="/studio" icon="doc" label="Studio" />
             <RailLink href="/library" icon="history" label="Library" current={current === 'library'} />
             <RailLink href="/history" icon="clock" label="History" current={current === 'history'} />

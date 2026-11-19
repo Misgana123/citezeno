@@ -31,7 +31,8 @@ export function failureMessage(e: unknown): { message: string; code?: string } {
   return { message: 'Something went wrong with this step.', code: 'unavailable' };
 }
 
-export async function runTool(ctx: AgentContext, name: string, rawInput: unknown, opts: { confirmed?: boolean } = {}): Promise<ToolRun> {
+/* onStart: called once the input is valid, before anything runs (to show the step). */
+export async function runTool(ctx: AgentContext, name: string, rawInput: unknown, opts: { confirmed?: boolean; onStart?: (label: string, input: unknown) => void } = {}): Promise<ToolRun> {
   const tool = findTool(name);
   if (!tool) return { tool: null, input: rawInput, label: name, outcome: { status: 'error', message: `There is no tool called "${name}".`, code: 'bad_request' } };
 
@@ -43,6 +44,7 @@ export async function runTool(ctx: AgentContext, name: string, rawInput: unknown
   }
   const input = parsed.data;
   const label = tool.label(input);
+  opts.onStart?.(label, input);
 
   try {
     if (!opts.confirmed && tool.confirm) {

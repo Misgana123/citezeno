@@ -3,11 +3,12 @@ import type { ChatMessage, ChatProvider, ChatRequest, ChatStop, ToolCall } from 
 import type { Transport } from '../gateway/types';
 import type { Env, Gate } from '../types';
 
-/* OpenAI's Chat Completions API (no SDK). OPENAI_API_KEY, server only. */
+/* OpenAI's Chat Completions API (no SDK). OPENAI_API_KEY, server only;
+   OPENAI_BASE_URL (optional) for an OpenAI-compatible gateway. */
 
 export const PROVIDER = 'openai';
 const LABEL = 'OpenAI';
-const URL = 'https://api.openai.com/v1/chat/completions';
+const DEFAULT_BASE = 'https://api.openai.com/v1';
 
 type WireToolCall = { id: string; type: 'function'; function: { name: string; arguments: string } };
 type WireMessage =
@@ -52,13 +53,14 @@ function parseArgs(raw: string): Record<string, unknown> {
 
 const STOP: Record<string, ChatStop> = { stop: 'end', tool_calls: 'tool_use', function_call: 'tool_use', length: 'max_tokens' };
 
-export function openAiChat(apiKey: string, transport: Transport<ChatHttpRequest>): ChatProvider {
+export function openAiChat(apiKey: string, transport: Transport<ChatHttpRequest>, baseUrl = DEFAULT_BASE): ChatProvider {
+  const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
   return {
     name: PROVIDER,
     async complete(req: ChatRequest) {
       const { body, costUsd } = await transport.call<CompletionResponse>({
         model: req.model,
-        url: URL,
+        url,
         headers: { authorization: `Bearer ${apiKey}` },
         body: {
           model: req.model.vendorModel,
@@ -87,5 +89,6 @@ export function openAiChat(apiKey: string, transport: Transport<ChatHttpRequest>
 export function createOpenAiChat(env: Env, gate: Gate, doFetch?: typeof fetch): ChatProvider | null {
   const key = env.OPENAI_API_KEY?.trim();
   if (!key) return null;
-  return openAiChat(key, gate(chatTransport(PROVIDER, LABEL, readUsage, doFetch), chatPolicy(PROVIDER, LABEL, env)));
+  const base = env.OPENAI_BASE_URL?.trim();
+  return openAiChat(key, gate(chatTransport(PROVIDER, LABEL, readUsage, doFetch), chatPolicy(PROVIDER, LABEL, env)), /^https?:\/\//i.test(base ?? '') ? base : undefined);
 }

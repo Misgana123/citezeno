@@ -135,7 +135,7 @@ describe('asking first', () => {
     const h = harness(chat);
     await answer(h.deps, [], 'mark all done');
     expect(h.events.slice(-2)).toEqual([
-      { type: 'confirm', callId: 'c1', question: expect.stringContaining('12 papers'), label: 'Updating 12 papers' },
+      { type: 'confirm', callId: 'c1', question: 'Mark these 12 papers as done?', label: 'Updating 12 papers' },
       { type: 'done', reason: 'waiting' },
     ]);
     const pending = h.pending()!;

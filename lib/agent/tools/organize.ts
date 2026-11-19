@@ -171,6 +171,39 @@ const BULK_ACTION: Record<(typeof ORGANIZE_ACTIONS)[number], string> = {
   set_status: 'status',
 };
 
+const STATUS_WORDS = { to_read: 'to read', reading: 'reading', done: 'done' } as const;
+
+/* The question for a bulk change, in plain words with real names. */
+async function organizeQuestion(
+  ctx: AgentContext,
+  i: { action: (typeof ORGANIZE_ACTIONS)[number]; projectId?: string; folderId?: string; tagIds?: string[]; tagNames?: string[]; status?: keyof typeof STATUS_WORDS },
+  w: string,
+): Promise<string> {
+  const named = async (kind: 'project' | 'folder' | 'tag', id?: string) => (id ? `“${await nameOf(ctx, kind, id).catch(() => 'a deleted ' + kind)}”` : `a ${kind}`);
+  const tags = async () => {
+    const names = [...(i.tagNames ?? []).map((n) => `“${n}”`), ...(await Promise.all((i.tagIds ?? []).map((id) => named('tag', id))))];
+    return names.length ? names.join(', ') : 'tags';
+  };
+  switch (i.action) {
+    case 'move':
+      return i.folderId ? `Move ${w} into the folder ${await named('folder', i.folderId)}?` : i.projectId ? `Move ${w} into the project ${await named('project', i.projectId)}?` : `Take ${w} out of every project?`;
+    case 'add_to_project':
+      return `Add ${w} to the project ${await named('project', i.projectId)}?`;
+    case 'remove_from_project':
+      return `Remove ${w} from the project ${await named('project', i.projectId)}?`;
+    case 'add_to_folder':
+      return `Add ${w} to the folder ${await named('folder', i.folderId)}?`;
+    case 'remove_from_folder':
+      return `Remove ${w} from the folder ${await named('folder', i.folderId)}?`;
+    case 'tag':
+      return `Tag ${w} with ${await tags()}?`;
+    case 'untag':
+      return `Remove ${await tags()} from ${w}?`;
+    case 'set_status':
+      return `Mark ${w} as ${i.status ? STATUS_WORDS[i.status] : 'read'}?`;
+  }
+}
+
 export const organizePapers = defineTool({
   name: 'organize_papers',
   description:
@@ -186,7 +219,7 @@ export const organizePapers = defineTool({
   }),
   kind: 'write',
   label: (i) => `Updating ${i.itemIds.length === 1 ? 'a paper' : `${i.itemIds.length} papers`}`,
-  confirm: async (i, ctx) => (new Set(i.itemIds).size > BULK_CONFIRM_AT ? `Change ${await which(ctx, i.itemIds)} (${i.action.replace(/_/g, ' ')})?` : null),
+  confirm: async (i, ctx) => (new Set(i.itemIds).size > BULK_CONFIRM_AT ? organizeQuestion(ctx, i, await which(ctx, i.itemIds)) : null),
   async run(ctx, { itemIds, action, ...rest }) {
     const body = bulkBody.parse({ action: BULK_ACTION[action], ids: itemIds, ...rest });
     const r = await runBulk(ctx.db, ctx.userId, body);
