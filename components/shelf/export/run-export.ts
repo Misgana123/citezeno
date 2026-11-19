@@ -1,9 +1,7 @@
 'use client';
 
-import { toBibtex } from '@/lib/shelf/export/bibtex';
-import { toCsv } from '@/lib/shelf/export/csv';
 import { notesMarkdown, pdfFileNames } from '@/lib/shelf/export/notes';
-import { toRis } from '@/lib/shelf/export/ris';
+import { toRows, writeFormat } from '@/lib/shelf/export/rows';
 import { EXPORT_FILES, type ExportFormat, type ExportRow } from '@/lib/shelf/export/types';
 import type { ShelfItem } from '@/lib/shelf/types';
 import { zip } from '@/lib/zip';
@@ -30,16 +28,8 @@ export async function fetchItems(query: URLSearchParams, onProgress?: (done: num
   }
 }
 
-export function toRows(items: ShelfItem[], g: Pick<Groups, 'projects' | 'folders' | 'tags'>): ExportRow[] {
-  const name = <T extends { id: string; name: string }>(list: T[]) => new Map(list.map((x) => [x.id, x.name]));
-  const projects = name(g.projects);
-  const folders = name(g.folders);
-  const tags = name(g.tags);
-  const pick = (ids: string[], m: Map<string, string>) => ids.map((id) => m.get(id)).filter((x): x is string => !!x);
-  return items.map((item) => ({ item, projects: pick(item.projectIds, projects), folders: pick(item.folderIds, folders), tags: pick(item.tagIds, tags) }));
-}
+export { toRows, writeFormat };
 
-export const writeFormat = (format: ExportFormat, rows: ExportRow[]) => (format === 'bibtex' ? toBibtex(rows) : format === 'ris' ? toRis(rows) : toCsv(rows));
 
 export function download(data: BlobPart, name: string, mime: string) {
   const url = URL.createObjectURL(new Blob([data], { type: mime }));
@@ -65,9 +55,9 @@ export async function exportEverything(groups: Groups, onProgress: (label: strin
   const rows = toRows(items, groups);
   const names = pdfFileNames(rows);
   const files: { name: string; data: string | Uint8Array }[] = [
-    { name: 'library.bib', data: toBibtex(rows) },
-    { name: 'library.ris', data: toRis(rows) },
-    { name: 'library.csv', data: toCsv(rows) },
+    { name: 'library.bib', data: writeFormat('bibtex', rows) },
+    { name: 'library.ris', data: writeFormat('ris', rows) },
+    { name: 'library.csv', data: writeFormat('csv', rows) },
     { name: 'notes.md', data: notesMarkdown(rows) },
   ];
   const pdfs = rows.flatMap((r) => r.item.pdfs);

@@ -1,0 +1,39 @@
+import type { z } from 'zod';
+import type { Paper } from '@/lib/papers/types';
+import type { ShelfItem } from '@/lib/shelf/types';
+import type { AgentContext } from '../context';
+
+/* An agent tool is one action a user can take in the app, with a clear name,
+   a plain description of what it does and when to use it, a validated input,
+   and the same service the app's button calls. */
+
+/* What the chat shows the user next to a step (the model gets `result`). */
+export type ToolDisplay = {
+  papers?: Paper[];
+  items?: ShelfItem[];
+  file?: { name: string; mime: string; text: string };
+};
+
+export type ToolOutput = {
+  /* What the model reads: compact JSON-friendly data. */
+  result: unknown;
+  display?: ToolDisplay;
+};
+
+/* read: looks only. write: changes the user's library. Either may also ask
+   for confirmation first (deleting, merging, bulk changes, large exports). */
+export type ToolKind = 'read' | 'write';
+
+export type AgentTool<S extends z.ZodType = z.ZodType> = {
+  name: string;
+  description: string;
+  input: S;
+  kind: ToolKind;
+  /* A short label for the step, e.g. 'Searching papers for “sleep”'. */
+  label(input: z.infer<S>): string;
+  /* The question to ask before running, or null when it can run straight away. */
+  confirm?(input: z.infer<S>, ctx: AgentContext): string | null | Promise<string | null>;
+  run(ctx: AgentContext, input: z.infer<S>): Promise<ToolOutput>;
+};
+
+export const defineTool = <S extends z.ZodType>(tool: AgentTool<S>): AgentTool<S> => tool;
