@@ -1,4 +1,5 @@
 import 'server-only';
+import { chatModels, type ChatModels } from './chat/catalog';
 import { chooseProviders, choose } from './config';
 import { sendSpendAlert } from './gateway/alert';
 import { createLimiter, type Limiter } from './gateway/limiter';
@@ -54,4 +55,10 @@ export function pdfTextReader(env: Env = process.env): PdfTextReader {
   const reader = def.create(env, gateFor(newMeter()));
   if (!reader) throw new Error(`The PDF text provider "${def.name}" is not configured.`);
   return reader;
+}
+
+/* The chat models on offer (AGENT_MODELS), each provider wired through the
+   gateway with this request's meter. */
+export function chatModelsFor(meter: Meter = newMeter(), env: Env = process.env): ChatModels {
+  return chatModels(env, gateFor(meter));
 }
