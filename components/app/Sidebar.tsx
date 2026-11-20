@@ -67,7 +67,7 @@ function ChatRow({ chat, active, onDone }: { chat: ConversationSummary; active: 
   return (
     <li className={`cz-chat${menu ? ' is-menu' : ''}`} ref={box}>
       <Link className="cz-chat-link" href={`/app/chat?c=${encodeURIComponent(chat.id)}`} aria-current={active ? 'page' : undefined} onClick={onDone} title={chat.title}>
-        {chat.pinned ? <Icon name="pin" className="cz-chat-pin" /> : <i className="cz-chat-dot" />}
+        <Icon name={chat.pinned ? 'pin' : 'chat'} className={chat.pinned ? 'cz-chat-pin' : 'cz-chat-ico'} />
         <span>{chat.title}</span>
       </Link>
       <button type="button" className="cz-chat-more" aria-label={`More for “${chat.title}”`} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>

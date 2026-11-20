@@ -902,8 +902,8 @@ a.at-crumb:hover { color: var(--ink); }
 .cz-chat-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cz-chat-link:hover, .cz-chat.is-menu .cz-chat-link { background: var(--cz-hover); }
 .cz-chat-link[aria-current='page'] { background: var(--sheet); box-shadow: 0 0 0 1px var(--rule-2); font-weight: 650; }
-.cz-chat-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--rule); }
-.cz-chat-link[aria-current='page'] .cz-chat-dot { border-color: var(--thread); background: var(--thread); }
+.cz-chat-ico { flex: none; width: 15px; height: 15px; color: var(--ink-3); }
+.cz-chat-link[aria-current='page'] .cz-chat-ico { color: var(--thread); }
 .cz-chat-pin { flex: none; width: 13px; height: 13px; color: var(--thread); }
 .cz-chat-more { grid-area: 1 / 1; justify-self: end; align-self: center; display: grid; place-items: center; width: 28px; height: 28px; margin-right: 3px; border: 0; border-radius: 7px; background: transparent; color: var(--ink-3); opacity: 0; }
 .cz-chat-more svg { width: 14px; height: 14px; }
