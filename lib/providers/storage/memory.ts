@@ -12,6 +12,9 @@ export function memoryStore(): FileStore & { put(key: string, bytes: Uint8Array)
       const f = files.get(key);
       return !f || f.byteLength > maxBytes ? null : f;
     },
+    async write(key, bytes) {
+      files.set(key, bytes);
+    },
     downloadUrl: (key) => `memory://download/${encodeURIComponent(key)}`,
     async remove(key) {
       files.delete(key);

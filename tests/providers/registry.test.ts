@@ -80,7 +80,7 @@ describe('choosing providers by configuration', () => {
 
   it('registers today’s providers under each job', () => {
     expect(Object.keys(PAPER_PROVIDERS)).toEqual(['openalex']);
-    expect(Object.keys(FILE_STORAGE_PROVIDERS)).toEqual(['cloudinary']);
+    expect(Object.keys(FILE_STORAGE_PROVIDERS)).toEqual(['r2', 'cloudinary']);
     expect(Object.keys(PDF_TEXT_PROVIDERS)).toEqual(['basic']);
     expect(primaryPaperLimits({})).toEqual({ maxQueryChars: 1500, semanticMax: 50 });
   });
@@ -89,6 +89,8 @@ describe('choosing providers by configuration', () => {
     const gate: Gate = (t) => t;
     expect(FILE_STORAGE_PROVIDERS.cloudinary.create({}, gate)).toBeNull();
     expect(FILE_STORAGE_PROVIDERS.cloudinary.create({ CLOUDINARY_URL: 'cloudinary://k:s@demo' }, gate)?.name).toBe('cloudinary');
+    expect(FILE_STORAGE_PROVIDERS.r2.create({ R2_ACCOUNT_ID: 'a', R2_ACCESS_KEY_ID: 'k' }, gate)).toBeNull();
+    expect(FILE_STORAGE_PROVIDERS.r2.create({ R2_ACCOUNT_ID: 'a', R2_ACCESS_KEY_ID: 'k', R2_SECRET_ACCESS_KEY: 's', R2_BUCKET: 'b' }, gate)?.name).toBe('r2');
   });
 
   it('wires remote providers through the gate', () => {

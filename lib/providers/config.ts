@@ -4,7 +4,7 @@ import type { Env } from './types';
    switching vendors is a configuration change:
 
      PAPER_PROVIDERS          paper data, comma-separated, primary first (default "openalex")
-     FILE_STORAGE_PROVIDER    PDF storage (default "cloudinary")
+     FILE_STORAGE_PROVIDER    PDF storage (default "r2"; or "cloudinary")
      PDF_TEXT_PROVIDER        reading text out of PDFs (default "basic") */
 
 /* The names chosen for a job that are in its registry. Unknown names are

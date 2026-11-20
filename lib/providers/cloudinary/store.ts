@@ -38,13 +38,16 @@ const TYPE = 'authenticated';
 const RESOURCE = 'raw';
 
 /* One call to Cloudinary: download a file (through a signed link), or delete one. */
-export type CloudinaryRequest = { op: 'read'; url: string; maxBytes: number } | { op: 'destroy'; url: string; body: URLSearchParams };
+export type CloudinaryRequest =
+  | { op: 'read'; url: string; maxBytes: number }
+  | { op: 'destroy'; url: string; body: URLSearchParams }
+  | { op: 'write'; url: string; body: FormData };
 
 /* The read body: the file, or null when it is missing or larger than maxBytes. */
 type ReadBody = Uint8Array | null;
 
 function failed(op: string, status: number, extra = ''): ProviderError {
-  const what = `Cloudinary ${op === 'read' ? 'download' : 'delete'} failed (${status}${extra ? ` ${extra}` : ''}).`;
+  const what = `Cloudinary ${op === 'read' ? 'download' : op === 'write' ? 'upload' : 'delete'} failed (${status}${extra ? ` ${extra}` : ''}).`;
   if (status === 429) return new ProviderError('busy', what, { provider: PROVIDER, status });
   return new ProviderError('unavailable', what, { provider: PROVIDER, status });
 }
@@ -57,7 +60,7 @@ export function createCloudinaryTransport(doFetch: typeof fetch = fetch): Transp
         res =
           req.op === 'read'
             ? await doFetch(req.url, { cache: 'no-store', signal: AbortSignal.timeout(30_000) })
-            : await doFetch(req.url, { method: 'POST', body: req.body, signal: AbortSignal.timeout(15_000) });
+            : await doFetch(req.url, { method: 'POST', body: req.body, signal: AbortSignal.timeout(req.op === 'write' ? 60_000 : 15_000) });
       } catch (e) {
         const timedOut = (e as Error)?.name === 'TimeoutError' || (e as Error)?.name === 'AbortError';
         throw new ProviderError('unavailable', timedOut ? 'Cloudinary timed out.' : 'Could not reach Cloudinary.', { provider: PROVIDER, reason: timedOut ? 'timeout' : 'network' });
@@ -69,6 +72,10 @@ export function createCloudinaryTransport(doFetch: typeof fetch = fetch): Transp
         if (Number.isFinite(declared) && declared > req.maxBytes) return { body: null as T, costUsd: 0, status: res.status };
         const buf = new Uint8Array(await res.arrayBuffer());
         return { body: (buf.byteLength > req.maxBytes ? null : buf) as T, costUsd: 0, status: res.status };
+      }
+      if (req.op === 'write') {
+        if (!res.ok) throw failed(req.op, res.status);
+        return { body: null as T, costUsd: 0, status: res.status };
       }
       const out = (await res.json().catch(() => ({}))) as { result?: string };
       // "not found" means it is already gone, which is what we want
@@ -97,9 +104,9 @@ export function cloudinaryStore(creds: CloudinaryCreds, deps: { fetch?: typeof f
   const api = (action: string) => `https://api.cloudinary.com/v1_1/${creds.cloudName}/${RESOURCE}/${action}`;
   const signed = (params: Record<string, string | number | boolean>) => ({ ...params, api_key: creds.apiKey, signature: signParams(params, creds.apiSecret) });
 
-  const downloadUrl = (key: string, opts: { ttlS: number; fileName?: string }) => {
+  const downloadUrl = (key: string, opts: { ttlS: number; fileName?: string; inline?: boolean }) => {
     const t = now();
-    const params = signed({ public_id: key, type: TYPE, timestamp: t, expires_at: t + opts.ttlS, attachment: true, ...(opts.fileName ? { target_filename: opts.fileName } : {}) });
+    const params = signed({ public_id: key, type: TYPE, timestamp: t, expires_at: t + opts.ttlS, ...(opts.inline ? {} : { attachment: true }), ...(opts.fileName ? { target_filename: opts.fileName } : {}) });
     return `${api('download')}?${new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]))}`;
   };
 
@@ -111,6 +118,12 @@ export function cloudinaryStore(creds: CloudinaryCreds, deps: { fetch?: typeof f
     },
     async read(key, maxBytes) {
       return (await transport.call<ReadBody>({ op: 'read', url: downloadUrl(key, { ttlS: 120 }), maxBytes })).body;
+    },
+    async write(key, bytes) {
+      const body = new FormData();
+      for (const [k, v] of Object.entries(signed({ public_id: key, type: TYPE, timestamp: now() }))) body.append(k, String(v));
+      body.append('file', new Blob([bytes as BlobPart], { type: 'application/pdf' }), 'file.pdf');
+      await transport.call({ op: 'write', url: api('upload'), body });
     },
     downloadUrl,
     async remove(key) {
