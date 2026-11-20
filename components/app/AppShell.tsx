@@ -34,18 +34,22 @@ export function CreditsPill({ need = 5 }: { need?: number }) {
 
 export { openPalette };
 
-/* Whether the sidebar is folded to icons, remembered in this browser. */
-function useCompactSidebar(): [boolean, (v: boolean) => void] {
-  const [compact, setCompact] = useState(false);
+/* Whether the sidebar is folded to icons, remembered in this browser. A page
+   that needs the room (the reader) starts it folded without changing what is
+   remembered, so it opens out again on the next page. */
+function useCompactSidebar(rail = false): [boolean, (v: boolean) => void] {
+  const [compact, setCompact] = useState(rail);
   useEffect(() => {
+    if (rail) return;
     try {
       setCompact(localStorage.getItem('cz:sidebar') === 'compact');
     } catch {
       /* storage blocked */
     }
-  }, []);
+  }, [rail]);
   const set = (v: boolean) => {
     setCompact(v);
+    if (rail) return;
     try {
       localStorage.setItem('cz:sidebar', v ? 'compact' : 'full');
     } catch {
@@ -62,6 +66,7 @@ export function AppShell({
   title,
   actions,
   variant = 'page',
+  rail = false,
   children,
 }: {
   current: AppSection;
@@ -70,9 +75,11 @@ export function AppShell({
   actions?: ReactNode;
   /* page: one scrolling column with a footer; panel: the page fills the window (the assistant) */
   variant?: 'page' | 'panel';
+  /* start with the sidebar folded to its icons (not remembered) */
+  rail?: boolean;
   children: ReactNode;
 }) {
-  const [compact, setCompact] = useCompactSidebar();
+  const [compact, setCompact] = useCompactSidebar(rail);
   const [drawer, setDrawer] = useState(false);
   const path = usePathname();
   useEffect(() => setDrawer(false), [path]);

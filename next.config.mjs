@@ -34,6 +34,8 @@ const nextConfig = {
   // PDF.js reads PDFs on the server (the reader's text processing); loaded from
   // node_modules as is, so its worker file is found at run time
   serverExternalPackages: ['pdfjs-dist'],
+  // the reader's PDF.js worker is read from node_modules by its route
+  outputFileTracingIncludes: { '/api/reader/worker': ['./node_modules/pdfjs-dist/build/pdf.worker.min.mjs'] },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

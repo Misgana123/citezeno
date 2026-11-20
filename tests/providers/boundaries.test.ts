@@ -13,12 +13,17 @@ import { describe, expect, it } from 'vitest';
      - lib/sources.ts: the citation feature's browser-side searches (OpenAlex,
        Crossref, Open Library, Wikipedia), which stay as they are for now.
      - infrastructure that isn't a provider job: auth (Better Auth), billing
-       (Polar), email (Resend), the database (pg). Their SDKs aren't listed below. */
+       (Polar), email (Resend), the database (pg). Their SDKs aren't listed below.
+     - the reader's PDF renderer (components/reader/pdf/): PDF.js draws pages in
+       the browser and makes no outside call; reading text out of PDFs on the
+       server still goes through the PDF text job. */
 
 const ROOT = join(__dirname, '..', '..');
 const SCAN = ['app', 'lib', 'components', 'middleware.ts'];
 const PROVIDERS_DIR = 'lib/providers/';
 const EXEMPT = new Set(['lib/sources.ts']);
+/* Folders allowed to import one SDK, and why (see above). */
+const SDK_EXEMPT: { dir: string; sdk: string }[] = [{ dir: 'components/reader/pdf/', sdk: 'pdfjs-dist' }];
 
 /* Job folders and shared files features may import; every other folder in lib/providers is an adapter. */
 const JOB_DIRS = new Set(['gateway', 'papers', 'storage', 'pdf-text', 'chat', 'embeddings', 'web-files']);
@@ -83,7 +88,7 @@ describe('provider boundaries', () => {
   it('no vendor SDK imported outside lib/providers', () => {
     const bad = outside.flatMap((f) =>
       importsOf(readFileSync(join(ROOT, f), 'utf8'))
-        .filter((m) => VENDOR_SDKS.some((sdk) => m === sdk || m.startsWith(`${sdk}/`)))
+        .filter((m) => VENDOR_SDKS.some((sdk) => (m === sdk || m.startsWith(`${sdk}/`)) && !SDK_EXEMPT.some((x) => f.startsWith(x.dir) && x.sdk === sdk)))
         .map((m) => `${f}: ${m}`),
     );
     expect(bad).toEqual([]);
