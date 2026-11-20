@@ -99,7 +99,7 @@ export function LibraryManager({ initial, owner }: { initial: LibRow[]; owner: s
         <Icon name="history" />
         <h2 className="h3">Nothing here yet</h2>
         <p>Traces you run in the studio are saved here automatically.</p>
-        <Link className="btn btn-thread" href="/studio">
+        <Link className="btn btn-thread" href="/app/citation">
           Open the studio
         </Link>
       </div>
@@ -152,7 +152,7 @@ export function LibraryManager({ initial, owner }: { initial: LibRow[]; owner: s
                   aria-label="New title"
                 />
               ) : (
-                <Link className="libm-title" href={`/studio?open=${encodeURIComponent(r.id)}`}>
+                <Link className="libm-title" href={`/app/citation?open=${encodeURIComponent(r.id)}`}>
                   {r.title}
                 </Link>
               )}
@@ -181,7 +181,7 @@ export function LibraryManager({ initial, owner }: { initial: LibRow[]; owner: s
               {r.snippet && <span className="lib-snip serif">{r.snippet}…</span>}
             </div>
             <div className="libm-actions">
-              <Link className="btn btn-thread btn-sm" href={`/studio?open=${encodeURIComponent(r.id)}`}>
+              <Link className="btn btn-thread btn-sm" href={`/app/citation?open=${encodeURIComponent(r.id)}`}>
                 Open
               </Link>
               {r.shareToken ? (

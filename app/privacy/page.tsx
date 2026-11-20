@@ -143,13 +143,13 @@ export default function PrivacyPage() {
 
             <Sec n={7} id="choices" title="Your choices">
               <div className="lg-actions">
-                <Link href="/account">
+                <Link href="/app/account">
                   <b>
                     Account page <Icon name="arrow" />
                   </b>
                   <small>Edit your name and sign out other devices.</small>
                 </Link>
-                <Link href="/library">
+                <Link href="/app/library">
                   <b>
                     Delete a saved trace <Icon name="arrow" />
                   </b>
@@ -163,7 +163,7 @@ export default function PrivacyPage() {
                 </Link>
               </div>
               <p>
-                Delete your account on the <Link href="/account">account page</Link> (we may ask you to confirm by email).
+                Delete your account on the <Link href="/app/account">account page</Link> (we may ask you to confirm by email).
                 This removes your account, sessions and saved traces.
               </p>
             </Sec>

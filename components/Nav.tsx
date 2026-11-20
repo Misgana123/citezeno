@@ -71,16 +71,17 @@ export function Nav({ onBlue = false }: { onBlue?: boolean }) {
           ))}
         </nav>
         <div className="nav-end">
-          {/* no theme switch or profile here: signed-out visitors get "Sign in", everyone gets the studio */}
+          {/* signed out: "Sign in" and "Get started" (both land in the app after);
+              signed in: straight into the app */}
           {!signedIn && !isPending && (
             <Link className="nav-signin" href="/sign-in">
               Sign in
             </Link>
           )}
-          {path !== '/studio' && (
-            <Link className="btn btn-thread nav-cta" href="/studio">
-              <span className="nav-cta-long">Open the studio</span>
-              <span className="nav-cta-short">Studio</span>
+          {!isPending && (
+            <Link className="btn btn-thread nav-cta" href={signedIn ? '/app/chat' : '/sign-up'}>
+              <span className="nav-cta-long">{signedIn ? 'Open the app' : 'Get started'}</span>
+              <span className="nav-cta-short">{signedIn ? 'Open app' : 'Start'}</span>
               <Icon name="arrow" />
             </Link>
           )}
@@ -104,7 +105,7 @@ export function Nav({ onBlue = false }: { onBlue?: boolean }) {
 }
 
 const FOOT_COLS: [string, [string, string][]][] = [
-  ['Product', [['/studio', 'Studio'], ['/#method', 'How it works'], ['/pricing', 'Pricing']]],
+  ['Product', [['/app/citation', 'Studio'], ['/#method', 'How it works'], ['/pricing', 'Pricing']]],
   ['Generators', [['/styles/apa', 'APA'], ['/styles/mla', 'MLA'], ['/styles/chicago', 'Chicago'], ['/styles/harvard', 'Harvard'], ['/styles/ieee', 'IEEE'], ['/styles/vancouver', 'Vancouver'], ['/styles', 'All styles']]],
   ['Company', [['/contact', 'Contact'], ['/privacy', 'Privacy'], ['/terms', 'Terms']]],
 ];

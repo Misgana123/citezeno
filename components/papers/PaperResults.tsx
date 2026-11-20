@@ -98,7 +98,7 @@ function ResultsError({ error, onRetry, inline = false }: { error: PaperListStat
       <Icon name="alert" />
       <p>{error.message}</p>
       {error.code === 'signed_out' && (
-        <a className="btn btn-ghost btn-sm" href={`/sign-in?next=${encodeURIComponent('/papers')}`}>
+        <a className="btn btn-ghost btn-sm" href={`/sign-in?next=${encodeURIComponent('/app/papers')}`}>
           Sign in
         </a>
       )}

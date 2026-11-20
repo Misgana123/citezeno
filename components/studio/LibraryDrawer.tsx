@@ -41,7 +41,7 @@ export function LibraryDrawer({
             </p>
           </div>
           {signedIn && (
-            <Link className="btn btn-ghost btn-sm" href="/library" style={{ marginLeft: 'auto' }}>
+            <Link className="btn btn-ghost btn-sm" href="/app/library" style={{ marginLeft: 'auto' }}>
               Manage
             </Link>
           )}

@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export default async function HistoryPage({ searchParams }: Props) {
-  const session = await requireSession('/history');
+  const session = await requireSession('/app/history');
   const sp = await searchParams;
   const filter = (FILTERS.some((f) => f.id === sp.type) ? sp.type : 'all') as HistoryFilter;
   const before = typeof sp.before === 'string' ? sp.before : null;
@@ -56,7 +56,7 @@ export default async function HistoryPage({ searchParams }: Props) {
           <Icon name="history" />
           <h2 className="h3">{before ? 'No older activity' : 'Nothing here yet'}</h2>
           <p>{filter === 'all' ? 'Run a trace in the studio and it will show up here.' : 'No activity of this kind yet.'}</p>
-          <Link className="btn btn-thread" href="/studio">
+          <Link className="btn btn-thread" href="/app/citation">
             Open the studio
           </Link>
         </div>

@@ -68,7 +68,7 @@ export function HistoryList({ items }: { items: HistoryItem[] }) {
                         <>
                           {' '}
                           {it.traceExists ? (
-                            <Link href={`/studio?open=${encodeURIComponent(it.traceId!)}`}>“{it.title}”</Link>
+                            <Link href={`/app/citation?open=${encodeURIComponent(it.traceId!)}`}>“{it.title}”</Link>
                           ) : (
                             <b>“{it.title}”</b>
                           )}

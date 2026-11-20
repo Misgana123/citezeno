@@ -61,7 +61,7 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
     const qs = new URLSearchParams(query);
     if (open) qs.set('item', open.id);
     const s = qs.toString();
-    const url = s ? `/shelf?${s}` : '/shelf';
+    const url = s ? `/app/shelf?${s}` : '/app/shelf';
     if (window.location.pathname + window.location.search !== url) window.history.replaceState(window.history.state, '', url);
   }, [query, open]);
 
@@ -348,7 +348,7 @@ function EmptyView({ everything, onShowAll }: { everything: boolean; onShowAll: 
       <Icon name="layers" />
       <h2 className="h3">Your shelf is empty</h2>
       <p>Save papers from Find Papers and they stay here until you remove them.</p>
-      <a className="btn btn-thread btn-sm" href="/papers">
+      <a className="btn btn-thread btn-sm" href="/app/papers">
         <Icon name="search" /> Find papers
       </a>
     </div>

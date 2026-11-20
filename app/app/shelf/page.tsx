@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export default async function ShelfPage({ searchParams }: Props) {
-  await requireSession('/shelf');
+  await requireSession('/app/shelf');
   const sp = await searchParams;
   const query = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) if (typeof v === 'string' && k !== 'item') query.set(k, v);
@@ -24,7 +24,7 @@ export default async function ShelfPage({ searchParams }: Props) {
       <PageHead
         title="My shelf"
         actions={
-          <Link className="btn btn-ghost btn-sm" href="/papers">
+          <Link className="btn btn-ghost btn-sm" href="/app/papers">
             <Icon name="search" /> Find papers
           </Link>
         }

@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: 'Account', robots: { index: false } }
 export const dynamic = 'force-dynamic';
 
 export default async function AccountPage() {
-  const session = await requireSession('/account');
+  const session = await requireSession('/app/account');
   const h = await headers();
 
   const [accounts, sessions, stats, balance, ledger] = await Promise.all([
@@ -46,7 +46,7 @@ export default async function AccountPage() {
           ) : undefined
         }
       >
-        Manage your profile, credits, sign-in methods and devices. Your traces live in the <Link href="/library">library</Link>.
+        Manage your profile, credits, sign-in methods and devices. Your traces live in the <Link href="/app/library">library</Link>.
       </PageHead>
       <AccountPanels
         user={{ id: u.id, name: u.name, email: u.email, image: u.image ?? null, emailVerified: u.emailVerified, createdAt: new Date(u.createdAt).getTime(), twoFactorEnabled: Boolean((u as { twoFactorEnabled?: boolean | null }).twoFactorEnabled) }}

@@ -637,7 +637,7 @@ export function Studio() {
     if (!userId) return;
     const id = new URLSearchParams(window.location.search).get('open');
     if (!id) return;
-    window.history.replaceState(null, '', '/studio');
+    window.history.replaceState(null, '', '/app/citation');
     const local = loadLibrary().find((x) => x.id === id);
     openEntry(local ?? ({ id } as LibItem));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -714,9 +714,9 @@ export function Studio() {
           {rail('quote', 'Style and claims', () => setDrawer('nav'), { cls: 'at-only-compact', short: 'Style' })}
           {rail('sliders', 'Trace settings', () => setDrawer('insp'), { cls: 'at-only-compact', short: 'Settings' })}
           {rail('search', 'Commands', openPalette, { cls: 'at-only-phone', short: 'Search' })}
-          <RailLink href="/history" icon="clock" label="History" cls="at-hide-phone" />
-          <RailLink href="/papers" icon="book" label="Find papers" cls="at-hide-phone" />
-          <RailLink href="/shelf" icon="layers" label="My shelf" cls="at-hide-phone" />
+          <RailLink href="/app/history" icon="clock" label="History" cls="at-hide-phone" />
+          <RailLink href="/app/papers" icon="book" label="Find papers" cls="at-hide-phone" />
+          <RailLink href="/app/shelf" icon="layers" label="My shelf" cls="at-hide-phone" />
         </div>
         <div className="at-rail-end">
           <RailLink href="/#method" icon="help" label="How it works" cls="at-hide-phone" />

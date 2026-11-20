@@ -59,7 +59,7 @@ export function AccountPanels({
     router.refresh();
   };
   const resend = async () => {
-    const { error } = await authClient.sendVerificationEmail({ email: user.email, callbackURL: '/account' });
+    const { error } = await authClient.sendVerificationEmail({ email: user.email, callbackURL: '/app/account' });
     toast(error ? authMessage(error) : `Confirmation link sent to ${user.email}`, !!error);
   };
 
@@ -99,7 +99,7 @@ export function AccountPanels({
 
   /* ---- linked accounts ---- */
   const link = async (provider: Provider) => {
-    const { error } = await authClient.linkSocial({ provider, callbackURL: '/account' });
+    const { error } = await authClient.linkSocial({ provider, callbackURL: '/app/account' });
     if (error) toast(authMessage(error), true);
   };
 
@@ -205,7 +205,7 @@ export function AccountPanels({
               <span>Last saved</span>
             </div>
           </div>
-          <Link className="btn btn-thread btn-sm" href="/studio">
+          <Link className="btn btn-thread btn-sm" href="/app/citation">
             Open the studio
           </Link>
         </section>

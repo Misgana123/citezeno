@@ -47,7 +47,7 @@ function Found({ display }: { display: ToolDisplay }) {
         <ul className="ch-items">
           {display.items.slice(0, 12).map((i) => (
             <li key={i.id}>
-              <Link href={`/shelf?item=${encodeURIComponent(i.id)}`}>
+              <Link href={`/app/shelf?item=${encodeURIComponent(i.id)}`}>
                 <Icon name="layers" /> {i.paper.title}
               </Link>
               {i.paper.year != null && <span>{i.paper.year}</span>}

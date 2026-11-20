@@ -33,11 +33,11 @@ export function PurchaseWatcher({ startPaid }: { startPaid: number }) {
             ? 'Your credits are taking longer than usual. They’ll appear in your balance shortly. A receipt is on its way by email.'
             : 'Adding the credits to your account. This usually takes a few seconds…'}
       </p>
-      <Link className="btn btn-thread" href="/studio" style={{ width: '100%' }}>
+      <Link className="btn btn-thread" href="/app/citation" style={{ width: '100%' }}>
         Open the studio
       </Link>
       <p className="auth-alt">
-        <Link href="/account#billing">See your balance and receipts</Link>
+        <Link href="/app/account#billing">See your balance and receipts</Link>
       </p>
     </>
   );

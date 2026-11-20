@@ -22,7 +22,7 @@ const billing = polarPlugin();
 /* Never let a failed welcome email break sign-up. */
 async function welcome(user: { email: string; name: string }) {
   try {
-    await sendEmail({ to: user.email, ...welcomeEmail(user.name, FREE_MONTHLY_CREDITS, `${siteURL}/studio`) });
+    await sendEmail({ to: user.email, ...welcomeEmail(user.name, FREE_MONTHLY_CREDITS, `${siteURL}/app/citation`) });
   } catch (e) {
     console.warn('[citezeno] welcome email failed', e);
   }

@@ -139,7 +139,7 @@ export default function Home() {
               databases for real published work behind each one, and formats the references in the style you need.
             </p>
             <div className="hero-cta rise">
-              <Link className="btn btn-thread" href="/studio">
+              <Link className="btn btn-thread" href="/app/citation">
                 Trace sources for my draft <Icon name="arrow" />
               </Link>
               <Link className="btn btn-on-blue" href="#method">
@@ -384,7 +384,7 @@ export default function Home() {
                 <li><Icon name="check" /> {FREE_MONTHLY_CREDITS} free credits every month</li>
               </ul>
             </div>
-            <Link className="cta-drop" href="/studio">
+            <Link className="cta-drop" href="/app/citation">
               <span className="cta-drop-ico">
                 <Icon name="upload" />
               </span>

@@ -44,4 +44,4 @@ export async function shelfFetch<T>(url: string, init: { method?: string; body?:
   return body as T;
 }
 
-export const shelfItemHref = (itemId: string) => `/shelf?item=${encodeURIComponent(itemId)}`;
+export const shelfItemHref = (itemId: string) => `/app/shelf?item=${encodeURIComponent(itemId)}`;

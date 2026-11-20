@@ -79,7 +79,7 @@ export function polarPlugin() {
         returnUrl: `${siteURL}/pricing`,
         authenticatedUsersOnly: true,
       }),
-      portal({ returnUrl: `${siteURL}/account#billing` }),
+      portal({ returnUrl: `${siteURL}/app/account#billing` }),
       ...(process.env.POLAR_WEBHOOK_SECRET
         ? [
             webhooks({

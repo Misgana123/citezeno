@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: 'Library', robots: { index: false } }
 export const dynamic = 'force-dynamic';
 
 export default async function LibraryPage() {
-  const s = await requireSession('/library');
+  const s = await requireSession('/app/library');
   const { rows } = await pool.query<Omit<LibRow, 'savedAt' | 'shareExpiresAt'> & { savedAt: Date; shareExpiresAt: Date | null }>(
     `select id, title, style, mode, sources, snippet, "savedAt", "shareToken", "shareViews", "shareExpiresAt", ("sharePassword" is not null) as "shareLocked" from trace
      where "userId" = $1 order by "savedAt" desc limit 500`,
@@ -21,7 +21,7 @@ export default async function LibraryPage() {
       <PageHead
         title="Library"
         actions={
-          <Link className="btn btn-thread btn-sm" href="/studio">
+          <Link className="btn btn-thread btn-sm" href="/app/citation">
             <Icon name="plus" /> New trace
           </Link>
         }

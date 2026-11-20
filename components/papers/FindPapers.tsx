@@ -36,7 +36,7 @@ export function FindPapers({ initialQuery, maxQueryChars }: { initialQuery: stri
 
   // keep the address bar in step with the applied search (back, reload, share)
   useEffect(() => {
-    const url = appliedQuery ? `/papers?${appliedQuery}` : '/papers';
+    const url = appliedQuery ? `/app/papers?${appliedQuery}` : '/app/papers';
     if (window.location.pathname + window.location.search !== url) window.history.replaceState(window.history.state, '', url);
   }, [appliedQuery]);
 

@@ -12,7 +12,7 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 
 /* The research assistant: where people land after signing in. */
 export default async function ChatPage({ searchParams }: Props) {
-  await requireSession('/chat');
+  await requireSession('/app/chat');
   const c = (await searchParams).c;
   return (
     <AppShell current="chat" title="Assistant">

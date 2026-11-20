@@ -33,8 +33,8 @@ describe('following a reply as it streams', () => {
 
 describe('after signing in', () => {
   it('lands on the assistant unless the user was going somewhere', () => {
-    expect(AFTER_SIGN_IN).toBe('/chat');
-    expect(safeNext(undefined)).toBe('/chat');
-    expect(safeNext('/shelf')).toBe('/shelf');
+    expect(AFTER_SIGN_IN).toBe('/app/chat');
+    expect(safeNext(undefined)).toBe('/app/chat');
+    expect(safeNext('/app/shelf')).toBe('/app/shelf');
   });
 });

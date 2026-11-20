@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export default async function PapersPage({ searchParams }: Props) {
-  await requireSession('/papers');
+  await requireSession('/app/papers');
   const sp = await searchParams;
   const query = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) if (typeof v === 'string') query.set(k, v);

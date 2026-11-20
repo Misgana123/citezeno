@@ -14,7 +14,8 @@ function canonicalHost() {
 }
 const twin = (h: string) => (h.startsWith('www.') ? h.slice(4) : `www.${h}`);
 
-const PROTECTED = ['/chat', '/studio', '/account', '/billing', '/library', '/history', '/papers', '/shelf', '/admin'];
+/* The signed-in app lives under /app. */
+const PROTECTED = ['/app', '/billing', '/admin'];
 
 export function middleware(req: NextRequest) {
   const host = req.headers.get('host') || '';

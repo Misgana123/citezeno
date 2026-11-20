@@ -56,12 +56,12 @@ export function AppShell({ current, title, children }: { current: AppSection; ti
             <LogoMark className="at-logo-mark" />
           </Link>
           <div className="at-rail-main">
-            <RailLink href="/chat" icon="sparkle" label="Assistant" short="Chat" current={current === 'chat'} />
-            <RailLink href="/studio" icon="doc" label="Studio" />
-            <RailLink href="/library" icon="history" label="Library" current={current === 'library'} />
-            <RailLink href="/history" icon="clock" label="History" current={current === 'history'} />
-            <RailLink href="/papers" icon="book" label="Find papers" short="Papers" current={current === 'papers'} />
-            <RailLink href="/shelf" icon="layers" label="My shelf" short="Shelf" current={current === 'shelf'} badge={shelfNotices} />
+            <RailLink href="/app/chat" icon="sparkle" label="Assistant" short="Chat" current={current === 'chat'} />
+            <RailLink href="/app/citation" icon="doc" label="Studio" />
+            <RailLink href="/app/library" icon="history" label="Library" current={current === 'library'} />
+            <RailLink href="/app/history" icon="clock" label="History" current={current === 'history'} />
+            <RailLink href="/app/papers" icon="book" label="Find papers" short="Papers" current={current === 'papers'} />
+            <RailLink href="/app/shelf" icon="layers" label="My shelf" short="Shelf" current={current === 'shelf'} badge={shelfNotices} />
             <button className="at-rb at-only-phone" onClick={openPalette} aria-label="Commands">
               <Icon name="search" />
               <span className="at-rb-lbl" data-short="Search">
@@ -72,7 +72,7 @@ export function AppShell({ current, title, children }: { current: AppSection; ti
           </div>
           <div className="at-rail-end">
             <RailLink href="/#method" icon="help" label="How it works" cls="at-hide-phone" />
-            <RailLink href="/account" icon="user" label="Account" current={current === 'account'} />
+            <RailLink href="/app/account" icon="user" label="Account" current={current === 'account'} />
           </div>
         </nav>
 
@@ -81,7 +81,7 @@ export function AppShell({ current, title, children }: { current: AppSection; ti
             <LogoMark className="at-logo-mark" />
           </Link>
           <div className="at-doc">
-            <Link className="at-crumb" href="/studio">
+            <Link className="at-crumb" href="/app/citation">
               Studio
             </Link>
             <span className="at-crumb-sep" aria-hidden="true">
@@ -95,7 +95,7 @@ export function AppShell({ current, title, children }: { current: AppSection; ti
             <span className="kbd">Ctrl K</span>
           </button>
           <CreditsPill />
-          <Link className="at-run at-run-link" href="/studio">
+          <Link className="at-run at-run-link" href="/app/citation">
             <Icon name="doc" /> <span className="at-run-lbl">Open the studio</span>
           </Link>
           <span className="at-top-sep" aria-hidden="true" />

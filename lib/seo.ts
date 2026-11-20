@@ -89,7 +89,7 @@ export const appLd = (o: { freeCredits: number; lowPrice?: number; highPrice?: n
   '@type': 'WebApplication',
   '@id': abs('/#app'),
   name: SITE.name,
-  url: abs('/studio'),
+  url: abs('/app/citation'),
   description: SITE.description,
   applicationCategory: 'EducationalApplication',
   operatingSystem: 'Any (web browser)',
