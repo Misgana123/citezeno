@@ -9,7 +9,7 @@ export const LIST_SORTS = ['relevance', 'added_desc', 'added_asc', 'year_desc', 
 export type ListSort = (typeof LIST_SORTS)[number];
 
 export type ListQuery = {
-  /* words to search for in the details, tags, note and PDF text */
+  /* words to search for in the details, tags, note, PDF text, and the reader's highlights and notes */
   q?: string;
   /* only these items (for exporting a selection) */
   ids?: string[];
@@ -63,7 +63,9 @@ export function buildListQuery(userId: string, query: ListQuery): BuiltQuery {
     const Q = `to_tsquery('simple', ${param(tsq)})`;
     where.push(`(p.tsv @@ ${Q} or i.tsv @@ ${Q}
       or exists (select 1 from shelf_item_tag x join shelf_tag t on t.id = x."tagId" where x."itemId" = i.id and to_tsvector('simple', t.name) @@ ${Q})
-      or exists (select 1 from shelf_pdf f where f."itemId" = i.id and f.tsv @@ ${Q}))`);
+      or exists (select 1 from shelf_pdf f where f."itemId" = i.id and f.tsv @@ ${Q})
+      or exists (select 1 from reader_highlight h where h."userId" = i."userId" and h."paperId" = i."paperId" and to_tsvector('simple', h.quote || ' ' || coalesce(h.note, '')) @@ ${Q})
+      or exists (select 1 from reader_page_note n where n."userId" = i."userId" and n."paperId" = i."paperId" and to_tsvector('simple', n.text) @@ ${Q}))`);
     relevance = `ts_rank(p.tsv, ${Q}) + ts_rank(i.tsv, ${Q}) + 0.5 * coalesce((select max(ts_rank(f.tsv, ${Q})) from shelf_pdf f where f."itemId" = i.id), 0) desc, i."addedAt" desc, i.id`;
   }
   if (query.ids) where.push(`i.id = any(${param(query.ids)})`);

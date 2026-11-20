@@ -78,6 +78,8 @@ create table if not exists reader_highlight (
   "updatedAt" timestamptz not null default now()
 );
 create index if not exists reader_highlight_paper on reader_highlight ("userId", "paperId", page);
+-- which copy of the PDF the highlight was made on ("upload:<id>" or "open_access"): on another copy it is found again by its text
+alter table reader_highlight add column if not exists "pdfKey" text;
 
 -- A sticky note placed on a page.
 create table if not exists reader_page_note (

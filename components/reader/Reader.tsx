@@ -14,7 +14,11 @@ import { NoPdf } from './NoPdf';
 import { PdfPane, type FindCount, type PdfControls } from './pdf/PdfPane';
 import { RIGHT_TABS, RightPanel, type RightTab } from './RightPanel';
 import { FindBar, MoreMenu, TopBar } from './TopBar';
-import { uploadForPaper } from './upload';
+import { Annotator } from './annotations/Annotator';
+import type { Flash } from './annotations/AnnotationLayer';
+import { NotesPanel } from './annotations/NotesPanel';
+import { useAnnotations } from './annotations/useAnnotations';
+import { removeFromShelf, uploadForPaper } from './upload';
 
 /* The reader page: the PDF in the middle, pages and contents on the left, and
    Chat, Notes and Details on the right. Tablets get the right panel as a
@@ -44,6 +48,53 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
   const [found, setFound] = useState<{ count: FindCount | null; notFound: boolean }>({ count: null, notFound: false });
   const [uploading, setUploading] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // highlights and notes
+  const [rendered, setRendered] = useState<Set<number>>(new Set());
+  const [tick, setTick] = useState(0);
+  const [placing, setPlacing] = useState(false);
+  const [flash, setFlash] = useState<Flash | null>(null);
+  const [missing, setMissing] = useState<Set<string>>(new Set());
+  const [autoSaved, setAutoSaved] = useState<string | null>(null);
+  const pdfKey = data && data.pdf.kind !== 'none' ? data.pdf.key : null;
+  const onAutoSaved = useCallback((itemId: string) => {
+    setAutoSaved(itemId);
+    setData((d) => (d && !d.shelf ? { ...d, shelf: { itemId, readingStatus: 'reading' } } : d));
+  }, []);
+  const ann = useAnnotations(paperId, pdfKey, onAutoSaved);
+  // a new PDF (after an upload) starts with no pages drawn
+  useEffect(() => setRendered(new Set()), [pdf]);
+  const onPageRendered = useCallback((n: number) => {
+    setRendered((r) => (r.has(n) ? r : new Set(r).add(n)));
+    setTick((t) => t + 1);
+  }, []);
+  useEffect(() => {
+    if (!autoSaved) return;
+    const t = setTimeout(() => setAutoSaved(null), 9000);
+    return () => clearTimeout(t);
+  }, [autoSaved]);
+  const undoSave = async () => {
+    const itemId = autoSaved;
+    setAutoSaved(null);
+    if (!itemId || !data) return;
+    try {
+      await removeFromShelf(data.paper.id, itemId);
+      setData((d) => (d ? { ...d, shelf: null } : d));
+      toast('Removed from your shelf. Your highlights and notes are kept.');
+    } catch (e) {
+      toast((e as Error).message, true);
+    }
+  };
+  /* Jump to a place in the PDF and flash it (a highlight, a note, or later a cited passage). */
+  const jumpTo = useCallback(
+    (target: { page: number; rects?: { x: number; y: number; w: number; h: number }[] }) => {
+      if (!pdf) return;
+      setSheet(null);
+      pdf.reveal(target.page, target.rects?.[0]);
+      if (target.rects?.length) setFlash({ page: target.page, rects: target.rects, key: Date.now() });
+    },
+    [pdf],
+  );
 
   // load (and reload after an upload or a retry)
   useEffect(() => {
@@ -82,6 +133,12 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
     }, 1200);
     return () => clearTimeout(t);
   }, [page, pdf, data, paperId]);
+
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), 2600);
+    return () => clearTimeout(t);
+  }, [flash]);
 
   const back = useCallback(() => {
     if (window.history.length > 1 && document.referrer.startsWith(window.location.origin)) router.back();
@@ -171,7 +228,20 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
     ) : tab === 'chat' ? (
       (slots?.chat ?? <PanelEmpty icon="chat" title="Ask about this paper" text="Questions about the paper, answered from its own text with links to the passages, come here." />)
     ) : (
-      (slots?.notes ?? <PanelEmpty icon="pencil" title="Highlights and notes" text="Select text in the PDF to highlight it; your highlights and notes are listed here." />)
+      (slots?.notes ?? (
+        <NotesPanel
+          paperId={data.paper.id}
+          ann={ann}
+          missing={missing}
+          disabled={!hasPdf ? 'Highlights and page notes need a PDF. Upload one to start.' : data.text?.status === 'no_text' ? 'This PDF has no text layer, so text can’t be highlighted. Page notes still work.' : null}
+          placing={placing}
+          onPlace={(on) => {
+            setPlacing(on);
+            if (on) setSheet(null);
+          }}
+          onJump={({ page, highlight, note }) => jumpTo({ page, rects: highlight ? highlight.rects : note ? [{ x: Math.max(0, note.x - 0.02), y: Math.max(0, note.y - 0.01), w: 0.04, h: 0.03 }] : undefined })}
+        />
+      ))
     );
 
   const menu = (
@@ -230,6 +300,21 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
               onScale={setScale}
               onFind={(count, notFound) => setFound({ count, notFound })}
               onError={setPdfError}
+              onPageRendered={onPageRendered}
+            />
+          )}
+          {pdf && hasPdf && !pdfError && (
+            <Annotator
+              pdf={pdf}
+              pdfKey={pdfKey}
+              ann={ann}
+              rendered={rendered}
+              tick={tick}
+              canHighlight={data.text?.status !== 'no_text'}
+              placing={placing}
+              onPlacing={setPlacing}
+              flash={flash}
+              onMissing={setMissing}
             />
           )}
           {hasPdf && !pdf && !pdfError && <div className="rd-pdf-loading" aria-label="Loading the PDF"><span className="spin" /></div>}
@@ -280,6 +365,14 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
         </>
       )}
       {uploading != null && hasPdf && <div className="rd-upload-pill">Uploading… {Math.round(uploading * 100)}%</div>}
+      {autoSaved && (
+        <div className="rd-upload-pill rd-saved-pill" role="status">
+          <Icon name="check" /> Saved to your shelf
+          <button type="button" onClick={undoSave}>
+            Undo
+          </button>
+        </div>
+      )}
     </div>
   );
 }

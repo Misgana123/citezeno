@@ -18,7 +18,8 @@ import { loadPaper, type ReaderPaper } from './paper';
      3. none: details and abstract, Open original and Upload PDF */
 
 export type ReaderPdf =
-  | { kind: 'upload' | 'open_access'; url: string; fileName: string | null; stored: boolean }
+  /* `key` names the copy shown ("upload:<id>" or "open_access"): highlights made on another copy are found again by their text */
+  | { kind: 'upload' | 'open_access'; key: string; url: string; fileName: string | null; stored: boolean }
   | { kind: 'none'; reason: 'no_pdf' | 'download_failed' | 'storage_off' };
 
 export type ReaderTextState = { id: string; status: TextStatus; search: 'meaning' | 'keywords' | null; pageCount: number | null; error: string | null };
@@ -55,16 +56,16 @@ export async function openPaper(deps: ReaderDeps, userId: string, rawId: string,
     if (!deps.store) pdf = { kind: 'none', reason: 'storage_off' };
     else {
       text = await ensureUploadText(deps.db, { userId, pdfId: uploadRow.id, paperId: paper.id, title: paper.title });
-      pdf = { kind: 'upload', url: deps.store.downloadUrl(uploadRow.storageKey, { ttlS: LINK_TTL_S, inline: true, fileName: uploadRow.fileName }), fileName: uploadRow.fileName, stored: true };
+      pdf = { kind: 'upload', key: `upload:${uploadRow.id}`, url: deps.store.downloadUrl(uploadRow.storageKey, { ttlS: LINK_TTL_S, inline: true, fileName: uploadRow.fileName }), fileName: uploadRow.fileName, stored: true };
     }
   } else if (paper.pdfUrl) {
     text = await ensureSharedText(deps.db, { paperId: paper.id, sourceUrl: paper.pdfUrl, license: paper.license ?? null, title: paper.title });
     if (text.status === 'failed' && text.error?.startsWith('download:')) pdf = { kind: 'none', reason: 'download_failed' };
     else if (text.storageKey && deps.store) {
-      pdf = { kind: 'open_access', url: deps.store.downloadUrl(text.storageKey, { ttlS: LINK_TTL_S, inline: true }), fileName: null, stored: true };
+      pdf = { kind: 'open_access', key: 'open_access', url: deps.store.downloadUrl(text.storageKey, { ttlS: LINK_TTL_S, inline: true }), fileName: null, stored: true };
     } else {
       const { exp, sig } = signFileLink(userId, paper.id, LINK_TTL_S, deps.now?.());
-      pdf = { kind: 'open_access', url: `${fileRoute(paper.id)}?exp=${exp}&sig=${sig}`, fileName: null, stored: false };
+      pdf = { kind: 'open_access', key: 'open_access', url: `${fileRoute(paper.id)}?exp=${exp}&sig=${sig}`, fileName: null, stored: false };
     }
   }
 
