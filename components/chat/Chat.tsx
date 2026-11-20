@@ -5,7 +5,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useSession } from '@/lib/auth-client';
 import type { AgentEvent } from '@/lib/agent/types';
 import type { ConversationView } from '@/lib/agent/view';
-import { Icon, type IconName } from '../Icon';
+import { Icon, LogoMark, type IconName } from '../Icon';
 import { InlineName } from '../shelf/InlineName';
 import { answerQuestion, deleteChat, openChat, pinChat, renameChat, sendClientResult, sendMessage } from './api';
 import { refreshChats, useChatIndex } from './chat-index';
@@ -356,7 +356,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
       <div className="ch ch-home">
         <div className="ch-home-in">
           <h1 className="ch-greet">
-            <span className="ch-orb" aria-hidden="true" /> {greeting(session?.user.name)}
+            <LogoMark className="ch-logo" /> {greeting(session?.user.name)}
           </h1>
           {noModels ? <p className="ch-quiet">The assistant isn’t set up yet: no AI model is available.</p> : composer(true)}
           <div className="ch-chips">

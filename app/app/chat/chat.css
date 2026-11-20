@@ -11,6 +11,7 @@
 .ch-orb.is-small { width: 16px; height: 16px; box-shadow: none; }
 .ch-orb.is-pulse { animation: ch-pulse 1.4s ease-in-out infinite; }
 @keyframes ch-pulse { 50% { transform: scale(0.8); opacity: 0.6; } }
+.ch-logo { flex: none; width: 40px; height: 40px; }
 
 /* ---------------------------------------------------------- home */
 .ch-home { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; position: relative; }

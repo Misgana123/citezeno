@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Icon, type IconName } from '../Icon';
+import { Icon } from '../Icon';
 import { useCredits } from '../useCredits';
 import { type AppSection } from './sections';
 import { openPalette, Sidebar } from './Sidebar';
@@ -14,19 +14,6 @@ import { openPalette, Sidebar } from './Sidebar';
    the sidebar is a drawer opened from a slim top bar. Styles: app/atelier.css. */
 
 export type { AppSection };
-
-/* One destination in the rail. `short` is its caption when the rail is the phone's bottom bar. */
-export function RailLink({ href, icon, label, short, current, cls, badge }: { href: string; icon: IconName; label: string; short?: string; current?: boolean; cls?: string; badge?: number }) {
-  return (
-    <Link className={`at-rb${cls ? ' ' + cls : ''}`} href={href} aria-label={badge ? `${label} (${badge} new)` : label} aria-current={current ? 'page' : undefined}>
-      <Icon name={icon} />
-      {badge ? <span className="at-rb-badge">{badge > 99 ? '99+' : badge}</span> : null}
-      <span className="at-rb-lbl" data-short={short}>
-        {label}
-      </span>
-    </Link>
-  );
-}
 
 /* The credit balance, with a small meter of this month's free credits. `need` marks it low. */
 export function CreditsPill({ need = 5 }: { need?: number }) {

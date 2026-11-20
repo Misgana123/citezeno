@@ -24,7 +24,7 @@ export default async function HistoryPage({ searchParams }: Props) {
     if (o.type && o.type !== 'all') p.set('type', o.type);
     if (o.before) p.set('before', o.before);
     const s = p.toString();
-    return `/history${s ? `?${s}` : ''}`;
+    return `/app/history${s ? `?${s}` : ''}`;
   };
 
   return (

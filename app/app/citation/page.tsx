@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { AppShell } from '@/components/app/AppShell';
 import { Studio } from '@/components/studio/Studio';
 import { requireSession } from '@/lib/session';
 import { pageMeta } from '@/lib/seo';
@@ -10,9 +11,9 @@ export const dynamic = 'force-dynamic';
 export default async function StudioPage() {
   await requireSession('/app/citation');
   return (
-    <main className="at-frame studio-app">
-      <h1 className="sr-only">Studio</h1>
+    <AppShell current="citation" title="Citation studio" variant="panel">
+      <h1 className="sr-only">Citation studio</h1>
       <Studio />
-    </main>
+    </AppShell>
   );
 }

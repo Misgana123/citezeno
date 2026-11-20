@@ -1,7 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_DOC, suggestTitle, type DocOptions } from '@/lib/docmodel';
 import {
   MAX_CLAIMS, TraceError, addSource, attachClaim, attachToSentence, citedSet, importReferences, reattachDetached, removeDetached, removeMine, removeSource, render,
@@ -23,13 +22,9 @@ import { emptyHistory, isTextTarget, record, redo, undo, undoKey, type History }
 import { DEFAULT_PREFS, type ApiSettings, type Mode, type Prefs, type Result, type Source } from '@/lib/types';
 
 export type ClaimMode = 'auto' | 'pick';
-import { CreditsPill, RailLink, openPalette } from '../app/AppShell';
-import { APP_SECTIONS } from '../app/sections';
-import { Sidebar } from '../app/Sidebar';
+import { CreditsPill } from '../app/AppShell';
 import { registerCommands, type Command } from '../CommandPalette';
-import { Icon, LogoMark, type IconName } from '../Icon';
-import { ThemeToggle } from '../Nav';
-import { UserMenu } from '../UserMenu';
+import { Icon } from '../Icon';
 import { toast } from '../toast';
 import { usePersistent } from '../usePersistent';
 import { OutOfCredits, refundCredits, spendCredits, useCredits } from '../useCredits';
@@ -114,7 +109,6 @@ function RunModeMenu({ mode, setMode }: { mode: ClaimMode; setMode: (m: ClaimMod
 }
 
 export function Studio() {
-  const [sideOpen, setSideOpen] = useState(false);
   const [draft, setDraft] = usePersistent('draft', '');
   const [prefs, setPrefsRaw] = usePersistent<Prefs>('prefs', DEFAULT_PREFS, mergePrefs);
   const [settings, setSettings] = usePersistent<ApiSettings>('settings', {});
@@ -134,8 +128,8 @@ export function Studio() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   /* on narrow screens the side panels open as drawers */
-  const [drawer, setDrawer] = useState<'' | 'nav' | 'insp'>('');
-  const [sideTab, setSideTab] = usePersistent<SideTab>('side-tab', 'style');
+  const [drawer, setDrawer] = useState<'' | 'insp'>('');
+  const [sideTab, setSideTab] = usePersistent<SideTab>('panel-tab', 'settings');
   const editorApi = useRef<EditorApi | null>(null);
   const [doc, setDocRaw] = usePersistent<DocOptions>('doc', DEFAULT_DOC, (d) => ({ ...DEFAULT_DOC, ...d }));
   const [library, setLibrary] = useState<LibItem[]>([]);
@@ -697,56 +691,27 @@ export function Studio() {
   const st = STYLES[prefs.style];
   const dbsOn = Object.values(prefs.providers).filter(Boolean).length;
   /* `short` is the caption under the icon when the rail is the phone's bottom bar */
-  const rail = (icon: IconName, label: string, onClick: () => void, opts: { badge?: number; cls?: string; current?: boolean; short?: string } = {}) => (
-    <button className={`at-rb${opts.cls ? ' ' + opts.cls : ''}`} onClick={onClick} aria-label={label} aria-current={opts.current ? 'page' : undefined}>
-      <Icon name={icon} />
-      {opts.badge ? <span className="at-rb-badge">{opts.badge > 99 ? '99+' : opts.badge}</span> : null}
-      <span className="at-rb-lbl" data-short={opts.short}>{label}</span>
+  /* Trace (or Stop), with the choice of who picks the claims. In the panel's
+     foot on wide screens, in the top bar when the panel is a drawer. */
+  const runControl = running ? (
+    <button className="at-run stop" onClick={cancel}>
+      <Icon name="stop" /> <span>Stop</span>
     </button>
+  ) : (
+    <div className={`at-run-group${picking ? ' is-pick' : ''}`}>
+      <button className="at-run" onClick={run} title={picking ? 'Trace only the sentences you picked' : 'Let Citezeno choose the claims to trace'}>
+        <Icon name="search" /> <span className="at-run-lbl">{picking ? 'Trace selected' : 'Trace all claims'}</span>
+        {cost > 0 && <span className="at-run-cost">{cost} credit{cost === 1 ? '' : 's'}</span>}
+        <span className="kbd">Ctrl ↵</span>
+      </button>
+      <RunModeMenu mode={claimMode} setMode={setClaimMode} />
+    </div>
   );
 
   return (
-    <div className={`at${drawer === 'nav' ? ' is-nav' : ''}${drawer === 'insp' ? ' is-insp' : ''}`}>
-      {sideOpen && (
-        <>
-          <div className="cz-float-side">
-            <Sidebar current="citation" compact={false} onToggle={() => setSideOpen(false)} onNavigate={() => setSideOpen(false)} />
-          </div>
-          <button type="button" className="cz-scrim is-fixed" aria-label="Close the sidebar" onClick={() => setSideOpen(false)} />
-        </>
-      )}
-      <nav className="at-rail" aria-label="Studio navigation">
-        <button type="button" className="at-logo at-side-open" onClick={() => setSideOpen(true)} aria-label="Open the sidebar" title="Open the sidebar">
-          <LogoMark className="at-logo-mark" />
-        </button>
-        <div className="at-rail-main">
-          {/* the app's sections, as on every page; the studio's own drawers follow */}
-          {APP_SECTIONS.map((sec) =>
-            sec.id === 'citation' ? (
-              <Fragment key={sec.id}>{rail(sec.icon, sec.label, () => mainEl.current?.scrollTo({ top: 0, behavior: 'smooth' }), { current: true, cls: 'at-hide-phone' })}</Fragment>
-            ) : sec.id === 'library' ? (
-              <Fragment key={sec.id}>{rail('history', 'Library', () => setLibOpen(true), { badge: library.length })}</Fragment>
-            ) : (
-              <RailLink key={sec.id} href={sec.href} icon={sec.icon} label={sec.label} short={sec.short} cls={sec.id === 'chat' ? undefined : 'at-hide-phone'} />
-            ),
-          )}
-          {rail('quote', 'Style and claims', () => setDrawer('nav'), { cls: 'at-only-compact', short: 'Style' })}
-          {rail('sliders', 'Trace settings', () => setDrawer('insp'), { cls: 'at-only-compact', short: 'Settings' })}
-          {rail('search', 'Commands', openPalette, { cls: 'at-only-phone', short: 'Search' })}
-        </div>
-        <div className="at-rail-end">
-          <RailLink href="/#method" icon="help" label="How it works" cls="at-hide-phone" />
-          {rail('gear', 'Database settings', () => setSettingsOpen(true), { short: 'Databases' })}
-        </div>
-      </nav>
-
+    <div className={`at studio-app${drawer === 'insp' ? ' is-insp' : ''}`}>
       <header className="at-top">
-        <Link className="at-top-logo" href="/" aria-label="Citezeno home">
-          <LogoMark className="at-logo-mark" />
-        </Link>
         <div className="at-doc">
-          <span className="at-crumb">Studio</span>
-          <span className="at-crumb-sep" aria-hidden="true">/</span>
           <input value={doc.title} onChange={(e) => setDoc({ title: e.target.value })} placeholder="Untitled draft" aria-label="Document title" spellCheck={false} />
           {entryId && unsaved === entryId ? (
             <button className="at-saved is-off" onClick={() => setUnsaved(null)} title="This trace isn’t in your library. Click to save it.">
@@ -758,35 +723,19 @@ export function Studio() {
             </span>
           )}
         </div>
-        <button className="at-cmdk" onClick={openPalette} aria-label="Open the command menu">
-          <Icon name="search" />
-          <span>Search commands</span>
-          <span className="kbd">Ctrl K</span>
+        <button className="at-tbtn" onClick={() => setLibOpen(true)} title="Your recent traces">
+          <Icon name="history" />
+          <span>Library</span>
+          {library.length > 0 && <span className="at-tbtn-n">{library.length > 99 ? '99+' : library.length}</span>}
         </button>
-        <CreditsPill need={cost} />
         {userId && result && (
           <button className="at-tbtn" onClick={openShare} title="Share a read-only link to this trace">
             <Icon name="globe" />
             <span>Share</span>
           </button>
         )}
-        {running ? (
-          <button className="at-run stop" onClick={cancel}>
-            <Icon name="stop" /> <span>Stop</span>
-          </button>
-        ) : (
-          <div className={`at-run-group${picking ? ' is-pick' : ''}`}>
-            <button className="at-run" onClick={run} title={picking ? 'Trace only the sentences you picked' : 'Let Citezeno choose the claims to trace'}>
-              <Icon name="search" /> <span className="at-run-lbl">{picking ? 'Trace selected' : 'Trace all claims'}</span>
-              {cost > 0 && <span className="at-run-cost">{cost} credit{cost === 1 ? '' : 's'}</span>}
-              <span className="kbd">Ctrl ↵</span>
-            </button>
-            <RunModeMenu mode={claimMode} setMode={setClaimMode} />
-          </div>
-        )}
-        <span className="at-top-sep" aria-hidden="true" />
-        <ThemeToggle />
-        <UserMenu />
+        <CreditsPill need={cost} />
+        <div className="at-run-top">{runControl}</div>
       </header>
 
       <SidePanel
@@ -798,6 +747,8 @@ export function Studio() {
         onJump={jumpTo}
         hasDraft={Boolean(draft.trim())}
         onClose={() => setDrawer('')}
+        settings={<Controls prefs={prefs} set={setPrefs} analysis={analysis} cost={cost} claimMode={claimMode} setClaimMode={setClaimMode} picked={pickedCount} onSettings={() => setSettingsOpen(true)} />}
+        foot={runControl}
       />
 
       <div className={`at-main${scroll.y > 4 ? ' is-scrolled' : ''}`} ref={mainEl} onScroll={onMainScroll}>
@@ -806,7 +757,7 @@ export function Studio() {
         </div>
         <div className="at-main-in">
           <div className="at-context">
-            <button onClick={() => { setSideTab('style'); setDrawer('nav'); }}>
+            <button onClick={() => { setSideTab('settings'); setDrawer('insp'); }}>
               <Icon name="quote" />
               <span>
                 <small>Style</small>
@@ -814,7 +765,7 @@ export function Studio() {
               </span>
               <Icon name="chevron" className="at-context-chev" />
             </button>
-            <button onClick={() => setDrawer('insp')}>
+            <button onClick={() => { setSideTab('settings'); setDrawer('insp'); }}>
               <Icon name="sliders" />
               <span>
                 <small>Trace settings</small>
@@ -823,7 +774,7 @@ export function Studio() {
               <Icon name="chevron" className="at-context-chev" />
             </button>
             {outline.length > 0 && (
-              <button className="at-context-claims" onClick={() => { setSideTab('claims'); setDrawer('nav'); }}>
+              <button className="at-context-claims" onClick={() => { setSideTab('claims'); setDrawer('insp'); }}>
                 <Icon name="thread" />
                 <span>
                   <small>Claims</small>
@@ -914,8 +865,6 @@ export function Studio() {
           </p>
         </div>
       </div>
-
-      <Controls prefs={prefs} set={setPrefs} analysis={analysis} cost={cost} claimMode={claimMode} setClaimMode={setClaimMode} picked={pickedCount} onSettings={() => setSettingsOpen(true)} onClose={() => setDrawer('')} />
 
       {drawer && <div className="at-scrim" onClick={() => setDrawer('')} aria-hidden="true" />}
 

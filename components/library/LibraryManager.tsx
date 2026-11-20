@@ -129,13 +129,20 @@ export function LibraryManager({ initial, owner }: { initial: LibRow[]; owner: s
         </select>
         <DownloadAll items={rows} />
       </div>
-      <p className="small" style={{ margin: '0 0 12px' }}>
-        {shown.length} of {rows.length} trace{rows.length === 1 ? '' : 's'} · {rows.reduce((n, r) => n + r.sources, 0)} sources in all
+      <p className="libm-count">
+        <b>{shown.length}</b> of {rows.length} trace{rows.length === 1 ? '' : 's'} · <b>{rows.reduce((n, r) => n + r.sources, 0)}</b> sources in all
       </p>
 
       <ul className="libm-list">
         {shown.map((r) => (
           <li key={r.id}>
+            <span className="libm-thumb" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
             <div className="libm-main">
               {editing === r.id ? (
                 <input

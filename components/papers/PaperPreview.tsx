@@ -11,18 +11,21 @@ import { usePaper } from './usePaper';
 
 type View = { paper: Paper; tab: 'details' | RelatedKind };
 
-/* The preview panel: a paper's details and its related lists, in the app's
-   side drawer. Opening a paper from a related list stacks it; Back returns. */
+/* The preview panel: a paper's details and its related lists. On wide screens
+   it is docked beside the results (`docked`); otherwise it is the app's side
+   drawer. Opening a paper from a related list stacks it; Back returns. */
 export function PaperPreview({
   paper,
   filters,
   maxQueryChars,
   onClose,
+  docked = false,
 }: {
   paper: Paper;
   filters: SearchState;
   maxQueryChars: number;
   onClose: () => void;
+  docked?: boolean;
 }) {
   const [stack, setStack] = useState<View[]>([{ paper, tab: 'details' }]);
   const view = stack[stack.length - 1];
@@ -52,51 +55,56 @@ export function PaperPreview({
   const open = (p: Paper) => setStack((s) => [...s, { paper: p, tab: 'details' }]);
   const back = () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));
 
+  const panel = (
+    <aside className={docked ? 'fp-dock' : 'drawer fp-drawer'} role={docked ? 'complementary' : 'dialog'} aria-modal={docked ? undefined : true} aria-labelledby="fp-preview-title">
+      <div className="fp-drawer-head">
+        {stack.length > 1 ? (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={back}>
+            <Icon name="arrow" className="fp-back-ico" /> Back
+          </button>
+        ) : (
+          <span className="fp-drawer-kicker">Paper preview</span>
+        )}
+        <button type="button" className="icon-btn" ref={closeRef} onClick={onClose} aria-label="Close the preview">
+          <Icon name="x" />
+        </button>
+      </div>
+
+      <nav className="fp-tabs" aria-label="About this paper">
+        <button type="button" aria-pressed={view.tab === 'details'} onClick={() => setTab('details')}>
+          <Icon name="doc" /> Details
+        </button>
+        {RELATED_KINDS.map((k) => (
+          <button key={k} type="button" aria-pressed={view.tab === k} onClick={() => setTab(k)}>
+            <Icon name={RELATED[k].icon} /> {RELATED[k].label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="fp-drawer-body" ref={bodyRef}>
+        {view.tab === 'details' ? (
+          <>
+            {error && error.code !== 'not_found' && (
+              <p className="fp-related-note">Some details could not be loaded. {error.message}</p>
+            )}
+            <PaperDetails paper={shown} loading={loading} />
+          </>
+        ) : (
+          <>
+            <p className="fp-related-of">
+              {RELATED[view.tab].label}: <b>{shown.title}</b>
+            </p>
+            <RelatedList key={`${shown.id}-${view.tab}`} paperId={shown.id} kind={view.tab} filters={filters} maxQueryChars={maxQueryChars} onOpen={open} />
+          </>
+        )}
+      </div>
+    </aside>
+  );
+
+  if (docked) return panel;
   return (
     <div className="drawer-wrap" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <aside className="drawer fp-drawer" role="dialog" aria-modal="true" aria-labelledby="fp-preview-title">
-        <div className="fp-drawer-head">
-          {stack.length > 1 ? (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={back}>
-              <Icon name="arrow" className="fp-back-ico" /> Back
-            </button>
-          ) : (
-            <span className="fp-drawer-kicker">Paper preview</span>
-          )}
-          <button type="button" className="icon-btn" ref={closeRef} onClick={onClose} aria-label="Close the preview">
-            <Icon name="x" />
-          </button>
-        </div>
-
-        <nav className="fp-tabs" aria-label="About this paper">
-          <button type="button" aria-pressed={view.tab === 'details'} onClick={() => setTab('details')}>
-            <Icon name="doc" /> Details
-          </button>
-          {RELATED_KINDS.map((k) => (
-            <button key={k} type="button" aria-pressed={view.tab === k} onClick={() => setTab(k)}>
-              <Icon name={RELATED[k].icon} /> {RELATED[k].label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="fp-drawer-body" ref={bodyRef}>
-          {view.tab === 'details' ? (
-            <>
-              {error && error.code !== 'not_found' && (
-                <p className="fp-related-note">Some details could not be loaded. {error.message}</p>
-              )}
-              <PaperDetails paper={shown} loading={loading} />
-            </>
-          ) : (
-            <>
-              <p className="fp-related-of">
-                {RELATED[view.tab].label}: <b>{shown.title}</b>
-              </p>
-              <RelatedList key={`${shown.id}-${view.tab}`} paperId={shown.id} kind={view.tab} filters={filters} maxQueryChars={maxQueryChars} onOpen={open} />
-            </>
-          )}
-        </div>
-      </aside>
+      {panel}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Paper } from '@/lib/papers/types';
 import { Icon } from '../Icon';
+import { useMediaQuery } from '../useMediaQuery';
 import { listUrl } from './api';
 import { FilterPanel } from './FilterPanel';
 import { ModeSwitch } from './ModeSwitch';
@@ -65,61 +66,65 @@ export function FindPapers({ initialQuery, maxQueryChars }: { initialQuery: stri
   };
 
   const active = activeFilterCount(draft);
+  // wide screens show the preview beside the results instead of over them
+  const dock = useMediaQuery('(min-width: 1280px)');
 
   return (
-    <div className="fp">
-      <div className="fp-form">
-        <SearchBox
-          value={draft.q}
-          onChange={(q) => setForm({ ...draftRef.current, q })}
-          onSubmit={() => run(draftRef.current)}
-          maxChars={maxQueryChars}
-          busy={list.status === 'loading'}
-        />
-        <div className="fp-form-row">
-          <ModeSwitch value={draft.mode} onChange={(mode) => patch({ mode })} />
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm fp-filter-btn"
-            aria-expanded={showFilters}
-            aria-controls="fp-filters"
-            onClick={() => setShowFilters((v) => !v)}
-          >
-            <Icon name="sliders" /> Filters
-            {active > 0 && <b className="fp-filter-count">{active}</b>}
-          </button>
+    <div className={`fp${preview && dock ? ' has-dock' : ''}`}>
+      <div className="fp-col">
+        <div className="fp-form">
+          <SearchBox
+            value={draft.q}
+            onChange={(q) => setForm({ ...draftRef.current, q })}
+            onSubmit={() => run(draftRef.current)}
+            maxChars={maxQueryChars}
+            busy={list.status === 'loading'}
+          />
+          <div className="fp-form-row">
+            <ModeSwitch value={draft.mode} onChange={(mode) => patch({ mode })} />
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm fp-filter-btn"
+              aria-expanded={showFilters}
+              aria-controls="fp-filters"
+              onClick={() => setShowFilters((v) => !v)}
+            >
+              <Icon name="sliders" /> Filters
+              {active > 0 && <b className="fp-filter-count">{active}</b>}
+            </button>
+          </div>
+          {showFilters && (
+            <FilterPanel
+              state={draft}
+              active={active}
+              onChange={(p) => patch(p, { typed: 'from' in p || 'to' in p || 'minCites' in p })}
+              onClear={() => patch(clearFilters(draftRef.current))}
+            />
+          )}
         </div>
-        {showFilters && (
-          <FilterPanel
-            state={draft}
-            active={active}
-            onChange={(p) => patch(p, { typed: 'from' in p || 'to' in p || 'minCites' in p })}
-            onClear={() => patch(clearFilters(draftRef.current))}
+
+        {!applied ? (
+          <SearchIntro />
+        ) : (
+          <PaperResults
+            list={list}
+            maxQueryChars={maxQueryChars}
+            onOpen={setPreview}
+            activeId={preview?.id}
+            toolbar={<SortSelect value={draft.sort} onChange={(sort) => patch({ sort })} />}
+            empty={
+              <NoResults
+                filtered={activeFilterCount(applied) > 0}
+                mode={applied.mode}
+                onClear={() => patch(clearFilters(draftRef.current))}
+                onSmart={() => patch({ mode: 'smart' })}
+              />
+            }
           />
         )}
       </div>
 
-      {!applied ? (
-        <SearchIntro />
-      ) : (
-        <PaperResults
-          list={list}
-          maxQueryChars={maxQueryChars}
-          onOpen={setPreview}
-          activeId={preview?.id}
-          toolbar={<SortSelect value={draft.sort} onChange={(sort) => patch({ sort })} />}
-          empty={
-            <NoResults
-              filtered={activeFilterCount(applied) > 0}
-              mode={applied.mode}
-              onClear={() => patch(clearFilters(draftRef.current))}
-              onSmart={() => patch({ mode: 'smart' })}
-            />
-          }
-        />
-      )}
-
-      {preview && <PaperPreview paper={preview} filters={applied ?? draft} maxQueryChars={maxQueryChars} onClose={closePreview} />}
+      {preview && <PaperPreview paper={preview} filters={applied ?? draft} maxQueryChars={maxQueryChars} onClose={closePreview} docked={dock} />}
     </div>
   );
 }

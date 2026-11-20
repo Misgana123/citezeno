@@ -34,53 +34,46 @@ export function ShelfCard({
   const itemTags = item.tagIds.map((id) => tags.get(id)).filter((t): t is Tag => !!t);
   return (
     <li id={`item-${item.id}`} className={`fp-card sh-card${p.isRetracted ? ' is-retracted' : ''}${active ? ' is-active' : ''}${selected ? ' is-selected' : ''}`}>
-      <div className="fp-card-top">
-        <label className="sh-pick" title="Select">
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={(e) => onSelect(item, e.target.checked, (e.nativeEvent as MouseEvent).shiftKey)}
-            aria-label={`Select “${p.title}”`}
-          />
-        </label>
-        <span className="tags">
-          {p.isRetracted && (
-            <span className="tag retracted fp-tag">
-              <Icon name="alert" /> Retracted
-            </span>
-          )}
-          {p.isOpenAccess && <span className="tag oa fp-tag">Open access</span>}
-          {p.origin === 'manual' && <span className="tag fp-tag">Added manually</span>}
-          {p.origin === 'import' && <span className="tag fp-tag">Imported</span>}
-          {item.pdfs.length > 0 && (
-            <span className="tag fp-tag" title={item.pdfs.some((f) => f.textStatus === 'none') ? 'Your PDF (scanned: text not available for search)' : 'Your PDF'}>
-              <Icon name="pdf" /> PDF
-            </span>
-          )}
-          {badges}
-        </span>
-        {p.origin === 'provider' && (
-          <span className="fp-cites" title="Times cited">
-            {citationLabel(p.citedByCount)}
+      <label className="sh-pick" title="Select">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={(e) => onSelect(item, e.target.checked, (e.nativeEvent as MouseEvent).shiftKey)}
+          aria-label={`Select “${p.title}”`}
+        />
+      </label>
+      <div className="sh-card-main">
+        <h3 className="fp-title">
+          <button type="button" onClick={() => onOpen(item)} aria-haspopup="dialog">
+            {p.title}
+          </button>
+        </h3>
+        <p className="fp-authors">{authorsShort(p.authors)}</p>
+        {meta.length > 0 && <p className="fp-meta">{meta.join(' · ')}</p>}
+        <div className="sh-card-line">
+          <span className="tags">
+            {p.isRetracted && (
+              <span className="tag retracted fp-tag">
+                <Icon name="alert" /> Retracted
+              </span>
+            )}
+            {p.isOpenAccess && <span className="tag oa fp-tag">Open access</span>}
+            {p.origin === 'manual' && <span className="tag fp-tag">Added manually</span>}
+            {p.origin === 'import' && <span className="tag fp-tag">Imported</span>}
+            {item.pdfs.length > 0 && (
+              <span className="tag fp-tag" title={item.pdfs.some((f) => f.textStatus === 'none') ? 'Your PDF (scanned: text not available for search)' : 'Your PDF'}>
+                <Icon name="pdf" /> PDF
+              </span>
+            )}
+            {badges}
           </span>
-        )}
-      </div>
-      <h3 className="fp-title">
-        <button type="button" onClick={() => onOpen(item)} aria-haspopup="dialog">
-          {p.title}
-        </button>
-      </h3>
-      <p className="fp-authors">{authorsShort(p.authors)}</p>
-      {meta.length > 0 && <p className="fp-meta">{meta.join(' · ')}</p>}
-      {itemTags.length > 0 && (
-        <p className="sh-card-tags">
           {itemTags.map((t) => (
-            <span key={t.id}>#{t.name}</span>
+            <span key={t.id} className="sh-tag">
+              #{t.name}
+            </span>
           ))}
-        </p>
-      )}
-      {item.note && <p className="sh-note">{item.note}</p>}
-      <div className="fp-card-actions">
+        </div>
+        {item.note && <p className="sh-note">{item.note}</p>}
         <span className="fp-links">
           {p.doi && (
             <a href={doiHref(p.doi)} target="_blank" rel="noopener noreferrer">
@@ -98,8 +91,10 @@ export function ShelfCard({
             </a>
           )}
         </span>
+      </div>
+      <div className="sh-card-side">
         <span className="sh-card-tools">
-          <select className="select sh-status" value={item.readingStatus} onChange={(e) => onStatus(item, e.target.value as ReadingStatus)} aria-label="Reading status">
+          <select className={`select sh-status is-${item.readingStatus}`} value={item.readingStatus} onChange={(e) => onStatus(item, e.target.value as ReadingStatus)} aria-label="Reading status">
             {READING_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {STATUS_LABELS[s]}
@@ -110,6 +105,11 @@ export function ShelfCard({
             <Icon name="trash" />
           </button>
         </span>
+        {p.origin === 'provider' && (
+          <span className="fp-cites" title="Times cited">
+            {citationLabel(p.citedByCount)}
+          </span>
+        )}
       </div>
     </li>
   );

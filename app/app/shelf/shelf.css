@@ -2,13 +2,11 @@
    and the shared tokens and controls (.btn, .seg, .check, .input, .select,
    .umenu-pop, .drawer); only shelf-specific pieces live here. */
 
-.sh { display: grid; grid-template-columns: 236px minmax(0, 1fr); align-items: start; gap: 28px; }
+.sh { display: grid; grid-template-columns: 228px minmax(0, 1fr); align-items: start; gap: 34px; }
 .sh-main { display: grid; gap: 14px; min-width: 0; }
 .sh-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
-.sh-head .h3 { overflow-wrap: anywhere; }
-.sh-seg { background: var(--sheet); box-shadow: var(--shadow-sm); }
+.sh-head .h3 { margin: 0; font: 500 24px/1.2 var(--f-read); letter-spacing: -0.01em; overflow-wrap: anywhere; }
 .sh-seg button { padding: 6px 12px; font-size: 13px; }
-.sh-seg button[aria-pressed='true'] { background: var(--ink); color: var(--ground); }
 
 /* ---------- sidebar ---------- */
 .sh-side-toggle { display: none; }
@@ -16,16 +14,16 @@
 .sh-views { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .sh-folders { margin: 2px 0 4px 18px; padding-left: 8px; border-left: 1px solid var(--rule-2); }
 .sh-view {
-  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 10px;
-  background: transparent; font-size: 14px; font-weight: 600; color: var(--ink-2); text-align: left; transition: background 0.15s, color 0.15s;
+  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 6px 10px; border: 0; border-radius: 9px;
+  background: transparent; font-size: 14px; font-weight: 500; color: var(--ink-2); text-align: left; transition: background 0.15s, color 0.15s;
 }
 .sh-view svg { width: 16px; height: 16px; color: var(--ink-3); }
-.sh-view:hover { background: var(--ground-2); color: var(--ink); }
-.sh-view[aria-current='true'] { background: var(--sheet); color: var(--ink); box-shadow: var(--shadow-sm); }
+.sh-view:hover { background: var(--cz-hover); color: var(--ink); }
+.sh-view[aria-current='true'] { background: var(--sheet); color: var(--ink); font-weight: 650; box-shadow: 0 0 0 1px var(--rule-2); }
 .sh-view[aria-current='true'] svg { color: var(--thread); }
 .sh-view.is-warn, .sh-view.is-warn svg { color: var(--warn); }
 .sh-view-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sh-view-n { font-size: 12px; font-weight: 650; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sh-view-n { font-size: 12px; font-weight: 500; color: var(--ink-3); }
 .sh-folders .sh-view { padding: 6px 10px; font-size: 13.5px; }
 .sh-folders .sh-view svg { width: 13px; height: 13px; }
 
@@ -48,30 +46,57 @@
 .sh-side-empty { padding: 4px 10px; font-size: 12.5px; line-height: 1.45; color: var(--ink-3); }
 .sh-inline .input { height: 34px; min-height: 34px; padding: 0 10px; font-size: 13.5px; border-width: 1px; border-radius: 10px; }
 
-/* ---------- cards ---------- */
-.sh-card.is-selected { border-color: var(--thread); background: color-mix(in srgb, var(--thread-soft) 45%, var(--sheet)); }
-.sh-pick { display: inline-grid; place-items: center; width: 22px; height: 22px; margin: -2px 0 -2px -4px; cursor: pointer; }
-.sh-pick input { width: 17px; height: 17px; accent-color: var(--thread); cursor: pointer; }
-.sh-card-tags { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 2px 0 0; font-size: 12.5px; font-weight: 650; color: var(--ink-3); }
-.sh-note {
-  margin: 4px 0 0; padding: 8px 12px; border-left: 3px solid var(--thread); border-radius: 0 10px 10px 0; background: var(--ground-2);
-  font-size: 13.5px; line-height: 1.5; color: var(--ink-2); white-space: pre-line;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+/* ---------- papers: rows in one list ---------- */
+.sh .fp-list { gap: 0; border: 1px solid var(--rule-2); border-radius: 16px; background: var(--sheet); overflow: hidden; }
+.sh-card {
+  grid-template-columns: 20px minmax(0, 1fr) auto; align-items: start; gap: 14px; padding: 16px 18px; border: 0; border-top: 1px solid var(--rule-2); border-radius: 0;
+  background: transparent; scroll-margin-top: 70px;
 }
-.sh-card-tools { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
-.sh-status { width: auto; height: 34px; min-height: 34px; padding: 0 30px 0 12px; font-size: 13px; border-width: 1px; border-radius: 999px; }
-.sh-remove { width: 34px; height: 34px; color: var(--ink-3); }
+.sh-card:first-child { border-top: 0; }
+.sh-card:hover { border-color: var(--rule-2); box-shadow: none; background: color-mix(in srgb, var(--card) 70%, var(--sheet)); }
+.sh-card.is-active { border-color: var(--rule-2); box-shadow: inset 3px 0 0 var(--thread); background: color-mix(in srgb, var(--thread-soft) 30%, var(--sheet)); }
+.sh-card.is-retracted { border-left: 0; box-shadow: inset 3px 0 0 var(--warn); }
+.sh-card.is-retracted .fp-title button { text-decoration: line-through; text-decoration-color: var(--warn); }
+.sh-card.is-selected { border-color: var(--rule-2); background: color-mix(in srgb, var(--thread-soft) 45%, var(--sheet)); }
+.sh-card-main { display: grid; gap: 3px; min-width: 0; }
+.sh-card .fp-title { margin: 0; font-size: 17.5px; }
+.sh-card .fp-authors, .sh-card .fp-meta { font-size: 13px; }
+.sh-card .fp-authors { color: var(--ink-3); }
+.sh-card-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 5px; }
+.sh-card-line:not(:has(.tag, .sh-tag)) { display: none; }
+.sh-card .tag { border-radius: 6px; }
+.sh-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; background: var(--ground-2); font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.sh-card .fp-links { margin-top: 6px; }
+.sh-card-side { display: grid; justify-items: end; gap: 8px; }
+.sh-pick { display: inline-grid; place-items: center; width: 20px; height: 22px; cursor: pointer; }
+.sh-pick input { width: 17px; height: 17px; accent-color: var(--thread); cursor: pointer; }
+.sh-note {
+  margin: 7px 0 0; padding: 7px 12px; border-left: 2px solid var(--thread); border-radius: 0 8px 8px 0; background: var(--card);
+  font-size: 13.5px; line-height: 1.5; color: var(--ink-2); white-space: pre-line;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+.sh-card-tools { display: inline-flex; align-items: center; gap: 4px; }
+.sh-status { width: auto; height: 30px; min-height: 30px; padding: 0 28px 0 12px; font-size: 12.5px; font-weight: 650; border-width: 1px; border-radius: 999px; }
+.sh-status.is-reading { border-color: color-mix(in srgb, var(--thread) 55%, var(--rule)); }
+.sh-status.is-done { border-color: color-mix(in srgb, var(--verify) 45%, var(--rule)); color: var(--verify); }
+.sh-remove { width: 30px; height: 30px; color: var(--ink-3); }
 .sh-remove:hover { color: var(--warn); }
+.sh-remove svg { width: 16px; height: 16px; }
 
 /* ---------- selection bar ---------- */
 .sh-bulk {
-  position: sticky; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 14px;
-  background: var(--sheet); border: 1px solid var(--thread); box-shadow: 0 0 0 3px var(--thread-soft), var(--at-card-shadow); animation: popIn 0.18s var(--ease);
+  --bk-line: color-mix(in srgb, var(--sheet) 22%, transparent);
+  position: sticky; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 8px 8px 16px; border-radius: 14px;
+  background: var(--ink); color: var(--sheet); box-shadow: var(--shadow); animation: popIn 0.18s var(--ease);
 }
-.sh-bulk-n { margin-right: 4px; font-size: 13.5px; color: var(--ink-2); }
-.sh-bulk-sel { width: auto; height: 34px; min-height: 34px; padding: 0 30px 0 12px; font-size: 13px; border-width: 1px; border-radius: 999px; }
-.sh-bulk-del { --b-fg: var(--warn); }
-.sh-bulk-x { width: 34px; height: 34px; margin-left: auto; }
+.sh-bulk-n { margin-right: 6px; font-size: 13.5px; font-weight: 700; color: inherit; }
+.sh-bulk .btn { --b-bg: transparent; --b-fg: var(--sheet); --b-bd: var(--bk-line); }
+.sh-bulk .btn:hover { --b-bd: var(--sheet); }
+.sh-bulk-sel { width: auto; height: 32px; min-height: 32px; padding: 0 30px 0 12px; font-size: 13px; border-width: 1px; border-radius: 9px; border-color: var(--bk-line); background-color: transparent; color: var(--sheet); }
+.sh-bulk-sel option { color: var(--ink); background: var(--sheet); }
+.sh-bulk .sh-bulk-del { --b-fg: color-mix(in srgb, var(--warn) 55%, var(--sheet)); }
+.sh-bulk-x { width: 32px; height: 32px; margin-left: auto; color: var(--sheet) !important; opacity: 0.75; }
+.sh-bulk-x:hover { opacity: 1; background: var(--bk-line) !important; }
 
 /* ---------- drawer ---------- */
 .sh-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -98,11 +123,12 @@
   .sh-row .sh-view-n { visibility: hidden; }
 }
 @media (max-width: 560px) {
+  .sh-card { grid-template-columns: 20px minmax(0, 1fr); }
+  .sh-card-side { grid-column: 2; justify-items: start; grid-auto-flow: column; align-items: center; justify-content: start; }
   .sh-head { align-items: flex-start; }
   .sh-seg { width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .sh-seg button { padding: 6px 4px; }
   .sh-bulk-sel { flex: 1 1 130px; }
-  .sh-card-tools { margin-left: 0; }
 }
 
 /* ---------- add papers ---------- */
@@ -203,7 +229,7 @@
 .sh-search-wrap { display: grid; gap: 10px; }
 .sh-search-row { display: flex; gap: 8px; align-items: center; }
 .sh-search {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 6px 0 14px; border-radius: 14px;
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 6px 0 14px; border-radius: 12px;
   background: var(--sheet); border: 1px solid var(--rule-2); box-shadow: var(--shadow-sm); transition: border-color 0.15s, box-shadow 0.15s;
 }
 .sh-search:focus-within { border-color: var(--thread); box-shadow: 0 0 0 3px var(--thread-soft); }
@@ -218,10 +244,10 @@
 /* ---------- export ---------- */
 .sh-results-tools { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .sh-export { position: relative; }
-.sh-export .btn { background: var(--sheet); box-shadow: var(--shadow-sm); }
+.sh-export .btn { background: var(--sheet); }
 .sh-export-menu { width: 280px; top: calc(100% + 6px); }
 .sh-export-all { border-top: 1px solid var(--rule-2) !important; border-radius: 0 0 9px 9px !important; margin-top: 4px; }
-.sh-bulk .sh-export .btn { box-shadow: none; }
+.sh-bulk .sh-export .btn { background: transparent; box-shadow: none; }
 .sh-bulk .sh-export-menu { left: 0; right: auto; }
 
 /* ---------- retraction notices ---------- */
