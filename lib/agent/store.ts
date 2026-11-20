@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { ChatMessage } from '@/lib/providers/chat/types';
 import { iso, tx, type Db, type Queryable } from '@/lib/shelf/db';
-import type { Pending, StepView, StoredMessage } from './types';
+import type { MessageMeta, Pending, StepView, StoredMessage } from './types';
 
 /* Conversations and their messages. Every query is scoped to the user. */
 
 export type Conversation = { id: string; title: string; model: string; pinned: boolean; pending: Pending | null; costUsd: number; createdAt: string; updatedAt: string };
-export type ConversationSummary = Pick<Conversation, 'id' | 'title' | 'model' | 'pinned' | 'updatedAt'>;
+/* paperId: a paper's own conversation (opened in the reader) */
+export type ConversationSummary = Pick<Conversation, 'id' | 'title' | 'model' | 'pinned' | 'updatedAt'> & { paperId?: string | null };
 
 export const TITLE_MAX = 80;
 
@@ -29,8 +30,14 @@ const row = (r: Record<string, unknown>): Conversation => ({
 
 const COLS = `id, title, model, pinned, pending, "costUsd", "createdAt", "updatedAt"`;
 
-export async function createConversation(q: Queryable, userId: string, title: string, model: string): Promise<Conversation> {
-  const { rows } = await q.query(`insert into agent_conversation (id, "userId", title, model) values ($1, $2, $3, $4) returning ${COLS}`, [`c_${randomUUID()}`, userId, title.slice(0, TITLE_MAX), model]);
+export async function createConversation(q: Queryable, userId: string, title: string, model: string, paperId: string | null = null): Promise<Conversation> {
+  const { rows } = await q.query(`insert into agent_conversation (id, "userId", title, model, "paperId") values ($1, $2, $3, $4, $5) returning ${COLS}`, [
+    `c_${randomUUID()}`,
+    userId,
+    title.slice(0, TITLE_MAX),
+    model,
+    paperId,
+  ]);
   return row(rows[0]);
 }
 
@@ -40,8 +47,8 @@ export async function getConversation(q: Queryable, userId: string, id: string):
 }
 
 export async function listConversations(q: Queryable, userId: string, limit = 100): Promise<ConversationSummary[]> {
-  const { rows } = await q.query(`select id, title, model, pinned, "updatedAt" from agent_conversation where "userId" = $1 order by pinned desc, "updatedAt" desc limit $2`, [userId, limit]);
-  return rows.map((r) => ({ id: r.id, title: r.title, model: r.model, pinned: r.pinned === true, updatedAt: iso(r.updatedAt)! }));
+  const { rows } = await q.query(`select id, title, model, pinned, "updatedAt", "paperId" from agent_conversation where "userId" = $1 order by pinned desc, "updatedAt" desc limit $2`, [userId, limit]);
+  return rows.map((r) => ({ id: r.id, title: r.title, model: r.model, pinned: r.pinned === true, updatedAt: iso(r.updatedAt)!, ...(r.paperId ? { paperId: r.paperId as string } : {}) }));
 }
 
 export async function renameConversation(q: Queryable, userId: string, id: string, title: string): Promise<boolean> {
@@ -90,23 +97,19 @@ export async function appendMessages(db: Db, conversationId: string, messages: S
     let cost = 0;
     for (const m of messages) {
       cost += m.costUsd ?? 0;
-      await q.query(`insert into agent_message ("conversationId", seq, role, content, ui, "costUsd") values ($1, $2, $3, $4, $5, $6)`, [
-        conversationId,
-        ++seq,
-        m.message.role,
-        JSON.stringify(m.message),
-        m.ui ? JSON.stringify(m.ui) : null,
-        m.costUsd ?? 0,
-      ]);
+      const values = [conversationId, ++seq, m.message.role, JSON.stringify(m.message), m.ui ? JSON.stringify(m.ui) : null, m.costUsd ?? 0];
+      // the reader's meta column exists once its tables are migrated; plain chats never need it
+      if (m.meta) await q.query(`insert into agent_message ("conversationId", seq, role, content, ui, "costUsd", meta) values ($1, $2, $3, $4, $5, $6, $7)`, [...values, JSON.stringify(m.meta)]);
+      else await q.query(`insert into agent_message ("conversationId", seq, role, content, ui, "costUsd") values ($1, $2, $3, $4, $5, $6)`, values);
     }
     await q.query(`update agent_conversation set "costUsd" = "costUsd" + $2, "updatedAt" = now() where id = $1`, [conversationId, cost]);
   });
 }
 
 export async function loadMessages(q: Queryable, conversationId: string): Promise<StoredMessage[]> {
-  const { rows } = await q.query<{ content: ChatMessage; ui: StepView[] | null; costUsd: number }>(
-    `select content, ui, "costUsd" from agent_message where "conversationId" = $1 order by seq`,
+  const { rows } = await q.query<{ content: ChatMessage; ui: StepView[] | null; costUsd: number; meta?: MessageMeta | null }>(
+    `select * from agent_message where "conversationId" = $1 order by seq`,
     [conversationId],
   );
-  return rows.map((r) => ({ message: r.content, ui: r.ui, costUsd: Number(r.costUsd) }));
+  return rows.map((r) => ({ message: r.content, ui: r.ui, costUsd: Number(r.costUsd), ...(r.meta ? { meta: r.meta } : {}) }));
 }

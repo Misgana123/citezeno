@@ -164,7 +164,9 @@ export function CommandPalette() {
 
   const sections: Section[] = useMemo(() => {
     const push = (href: string) => () => router.push(href);
-    const chatRows = found.chats.map((c): Row => ({ key: `c:${c.id}`, icon: 'chat', title: c.title, sub: c.snippet, meta: when(c.at), go: push(`/app/chat?c=${encodeURIComponent(c.id)}`) }));
+    const chatRows = found.chats.map(
+      (c): Row => ({ key: `c:${c.id}`, icon: c.paperId ? 'book' : 'chat', title: c.title, sub: c.snippet, meta: when(c.at), go: push(c.paperId ? `${readHref(c.paperId)}?chat=${encodeURIComponent(c.id)}` : `/app/chat?c=${encodeURIComponent(c.id)}`) }),
+    );
     // papers open in the reader
     const paperRows = found.papers.map(
       (p): Row => ({ key: `p:${p.itemId}`, icon: 'layers', title: p.title, sub: [p.authors, p.year].filter(Boolean).join(' · ') || null, flag: p.retracted ? 'Retracted' : undefined, go: push(readHref(p.paperId)) }),

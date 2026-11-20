@@ -10,6 +10,8 @@ export const messageBody = z.object({
   conversationId: ID.nullish(),
   text: z.string().trim().min(1, 'Type a message.').max(MESSAGE_MAX, `Messages are limited to ${MESSAGE_MAX.toLocaleString('en')} characters.`),
   model: z.string().trim().max(80).nullish(),
+  /* sent from the reader: the paper the user has open (its details become context) */
+  paperId: z.string().trim().max(300).nullish(),
 });
 
 export const confirmBody = z.object({ conversationId: ID, callId: z.string().trim().min(1).max(200), approve: z.boolean() });

@@ -12,8 +12,13 @@ export type StepView = {
   display?: ToolDisplay;
 };
 
+/* What the reader adds to a message in a paper's conversation: which scope
+   answered ("paper": from the paper only; "assistant": the research assistant),
+   the passages it cites, and the selection it was about. */
+export type MessageMeta = { scope: 'paper' | 'assistant'; passageIds?: string[]; quote?: string; page?: number; kind?: 'ask' | 'explain'; basedOn?: 'full_text' | 'abstract' };
+
 /* A message as stored: the chat format plus what the page shows for it. */
-export type StoredMessage = { message: ChatMessage; ui?: StepView[] | null; costUsd?: number };
+export type StoredMessage = { message: ChatMessage; ui?: StepView[] | null; costUsd?: number; meta?: MessageMeta | null };
 
 /* A tool turn paused for the user: the calls of that turn, the results so
    far, and the call that is waiting. */

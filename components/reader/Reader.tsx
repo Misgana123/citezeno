@@ -17,7 +17,7 @@ import { FindBar, MoreMenu, TopBar } from './TopBar';
 import { Annotator } from './annotations/Annotator';
 import type { Flash } from './annotations/AnnotationLayer';
 import { NotesPanel } from './annotations/NotesPanel';
-import { ExplainList, type ExplainItem } from './ai/ExplainList';
+import { ReaderChat, type ChatRequest } from './chat/ReaderChat';
 import { SummaryCard } from './ai/SummaryCard';
 import { usePassages } from './ai/usePassages';
 import { useAnnotations } from './annotations/useAnnotations';
@@ -28,10 +28,21 @@ import { removeFromShelf, uploadForPaper } from './upload';
    drawer; phones get a bottom bar that opens each panel as a sheet. */
 
 type Layout = { left: boolean; right: boolean; width: number; tab: RightTab; leftTab: 'pages' | 'contents' };
-const LAYOUT: Layout = { left: true, right: true, width: 380, tab: 'details', leftTab: 'pages' };
+const LAYOUT: Layout = { left: true, right: true, width: 400, tab: 'chat', leftTab: 'pages' };
 const clampWidth = (w: number) => Math.min(640, Math.max(300, Math.round(w)));
 
-export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfId?: string | null; slots?: { chat?: ReactNode; notes?: ReactNode; summary?: ReactNode } }) {
+export function Reader({
+  paperId,
+  pdfId = null,
+  chatId = null,
+  slots,
+}: {
+  paperId: string;
+  pdfId?: string | null;
+  /* a conversation to continue in the side panel (from the assistant or the sidebar) */
+  chatId?: string | null;
+  slots?: { chat?: ReactNode; notes?: ReactNode; summary?: ReactNode };
+}) {
   const router = useRouter();
   const [data, setData] = useState<ReaderData | null>(null);
   const [error, setError] = useState<ReaderApiError | null>(null);
@@ -91,7 +102,7 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
   // AI: passages for citation links, Explain answers
   const textReady = data?.text?.status === 'ready';
   const passages = usePassages(paperId, pdfId, textReady);
-  const [explains, setExplains] = useState<ExplainItem[]>([]);
+  const [chatRequest, setChatRequest] = useState<ChatRequest | null>(null);
   /* Jump to a place in the PDF and flash it (a highlight, a note, or a cited passage). */
   const jumpTo = useCallback(
     (target: { page: number; rects?: { x: number; y: number; w: number; h: number }[] }) => {
@@ -157,18 +168,22 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
     },
     [phone, tablet, setLayout],
   );
-  const explain = useCallback(
-    async (quote: string, page: number, id = `x_${Date.now()}`) => {
-      setExplains((xs) => [{ id, quote, page, status: 'loading' as const }, ...xs.filter((x) => x.id !== id)]);
+  const toChat = useCallback(
+    (kind: ChatRequest['kind'], quote: string, page: number) => {
+      setChatRequest({ kind, quote, page, key: Date.now() });
       showPanel('chat');
-      try {
-        const r = await readerFetch<{ text: string }>(readerUrl(paperId, `/explain${pdfId ? `?pdf=${encodeURIComponent(pdfId)}` : ''}`), { method: 'POST', body: { quote, page } });
-        setExplains((xs) => xs.map((x) => (x.id === id ? { ...x, status: 'done', text: r.text } : x)));
-      } catch (e) {
-        setExplains((xs) => xs.map((x) => (x.id === id ? { ...x, status: 'error', error: (e as Error).message } : x)));
-      }
     },
-    [paperId, pdfId, showPanel],
+    [showPanel],
+  );
+  /* "Save as note": the answer becomes a page note beside the first passage it cites. */
+  const saveAnswerAsNote = useCallback(
+    async (text: string, passageIds: string[]) => {
+      const p = passageIds.map((id) => passages.get(id)).find(Boolean);
+      const body = text.replace(/\s*\[\s*p\d+-\d+[^\]]*\]/g, '').trim().slice(0, 4900);
+      const note = await ann.addNote({ page: p?.page ?? 1, x: 0.94, y: Math.min(0.95, Math.max(0.04, p?.box.y ?? 0.06)), text: body });
+      if (note) toast(`Saved as a note on page ${note.page}`);
+    },
+    [passages, ann],
   );
 
   useEffect(() => {
@@ -263,12 +278,19 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
     tab === 'details' ? (
       <Details data={data}>{slots?.summary ?? <SummaryCard data={data} pdfId={pdfId} passages={passages} onCite={cite} />}</Details>
     ) : tab === 'chat' ? (
-      (slots?.chat ??
-        (explains.length ? (
-          <ExplainList items={explains} passages={passages} onCite={cite} onRetry={(it) => explain(it.quote, it.page, it.id)} />
-        ) : (
-          <PanelEmpty icon="chat" title="Ask about this paper" text="Select text in the PDF and choose Explain for a plain explanation. Questions about the paper come here." />
-        )))
+      (slots?.chat ?? (
+        <ReaderChat
+          data={data}
+          pdfId={pdfId}
+          chatId={chatId}
+          passages={passages}
+          onCite={cite}
+          request={chatRequest}
+          onRequestDone={() => setChatRequest(null)}
+          onSaveNote={saveAnswerAsNote}
+          onAutoSaved={onAutoSaved}
+        />
+      ))
     ) : (
       (slots?.notes ?? (
         <NotesPanel
@@ -357,7 +379,8 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
               onPlacing={setPlacing}
               flash={flash}
               onMissing={setMissing}
-              onExplain={data.ai ? (quote, a) => void explain(quote, a.page) : undefined}
+              onAsk={data.ai ? (quote, a) => toChat('ask', quote, a.page) : undefined}
+              onExplain={data.ai && data.text?.status !== 'no_text' ? (quote, a) => toChat('explain', quote, a.page) : undefined}
             />
           )}
           {hasPdf && !pdf && !pdfError && <div className="rd-pdf-loading" aria-label="Loading the PDF"><span className="spin" /></div>}

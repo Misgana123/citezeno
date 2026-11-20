@@ -137,5 +137,7 @@ create index if not exists reader_ai_log_day on reader_ai_log ("createdAt");
 
 -- A paper's own conversation is a normal assistant chat with the paper attached.
 alter table agent_conversation add column if not exists "paperId" text;
+-- what the reader shows with a message: which scope answered, the passages it cites, the quoted selection
+alter table agent_message add column if not exists meta jsonb;
 create index if not exists agent_conversation_paper on agent_conversation ("userId", "paperId") where "paperId" is not null;
 `;

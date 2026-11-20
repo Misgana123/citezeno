@@ -285,3 +285,47 @@
 .rd-explain-text { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--ink); }
 .rd-explain-copy { justify-self: start; }
 .rd-muted .spin { margin-right: 6px; vertical-align: -2px; }
+
+/* ---------- the chat panel ---------- */
+.rd-right-body:has(.rd-chat), .rd-sheet-body:has(.rd-chat) { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.rd-chat { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rd-scope { flex: none; display: flex; margin: 12px 14px 4px; padding: 3px; border-radius: 11px; background: var(--ground-2); }
+.rd-scope button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 8px; border: 0; border-radius: 8px; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-3); cursor: pointer; }
+.rd-scope button svg { width: 14px; height: 14px; }
+.rd-scope button[aria-selected='true'] { background: var(--sheet); color: var(--ink); box-shadow: var(--shadow-sm); }
+.rd-msgs { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; list-style: none; margin: 0; padding: 10px 16px 16px; display: grid; align-content: start; gap: 14px; scrollbar-width: thin; }
+.rd-chat-empty { display: grid; gap: 8px; padding: 22px 4px; text-align: center; justify-items: center; }
+.rd-chat-empty b { font-size: 15px; color: var(--ink); }
+.rd-chat-empty p { margin: 0; max-width: 320px; font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
+.rd-suggest { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+.rd-suggest .rd-chip { min-height: 32px; text-align: left; white-space: normal; border-radius: 12px; padding: 6px 12px; line-height: 1.3; }
+.rd-msg { display: grid; gap: 6px; }
+.rd-msg.is-user { justify-self: end; max-width: 88%; padding: 9px 13px; border-radius: 16px 16px 4px 16px; background: var(--ground-2); }
+.rd-msg.is-user p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--ink); white-space: pre-wrap; }
+.rd-msg.is-user blockquote { margin: 0 0 4px; padding-left: 8px; border-left: 3px solid var(--thread); font-family: var(--f-read); font-size: 13px; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.rd-msg-who { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+.rd-msg-who svg { width: 13px; height: 13px; color: var(--thread); }
+.rd-msg-who em { font-style: normal; text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--ink-2); }
+.rd-msg-text p { margin: 0 0 8px; font-size: 14.5px; line-height: 1.6; color: var(--ink); white-space: pre-wrap; }
+.rd-msg-text p:last-child { margin-bottom: 0; }
+.rd-msg.is-error .rd-msg-text p { color: var(--warn); }
+.rd-msg-acts { display: flex; gap: 2px; margin-left: -8px; }
+.rd-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: 12.5px; color: var(--ink-3); }
+.rd-steps svg { width: 12px; height: 12px; color: var(--verify); vertical-align: -1px; margin-right: 4px; }
+.rd-typing { width: 34px; height: 14px; background: radial-gradient(circle, var(--ink-3) 3px, transparent 3.5px) 0 50% / 11px 100% repeat-x; animation: rdPulse 1s ease-in-out infinite; }
+.rd-composer { flex: none; display: grid; gap: 6px; padding: 10px 12px 12px; border-top: 1px solid var(--rule-2); background: var(--sheet); }
+.rd-composer-row { display: flex; align-items: flex-end; gap: 6px; padding: 6px 6px 6px 12px; border: 1px solid var(--rule); border-radius: 14px; background: var(--ground); }
+.rd-composer-row:focus-within { border-color: var(--thread); box-shadow: 0 0 0 3px var(--thread-soft); }
+.rd-composer textarea { flex: 1; min-height: 34px; max-height: 160px; padding: 7px 0; border: 0; background: none; resize: none; outline: none; color: var(--ink); font: inherit; font-size: 14.5px; line-height: 1.4; field-sizing: content; }
+.rd-send { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 10px; background: var(--thread); color: var(--thread-ink); cursor: pointer; }
+.rd-send:disabled { opacity: 0.45; cursor: default; }
+.rd-send svg { width: 17px; height: 17px; }
+.rd-composer-off { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--ground-2); font-size: 13.5px; color: var(--ink-2); }
+.rd-composer-off .spin { margin-right: 6px; vertical-align: -2px; }
+.rd-quote-chip { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 10px; border-radius: 10px; background: var(--thread-soft); font-size: 13px; color: var(--ink-2); }
+.rd-quote-chip > svg { flex: none; width: 14px; height: 14px; color: var(--thread); }
+.rd-quote-chip span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--f-read); }
+.rd-quote-chip .icon-btn { width: 26px; height: 26px; display: grid; place-items: center; border: 0; background: none; color: var(--ink-3); cursor: pointer; }
+.rd-quote-chip .icon-btn svg { width: 13px; height: 13px; }
+.rd-msg-text code, .rd-explain-text code { padding: 1px 5px; border-radius: 5px; background: var(--ground-2); font-family: var(--f-mono); font-size: 0.88em; }
+.rd-math { font-family: var(--f-read); font-style: italic; }

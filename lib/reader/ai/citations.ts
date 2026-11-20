@@ -68,3 +68,43 @@ export function parseJsonObject(text: string): unknown {
     return null;
   }
 }
+
+/* One finished sentence of a streamed answer: dropped when it cites only
+   unsent passages, unknown IDs removed from its markers. */
+export function checkSentence(sentence: string, sent: Set<string>): string {
+  const ids = idsIn(sentence);
+  if (ids.length && !ids.some((id) => sent.has(id))) return '';
+  return sentence.replace(MARKER, (_m, inner: string) => {
+    const valid = inner.split(/[,;]/).map((s) => s.trim()).filter((id) => sent.has(id));
+    return valid.length ? `[${valid.join(', ')}]` : '';
+  });
+}
+
+/* Checks a streamed answer sentence by sentence: text is passed on once its
+   sentence (and the citation markers after it) is complete. */
+export class SentenceGate {
+  private buf = '';
+  constructor(
+    private readonly sent: Set<string>,
+    private readonly out: (text: string) => void,
+  ) {}
+  push(delta: string) {
+    this.buf += delta;
+    // a sentence ends at . ! ? (plus any markers) followed by space and more text, or at a line break
+    const re = /[.!?]+["”’)]*(?:\s*\[[^\]]*\])*(?=\s+\S)|\n/g;
+    let end = -1;
+    for (let m = re.exec(this.buf); m; m = re.exec(this.buf)) end = m.index + m[0].length;
+    if (end <= 0) return;
+    const ready = this.buf.slice(0, end);
+    this.buf = this.buf.slice(end);
+    const checked = ready.split(/(\n)/).map((part) => (part === '\n' ? part : claims(part).map((c) => checkSentence(c, this.sent)).join(''))).join('');
+    if (checked) this.out(checked);
+  }
+  flush() {
+    if (this.buf) {
+      const checked = claims(this.buf).map((c) => checkSentence(c, this.sent)).join('');
+      this.buf = '';
+      if (checked) this.out(checked);
+    }
+  }
+}

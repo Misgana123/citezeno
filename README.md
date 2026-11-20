@@ -209,6 +209,16 @@ Every user's personal library of papers, at `/shelf` (named Shelf because "libra
 - **Limits**: `SHELF_PDF_MAX_MB`, `SHELF_STORAGE_MB`, `SHELF_UPLOADS_PER_DAY`, `SHELF_IMPORT_MAX_MB`, `SHELF_IMPORT_MAX_ENTRIES`, `SHELF_REFRESH_DAYS`, `SHELF_REFRESH_BATCHES` (see `.env.example`).
 - **Tests**: the Shelf database tests run against a throwaway schema when `TEST_DATABASE_URL` is set (for example to your local `DATABASE_URL`); without it they are skipped.
 
+## Read papers (Reader)
+
+Open any paper at `/app/read/<paper id>` (for example `/app/read/openalex:W2626778328`) to read it, highlight it, get a summary and ask it questions. Code lives in `lib/reader/`, `components/reader/` and `app/api/reader/`; the plan is in `docs/coreidea.md`.
+
+- **The PDF**: the user's own upload first, then the open-access PDF from OpenAlex (one shared copy is kept in storage only for CC BY, CC BY-SA, CC0 and public-domain papers; others are fetched fresh and streamed each time), else the details and abstract.
+- **Tables and search by meaning**: `npm run db:migrate` creates the `reader_*` tables and turns on pgvector when the database offers it (it prints which). Without pgvector, questions use keyword search only.
+- **Background work (Vercel Cron)**: `vercel.json` also calls `/api/reader/cron` every minute with `CRON_SECRET`: it reads new PDFs into passages, embeds them, re-embeds after an embedding model change and removes shared copies nobody opened for 90 days. A paper opened in the app starts processing right away.
+- **AI**: summaries, "Ask the paper" and Explain use the chat models (`READER_MODEL`, `READER_FAST_MODEL`); embeddings use Gemini (`READER_EMBEDDING_MODEL`, `READER_EMBEDDING_DIMENSIONS`), all with the AI keys and daily cap above. Without an AI key the reader still opens, reads and highlights. Every AI call is logged in `reader_ai_log`.
+- **Running locally**: nothing extra beyond the keys above; PDF.js's worker is served by `/api/reader/worker`. For open-access PDFs stored in R2, the bucket's CORS rule must allow GET from `http://localhost:3000`.
+
 ## Optional settings
 
 In the studio, open **Database settings** to add a contact email (puts your requests in the faster “polite pool” at OpenAlex and Crossref) or an OpenAlex API key.

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { deleteChat, pinChat, renameChat, type ConversationSummary } from '../chat/api';
 import { refreshChats, useChatIndex } from '../chat/chat-index';
 import { Icon, LogoMark } from '../Icon';
+import { readHref } from '../reader/api';
 import { InlineName } from '../shelf/InlineName';
 import { useShelfNotices } from '../shelf/useShelfNotices';
 import { AccountMenu } from './AccountMenu';
@@ -66,8 +67,14 @@ function ChatRow({ chat, active, onDone }: { chat: ConversationSummary; active: 
 
   return (
     <li className={`cz-chat${menu ? ' is-menu' : ''}`} ref={box}>
-      <Link className="cz-chat-link" href={`/app/chat?c=${encodeURIComponent(chat.id)}`} aria-current={active ? 'page' : undefined} onClick={onDone} title={chat.title}>
-        <Icon name={chat.pinned ? 'pin' : 'chat'} className={chat.pinned ? 'cz-chat-pin' : 'cz-chat-ico'} />
+      <Link
+        className="cz-chat-link"
+        href={chat.paperId ? `${readHref(chat.paperId)}?chat=${encodeURIComponent(chat.id)}` : `/app/chat?c=${encodeURIComponent(chat.id)}`}
+        aria-current={active ? 'page' : undefined}
+        onClick={onDone}
+        title={chat.paperId ? `${chat.title} (opens in the reader)` : chat.title}
+      >
+        <Icon name={chat.pinned ? 'pin' : chat.paperId ? 'book' : 'chat'} className={chat.pinned ? 'cz-chat-pin' : 'cz-chat-ico'} />
         <span>{chat.title}</span>
       </Link>
       <button type="button" className="cz-chat-more" aria-label={`More for “${chat.title}”`} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>

@@ -24,7 +24,7 @@ import { loadPaper, type LoadedPaper, type ReaderPaper } from './paper';
 
 export type AutoSaved = { itemId: string } | null;
 
-async function keepOnShelf(deps: ReaderDeps, userId: string, loaded: LoadedPaper): Promise<AutoSaved> {
+export async function keepOnShelf(deps: ReaderDeps, userId: string, loaded: LoadedPaper): Promise<AutoSaved> {
   if (loaded.item) return null;
   try {
     const { item } = await saveFoundPaper({ db: deps.db, sources: deps.sources() }, userId, { paperId: loaded.paper.id, via: 'search' });

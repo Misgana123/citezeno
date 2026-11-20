@@ -416,7 +416,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
                   <div className="ch-ai">
                     {t.parts.map((p, i) =>
                       p.kind === 'steps' ? (
-                        <Steps key={i} steps={p.steps} turn={t.key} />
+                        <Steps key={i} steps={p.steps} turn={t.key} chatId={activeId} />
                       ) : p.kind === 'assistant' ? (
                         <div key={i} className="ch-answer">
                           <Markdown text={p.text} cite={cite} />

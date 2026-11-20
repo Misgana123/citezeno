@@ -30,6 +30,18 @@ Style
 - Write in the language the user writes in.`;
 }
 
+/* From the reader: the paper the user has open, as data, and how to keep the
+   paper's own claims apart from everything else. */
+export function readingContext(paper: { id: string; title: string; authors: string[]; year: number | null; doi: string | null; abstract: string | null; retracted: boolean }): string {
+  return `
+
+The paper the user has open
+- The user is reading this paper in Citezeno's reader and may ask about it. Its details:
+${asData('open_paper', { paperId: paper.id, title: paper.title, authors: paper.authors.slice(0, 12), year: paper.year, doi: paper.doi, retracted: paper.retracted, abstract: paper.abstract?.slice(0, 3000) ?? null })}
+- For what the paper itself says, use ask_paper (or summarize_paper) with this paperId; they answer from the paper's own text with passage IDs like [p3-2]. Keep those markers.
+- Anything that doesn't come from this paper (other papers, background, your own explanation) must be clearly labeled: start that part with "Outside this paper:". Never mix it up with the paper's own claims.`;
+}
+
 /* Tool results as the model reads them: marked as data from the outside world. */
 export const MAX_RESULT_CHARS = 14_000;
 

@@ -8,6 +8,7 @@ import { chatModelsFor } from '@/lib/providers/server';
 import { allow } from '@/lib/ratelimit';
 import { shelfConfig } from '@/lib/shelf/config';
 import type { AgentContext } from './context';
+import { readingContext } from './prompt';
 import { searchReservations } from './limits';
 import { answer, repairHistory, resume, resumeWithClientResult, type ClientOutcome, type LoopDeps } from './loop';
 import { claimRun, createConversation, getConversation, loadMessages, releaseRun, setModel, setPending, titleFrom, appendMessages, type Conversation } from './store';
@@ -58,7 +59,7 @@ export function agentRoute<P = Record<string, never>>(handler: (req: Request, us
 
 export const agentModels = () => chatModelsFor().info();
 
-type Start = { conversation: Conversation; run(deps: LoopDeps, history: Parameters<typeof answer>[1]): Promise<void> };
+type Start = { conversation: Conversation; run(deps: LoopDeps, history: Parameters<typeof answer>[1]): Promise<void>; extraSystem?: string };
 
 /* A reply as a stream of events. The work happens while the stream is open. */
 async function streamReply(userId: string, req: Request, start: () => Promise<Start>, modelId: string | null | undefined): Promise<Response> {
@@ -66,7 +67,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
 
   const meter = newMeter();
   const models = chatModelsFor(meter);
-  const { conversation, run } = await start();
+  const { conversation, run, extraSystem } = await start();
   const model = models.pick(modelId ?? conversation.model);
   if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
   if (!(await claimRun(pool, userId, conversation.id, Math.ceil(REPLY_MS / 1000) + 30))) throw new AgentHttpError(409, 'Still working on your last message.', 'busy');
@@ -103,6 +104,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     setPending: (p) => setPending(pool, conversation.id, p),
     maxTurns: MAX_TURNS,
     deadline: Date.now() + REPLY_MS,
+    extraSystem,
   };
 
   void (async () => {
@@ -124,24 +126,41 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
 }
 
 /* A new message, in a new conversation or an existing one. */
-export function replyToMessage(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null }) {
+export function replyToMessage(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null; paperId?: string | null }) {
   return streamReply(
     userId,
     req,
     async () => {
+      // from the reader: the open paper is context (and a new chat belongs to it)
+      const reading = body.paperId ? await openPaperContext(userId, body.paperId) : null;
       let conversation = body.conversationId ? await getConversation(pool, userId, body.conversationId) : null;
       if (body.conversationId && !conversation) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
       if (!conversation) {
         const model = chatModelsFor().pick(body.model);
         if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
-        conversation = await createConversation(pool, userId, titleFrom(body.text), model.id);
+        conversation = await createConversation(pool, userId, titleFrom(reading?.title ?? body.text), model.id, reading?.id ?? null);
       }
       // a question left unanswered: the user moved on
       if (conversation.pending) await setPending(pool, conversation.id, null);
-      return { conversation, run: (deps, history) => answer(deps, history, body.text) };
+      return { conversation, run: (deps, history) => answer(deps, history, body.text), extraSystem: reading?.context };
     },
     body.model,
   );
+}
+
+/* The paper open in the reader, as context for the assistant (null when it can't be found). */
+async function openPaperContext(userId: string, paperId: string): Promise<{ id: string; title: string; context: string } | null> {
+  try {
+    const { loadPaper } = await import('@/lib/reader/service/paper');
+    const { paper } = await loadPaper({ db: pool, sources: () => papersServer().sources(newMeter()) }, userId, paperId);
+    return {
+      id: paper.id,
+      title: paper.title,
+      context: readingContext({ id: paper.id, title: paper.title, authors: paper.authors.map((a) => a.name), year: paper.year, doi: paper.doi, abstract: paper.abstract, retracted: paper.isRetracted }),
+    };
+  } catch {
+    return null;
+  }
 }
 
 /* The user's yes / no to a step that was waiting. */

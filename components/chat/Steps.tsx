@@ -42,7 +42,7 @@ function count(d?: ToolDisplay): string | null {
   return n ? `${n} result${n === 1 ? '' : 's'}` : null;
 }
 
-export function Steps({ steps, turn }: { steps: LiveStep[]; turn: number }) {
+export function Steps({ steps, turn, chatId = null }: { steps: LiveStep[]; turn: number; chatId?: string | null }) {
   const papers = steps.flatMap((s) => s.display?.papers ?? []);
   const items = steps.flatMap((s) => s.display?.items ?? []);
   const refs = Object.assign({}, ...steps.map((s) => s.display?.refs ?? {})) as Record<string, number>;
@@ -86,7 +86,7 @@ export function Steps({ steps, turn }: { steps: LiveStep[]; turn: number }) {
       </ol>
       </details>
 
-      <PaperRefs papers={uniquePapers} items={uniqueItems} refs={refs} turn={turn} />
+      <PaperRefs papers={uniquePapers} items={uniqueItems} refs={refs} turn={turn} chatId={chatId} />
 
       {sources.length > 0 && (
         <ul className="ch-sources">

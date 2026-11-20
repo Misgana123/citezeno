@@ -10,7 +10,8 @@ import { recentPositions } from '@/lib/reader/store/positions';
 export const SEARCH_TYPES = ['all', 'chats', 'papers', 'drafts'] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];
 
-export type ChatHit = { id: string; title: string; at: string; snippet: string | null };
+/* paperId: a paper's own conversation (it opens in the reader) */
+export type ChatHit = { id: string; title: string; at: string; snippet: string | null; paperId?: string | null };
 export type PaperHit = { itemId: string; paperId: string; title: string; authors: string; year: number | null; retracted: boolean; at: string };
 /* A paper the user opened in the reader, and the page they reached. */
 export type ReadingHit = { paperId: string; title: string; page: number; pageCount: number | null; at: string };
@@ -40,8 +41,8 @@ export function snippetAround(text: string | null, q: string, width = 90): strin
 
 async function chats(db: Queryable, userId: string, q: string, limit: number): Promise<ChatHit[]> {
   const { rows } = q
-    ? await db.query<{ id: string; title: string; updatedAt: Date; hit: string | null }>(
-        `select c.id, c.title, c."updatedAt",
+    ? await db.query<{ id: string; title: string; updatedAt: Date; hit: string | null; paperId: string | null }>(
+        `select c.id, c.title, c."updatedAt", c."paperId",
            (select m.content->>'text' from agent_message m
              where m."conversationId" = c.id and m.role in ('user', 'assistant') and m.content->>'text' ilike $2
              order by m.seq limit 1) as hit
@@ -51,11 +52,17 @@ async function chats(db: Queryable, userId: string, q: string, limit: number): P
          order by c."updatedAt" desc limit $3`,
         [userId, like(q), limit],
       )
-    : await db.query<{ id: string; title: string; updatedAt: Date; hit: null }>(
-        `select id, title, "updatedAt", null as hit from agent_conversation where "userId" = $1 order by "updatedAt" desc limit $2`,
+    : await db.query<{ id: string; title: string; updatedAt: Date; hit: null; paperId: string | null }>(
+        `select id, title, "updatedAt", "paperId", null as hit from agent_conversation where "userId" = $1 order by "updatedAt" desc limit $2`,
         [userId, limit],
       );
-  return rows.map((r) => ({ id: r.id, title: r.title, at: new Date(r.updatedAt).toISOString(), snippet: q && !r.title.toLowerCase().includes(q.toLowerCase()) ? snippetAround(r.hit, q) : null }));
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    at: new Date(r.updatedAt).toISOString(),
+    snippet: q && !r.title.toLowerCase().includes(q.toLowerCase()) ? snippetAround(r.hit, q) : null,
+    ...(r.paperId ? { paperId: r.paperId } : {}),
+  }));
 }
 
 async function papers(db: Queryable, userId: string, q: string, limit: number): Promise<PaperHit[]> {

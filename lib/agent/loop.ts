@@ -26,6 +26,8 @@ export type LoopDeps = {
   maxOutputTokens?: number;
   /* this reply's paper numbers (paper ID → n), so the answer can cite [n] */
   refs?: Map<string, number>;
+  /* more instructions for this reply (the reader: the paper the user has open) */
+  extraSystem?: string;
 };
 
 /* Number the papers and saved items a step found, in the order they first
@@ -116,7 +118,7 @@ async function think(d: LoopDeps, history: ChatMessage[], turns: number): Promis
       d.emit({ type: 'done', reason: limit });
       return;
     }
-    const res = await d.chat.complete({ model: d.model, system: systemPrompt(), messages: trimHistory(history), tools, maxOutputTokens: d.maxOutputTokens ?? 2048 });
+    const res = await d.chat.complete({ model: d.model, system: systemPrompt() + (d.extraSystem ?? ''), messages: trimHistory(history), tools, maxOutputTokens: d.maxOutputTokens ?? 2048 });
     turns++;
     const assistant: ChatMessage = { role: 'assistant', text: res.text, toolCalls: res.toolCalls, native: res.native };
     await d.save([{ message: assistant, costUsd: res.costUsd }]);

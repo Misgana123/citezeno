@@ -43,7 +43,7 @@ function Row({ n, turn, paper, action }: { n?: number; turn: number; paper: Pape
   );
 }
 
-export function PaperRefs({ papers, items, refs, turn }: { papers?: Paper[]; items?: ShelfItem[]; refs?: Record<string, number>; turn: number }) {
+export function PaperRefs({ papers, items, refs, turn, chatId = null }: { papers?: Paper[]; items?: ShelfItem[]; refs?: Record<string, number>; turn: number; chatId?: string | null }) {
   const [all, setAll] = useState(false);
   const rows = [
     ...(papers ?? []).map((p) => ({ key: p.id, n: refs?.[p.id], node: (n?: number) => (
@@ -54,7 +54,7 @@ export function PaperRefs({ papers, items, refs, turn }: { papers?: Paper[]; ite
           paper={p}
           action={
             <>
-              <ReadButton paperId={p.id} hasPdf={!!p.pdfUrl} />
+              <ReadButton paperId={p.id} hasPdf={!!p.pdfUrl} chatId={chatId} />
               <SaveButton paper={p} />
             </>
           }
@@ -72,7 +72,7 @@ export function PaperRefs({ papers, items, refs, turn }: { papers?: Paper[]; ite
           paper={i.paper}
           action={
             <>
-              <ReadButton paperId={i.paper.id} hasPdf={(i.pdfs?.length ?? 0) > 0 || !!i.paper.pdfUrl} />
+              <ReadButton paperId={i.paper.id} hasPdf={(i.pdfs?.length ?? 0) > 0 || !!i.paper.pdfUrl} chatId={chatId} />
               <Link className="ch-ref-open" href={`/app/shelf?item=${encodeURIComponent(i.id)}`}>
                 <Icon name="layers" /> On your shelf
               </Link>

@@ -6,7 +6,8 @@ import type { ModelInfo } from '@/lib/providers/chat/catalog';
 
 /* Browser-side calls to /api/agent. Only our own server is called. */
 
-export type ConversationSummary = { id: string; title: string; model: string; pinned: boolean; updatedAt: string };
+/* paperId: a paper's own conversation, opened in the reader */
+export type ConversationSummary = { id: string; title: string; model: string; pinned: boolean; updatedAt: string; paperId?: string | null };
 export type ChatList = { conversations: ConversationSummary[]; models: ModelInfo[]; defaultModel: string | null };
 
 async function readError(res: Response): Promise<Error> {

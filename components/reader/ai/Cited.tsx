@@ -9,11 +9,30 @@ import type { PassageRef } from './usePassages';
    shares one numbering. */
 const MARKER = /\s*\[\s*(p\d{1,5}-\d{1,4}(?:\s*[,;]\s*p\d{1,5}-\d{1,4})*)\s*\]/g;
 
+/* Light inline formatting models use: **bold**, *italic*, `code`, and $math$ (shown as plain text). */
+const INLINE = /\*\*([^*]+)\*\*|(?<![\w*])\*([^*\n]+)\*(?!\w)|`([^`]+)`|\$([^$\n]{1,120})\$/g;
+
+export function Inline({ text }: { text: string }) {
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  for (const m of text.matchAll(INLINE)) {
+    out.push(text.slice(last, m.index));
+    const k = m.index;
+    if (m[1] != null) out.push(<strong key={k}>{m[1]}</strong>);
+    else if (m[2] != null) out.push(<em key={k}>{m[2]}</em>);
+    else if (m[3] != null) out.push(<code key={k}>{m[3]}</code>);
+    else out.push(<span key={k} className="rd-math">{m[4].replace(/\\(text|mathrm|mathit)\{([^}]*)\}/g, '$2').replace(/\\/g, '')}</span>);
+    last = (m.index ?? 0) + m[0].length;
+  }
+  out.push(text.slice(last));
+  return <>{out}</>;
+}
+
 export function Cited({ text, order, passages, onCite }: { text: string; order: string[]; passages: Map<string, PassageRef>; onCite(id: string): void }) {
   const parts: React.ReactNode[] = [];
   let last = 0;
   for (const m of text.matchAll(MARKER)) {
-    parts.push(text.slice(last, m.index));
+    parts.push(<Inline key={`t${last}`} text={text.slice(last, m.index)} />);
     const ids = m[1].split(/[,;]/).map((s) => s.trim());
     parts.push(
       <Fragment key={m.index}>
@@ -24,7 +43,7 @@ export function Cited({ text, order, passages, onCite }: { text: string; order: 
     );
     last = (m.index ?? 0) + m[0].length;
   }
-  parts.push(text.slice(last));
+  parts.push(<Inline key={`t${last}`} text={text.slice(last)} />);
   return <>{parts}</>;
 }
 
