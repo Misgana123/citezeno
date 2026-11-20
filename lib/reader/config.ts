@@ -8,11 +8,13 @@ import type { ChatModel } from '@/lib/providers/chat/types';
      READER_FAST_MODEL           "Explain", follow-up rewriting, section notes
                                  (default: the cheapest model on offer)
      READER_FULLTEXT_MAX_TOKENS  largest paper sent whole instead of searched (default 30000)
+     READER_PDF_MAX_MB           largest open-access PDF fetched and processed (default 50)
+     READER_SHARED_KEEP_DAYS     remove a stored shared copy nobody opened for this long (default 90)
 
    The embedding model and size (READER_EMBEDDING_MODEL, READER_EMBEDDING_DIMENSIONS)
    belong to the embeddings job (lib/providers/embeddings). */
 
-export type ReaderConfig = { model: string | null; fastModel: string | null; fullTextMaxTokens: number };
+export type ReaderConfig = { model: string | null; fastModel: string | null; fullTextMaxTokens: number; maxPdfBytes: number; sharedKeepDays: number };
 
 function positiveInt(v: string | undefined, fallback: number) {
   const n = Math.floor(Number(v));
@@ -24,6 +26,8 @@ export function readerConfig(env: Record<string, string | undefined> = process.e
     model: env.READER_MODEL?.trim() || null,
     fastModel: env.READER_FAST_MODEL?.trim() || null,
     fullTextMaxTokens: positiveInt(env.READER_FULLTEXT_MAX_TOKENS, 30_000),
+    maxPdfBytes: positiveInt(env.READER_PDF_MAX_MB, 50) * 1024 * 1024,
+    sharedKeepDays: positiveInt(env.READER_SHARED_KEEP_DAYS, 90),
   };
 }
 

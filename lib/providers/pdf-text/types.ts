@@ -18,6 +18,8 @@ export type PageTextItem = PageBox & {
   size: number;
   /* the PDF ends a line after this run */
   eol: boolean;
+  /* drawn rotated (e.g. a margin stamp), not part of the running text */
+  vertical?: boolean;
 };
 
 export type PageText = { page: number; width: number; height: number; items: PageTextItem[] };

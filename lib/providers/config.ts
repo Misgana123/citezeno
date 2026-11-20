@@ -5,7 +5,8 @@ import type { Env } from './types';
 
      PAPER_PROVIDERS          paper data, comma-separated, primary first (default "openalex")
      FILE_STORAGE_PROVIDER    PDF storage (default "r2"; or "cloudinary")
-     PDF_TEXT_PROVIDER        reading text out of PDFs (default "basic") */
+     PDF_TEXT_PROVIDER        reading text out of PDFs (default "basic")
+     WEB_FILES_PROVIDER       fetching open-access files from the web (default "direct-http") */
 
 /* The names chosen for a job that are in its registry. Unknown names are
    skipped with a warning; if none are left, the defaults are used. */
@@ -24,4 +25,5 @@ export const choose = {
   papers: (env: Env) => env.PAPER_PROVIDERS,
   fileStorage: (env: Env) => env.FILE_STORAGE_PROVIDER,
   pdfText: (env: Env) => env.PDF_TEXT_PROVIDER,
+  webFiles: (env: Env) => env.WEB_FILES_PROVIDER,
 };

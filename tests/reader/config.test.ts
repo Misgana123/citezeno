@@ -12,7 +12,7 @@ const chat = (env: Record<string, string> = {}) => chatModels(env, (t) => t, cat
 
 describe('reader config', () => {
   it('has sensible defaults', () => {
-    expect(readerConfig({})).toEqual({ model: null, fastModel: null, fullTextMaxTokens: 30000 });
+    expect(readerConfig({})).toEqual({ model: null, fastModel: null, fullTextMaxTokens: 30000, maxPdfBytes: 50 * 1024 * 1024, sharedKeepDays: 90 });
     expect(readerConfig({ READER_FULLTEXT_MAX_TOKENS: 'lots' }).fullTextMaxTokens).toBe(30000);
     expect(readerConfig({ READER_MODEL: 'small', READER_FULLTEXT_MAX_TOKENS: '12000' })).toMatchObject({ model: 'small', fullTextMaxTokens: 12000 });
   });

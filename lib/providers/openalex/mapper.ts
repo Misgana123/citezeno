@@ -28,6 +28,8 @@ export function toPaper(work: OpenAlexWork): Paper | null {
   const doi = toDoi(work.doi);
   const primary = work.primary_location ?? null;
   const best = work.best_oa_location ?? null;
+  // the location the PDF link comes from also gives that copy's license
+  const pdfFrom = text(best?.pdf_url) ? best : text(primary?.pdf_url) ? primary : null;
   const year = Number.isInteger(work.publication_year) ? (work.publication_year as number) : null;
 
   return {
@@ -48,6 +50,7 @@ export function toPaper(work: OpenAlexWork): Paper | null {
     citedByCount: Math.max(0, Number(work.cited_by_count) || 0),
     isOpenAccess: work.open_access?.is_oa === true,
     pdfUrl: text(best?.pdf_url) ?? text(primary?.pdf_url),
+    license: text(pdfFrom?.license)?.toLowerCase() ?? null,
     landingUrl: text(primary?.landing_page_url) ?? (doi ? doiUrl(doi) : null),
     isRetracted: work.is_retracted === true,
     topics: uniqueNames([...(work.topics ?? []), ...(work.keywords ?? [])]),

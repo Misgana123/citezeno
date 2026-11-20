@@ -37,6 +37,8 @@ create table if not exists reader_text (
   check ((scope = 'shared') = ("ownerId" is null)),
   check ((scope = 'user') = ("pdfId" is not null))
 );
+-- the paper's title, for passage embeddings (context) and the job's logs
+alter table reader_text add column if not exists title text;
 create unique index if not exists reader_text_shared on reader_text ("paperId") where scope = 'shared';
 create unique index if not exists reader_text_pdf on reader_text ("pdfId") where "pdfId" is not null;
 create index if not exists reader_text_work on reader_text (stage, "createdAt") where stage <> 'done' and status <> 'failed';

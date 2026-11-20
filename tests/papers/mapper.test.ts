@@ -97,6 +97,7 @@ describe('toPaper', () => {
       citedByCount: 1694,
       isOpenAccess: true,
       pdfUrl: 'https://peerj.com/articles/4375.pdf',
+      license: null,
       landingUrl: 'https://doi.org/10.7717/peerj.4375',
       isRetracted: false,
       topics: ['Open Access', 'Scholarly Publishing', 'Citation advantage'],
@@ -126,6 +127,12 @@ describe('toPaper', () => {
 
   it('falls back to the DOI link when there is no landing page', () => {
     expect(toPaper({ id: 'W9', doi: '10.1000/x' })?.landingUrl).toBe('https://doi.org/10.1000/x');
+  });
+
+  it('takes the license of the location the PDF link comes from', () => {
+    expect(toPaper({ id: 'W9', best_oa_location: { pdf_url: 'https://x/a.pdf', license: 'CC-BY' }, primary_location: { license: 'other-oa' } })?.license).toBe('cc-by');
+    expect(toPaper({ id: 'W9', best_oa_location: { landing_page_url: 'https://x' }, primary_location: { pdf_url: 'https://y/a.pdf', license: 'cc0' } })?.license).toBe('cc0');
+    expect(toPaper({ id: 'W9', primary_location: { license: 'cc-by' } })?.license).toBeNull();
   });
 
   it('flags retracted papers', () => {

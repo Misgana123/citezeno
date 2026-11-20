@@ -16,6 +16,8 @@ import type { PdfTextReader } from './pdf-text/types';
 import { DEFAULT_FILE_STORAGE, FILE_STORAGE_PROVIDERS } from './storage/registry';
 import type { FileStore } from './storage/types';
 import type { Env, Gate } from './types';
+import { DEFAULT_WEB_FILES, WEB_FILES_PROVIDERS } from './web-files/registry';
+import type { WebFiles } from './web-files/types';
 
 /* Where features get the provider for a job. Each provider is built from
    configuration with its outside calls wired through the gateway. Importing
@@ -74,4 +76,12 @@ export function chatModelsFor(meter: Meter = newMeter(), env: Env = process.env)
    gateway with this request's meter; null when its provider has no key. */
 export function embedderFor(meter: Meter = newMeter(), env: Env = process.env): Embedder | null {
   return embedder(env, gateFor(meter));
+}
+
+/* Fetching open-access files from the web (WEB_FILES_PROVIDER, default "direct-http"). */
+export function webFiles(env: Env = process.env): WebFiles {
+  const [def] = chooseProviders(WEB_FILES_PROVIDERS, choose.webFiles(env), DEFAULT_WEB_FILES, 'web files');
+  const files = def.create(env, gateFor(newMeter()));
+  if (!files) throw new Error(`The web files provider "${def.name}" is not configured.`);
+  return files;
 }

@@ -66,6 +66,7 @@ describe('PDF.js text provider', () => {
     const box = itemBox(vt, { str: 'arXiv', transform: [0, 10, -10, 0, 30, 400], width: 50, hasEOL: false }, 612, 792)!;
     expect(box.h).toBeCloseTo(50 / 792, 3);
     expect(box.w).toBeCloseTo(10 / 612, 3);
+    expect(box.vertical).toBe(true);
     expect(itemBox(vt, { transform: [1, 0, 0, 1, 0, 0] }, 612, 792)).toBeNull();
   });
 

@@ -37,6 +37,7 @@ export function itemBox(vt: number[], it: RawItem, pageW: number, pageH: number)
     h: round(clamp(box.h / pageH)),
     size: round(fontSize / pageH),
     eol: it.hasEOL === true,
+    ...(vertical ? { vertical: true } : {}),
   };
 }
 

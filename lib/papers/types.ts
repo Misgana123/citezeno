@@ -22,6 +22,8 @@ export type Paper = {
   citedByCount: number;
   isOpenAccess: boolean;
   pdfUrl: string | null;
+  /* the open-access PDF's license as the provider gives it (e.g. "cc-by"), when known */
+  license?: string | null;
   landingUrl: string | null;
   isRetracted: boolean;
   topics: string[];

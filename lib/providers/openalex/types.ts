@@ -6,6 +6,7 @@ export type OpenAlexSource = { display_name?: string | null } | null;
 export type OpenAlexLocation = {
   landing_page_url?: string | null;
   pdf_url?: string | null;
+  license?: string | null;
   is_oa?: boolean | null;
   raw_source_name?: string | null;
   source?: OpenAlexSource;

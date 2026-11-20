@@ -21,7 +21,7 @@ const PROVIDERS_DIR = 'lib/providers/';
 const EXEMPT = new Set(['lib/sources.ts']);
 
 /* Job folders and shared files features may import; every other folder in lib/providers is an adapter. */
-const JOB_DIRS = new Set(['gateway', 'papers', 'storage', 'pdf-text', 'chat', 'embeddings']);
+const JOB_DIRS = new Set(['gateway', 'papers', 'storage', 'pdf-text', 'chat', 'embeddings', 'web-files']);
 
 /* An outside service's API address: an api.* host, or the citation sources' search endpoints. */
 const VENDOR_API = /https?:\/\/(api\.[a-z0-9-]+\.[a-z.]+|[a-z0-9-]+\.googleapis\.com|[a-z.]*openlibrary\.org\/search|[a-z]+\.wikipedia\.org\/w\/api)/i;
