@@ -7,12 +7,14 @@ import { ThemeToggle } from '../Nav';
 import { UserMenu } from '../UserMenu';
 import { useCredits } from '../useCredits';
 import { useShelfNotices } from '../shelf/useShelfNotices';
+import { APP_SECTIONS, type AppSection } from './sections';
 
-/* The workspace frame shared by the studio and the signed-in pages around it
-   (library, history, account, admin): a navigation rail and a top bar, with the
-   page scrolling between them. Styles live in app/atelier.css. */
+/* The workspace frame shared by every signed-in page: a navigation rail, a
+   slim top bar (the page's title and actions), and the page between them,
+   either a scrolling page or, for the assistant, one full-height panel.
+   Styles live in app/atelier.css. */
 
-export type AppSection = 'chat' | 'library' | 'history' | 'papers' | 'shelf' | 'account' | 'admin' | null;
+export type { AppSection };
 
 /* One destination in the rail. `short` is its caption when the rail is the phone's bottom bar. */
 export function RailLink({ href, icon, label, short, current, cls, badge }: { href: string; icon: IconName; label: string; short?: string; current?: boolean; cls?: string; badge?: number }) {
@@ -46,7 +48,21 @@ export function CreditsPill({ need = 5 }: { need?: number }) {
 
 export const openPalette = () => window.dispatchEvent(new Event('citezeno:palette'));
 
-export function AppShell({ current, title, children }: { current: AppSection; title: string; children: ReactNode }) {
+export function AppShell({
+  current,
+  title,
+  actions,
+  variant = 'page',
+  children,
+}: {
+  current: AppSection;
+  title: ReactNode;
+  /* buttons at the right of the top bar, before the account controls */
+  actions?: ReactNode;
+  /* page: one scrolling column with a footer; panel: one full-height panel (the assistant) */
+  variant?: 'page' | 'panel';
+  children: ReactNode;
+}) {
   const shelfNotices = useShelfNotices();
   return (
     <div className="at-frame">
@@ -56,12 +72,9 @@ export function AppShell({ current, title, children }: { current: AppSection; ti
             <LogoMark className="at-logo-mark" />
           </Link>
           <div className="at-rail-main">
-            <RailLink href="/app/chat" icon="sparkle" label="Assistant" short="Chat" current={current === 'chat'} />
-            <RailLink href="/app/citation" icon="doc" label="Studio" />
-            <RailLink href="/app/library" icon="history" label="Library" current={current === 'library'} />
-            <RailLink href="/app/history" icon="clock" label="History" current={current === 'history'} />
-            <RailLink href="/app/papers" icon="book" label="Find papers" short="Papers" current={current === 'papers'} />
-            <RailLink href="/app/shelf" icon="layers" label="My shelf" short="Shelf" current={current === 'shelf'} badge={shelfNotices} />
+            {APP_SECTIONS.map((s) => (
+              <RailLink key={s.id} href={s.href} icon={s.icon} label={s.label} short={s.short} current={current === s.id} badge={s.id === 'shelf' ? shelfNotices : undefined} cls={s.id === 'library' || s.id === 'history' ? 'at-hide-phone' : undefined} />
+            ))}
             <button className="at-rb at-only-phone" onClick={openPalette} aria-label="Commands">
               <Icon name="search" />
               <span className="at-rb-lbl" data-short="Search">
@@ -81,40 +94,38 @@ export function AppShell({ current, title, children }: { current: AppSection; ti
             <LogoMark className="at-logo-mark" />
           </Link>
           <div className="at-doc">
-            <Link className="at-crumb" href="/app/citation">
-              Studio
-            </Link>
-            <span className="at-crumb-sep" aria-hidden="true">
-              /
-            </span>
             <span className="at-here">{title}</span>
           </div>
+          {actions && <div className="at-top-actions">{actions}</div>}
           <button className="at-cmdk" onClick={openPalette} aria-label="Open the command menu">
             <Icon name="search" />
             <span>Search commands</span>
             <span className="kbd">Ctrl K</span>
           </button>
           <CreditsPill />
-          <Link className="at-run at-run-link" href="/app/citation">
-            <Icon name="doc" /> <span className="at-run-lbl">Open the studio</span>
-          </Link>
           <span className="at-top-sep" aria-hidden="true" />
           <ThemeToggle />
           <UserMenu />
         </header>
 
-        <main className="at-main">
-          <div className="at-page-in">
-            {children}
-            <footer className="at-page-foot">
-              <span>© {new Date().getFullYear()} Citezeno</span>
-              <Link href="/pricing">Pricing</Link>
-              <Link href="/contact">Contact</Link>
-              <Link href="/privacy">Privacy</Link>
-              <Link href="/terms">Terms</Link>
-            </footer>
-          </div>
-        </main>
+        {variant === 'panel' ? (
+          <main className="at-main is-panel">
+            <div className="at-panel">{children}</div>
+          </main>
+        ) : (
+          <main className="at-main">
+            <div className="at-page-in">
+              {children}
+              <footer className="at-page-foot">
+                <span>© {new Date().getFullYear()} Citezeno</span>
+                <Link href="/pricing">Pricing</Link>
+                <Link href="/contact">Contact</Link>
+                <Link href="/privacy">Privacy</Link>
+                <Link href="/terms">Terms</Link>
+              </footer>
+            </div>
+          </main>
+        )}
       </div>
     </div>
   );

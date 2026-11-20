@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_DOC, suggestTitle, type DocOptions } from '@/lib/docmodel';
 import {
   MAX_CLAIMS, TraceError, addSource, attachClaim, attachToSentence, citedSet, importReferences, reattachDetached, removeDetached, removeMine, removeSource, render,
@@ -24,6 +24,7 @@ import { DEFAULT_PREFS, type ApiSettings, type Mode, type Prefs, type Result, ty
 
 export type ClaimMode = 'auto' | 'pick';
 import { CreditsPill, RailLink, openPalette } from '../app/AppShell';
+import { APP_SECTIONS } from '../app/sections';
 import { registerCommands, type Command } from '../CommandPalette';
 import { Icon, LogoMark, type IconName } from '../Icon';
 import { ThemeToggle } from '../Nav';
@@ -709,14 +710,19 @@ export function Studio() {
           <LogoMark className="at-logo-mark" />
         </Link>
         <div className="at-rail-main">
-          {rail('doc', 'Studio', () => mainEl.current?.scrollTo({ top: 0, behavior: 'smooth' }), { current: true, cls: 'at-hide-phone' })}
-          {rail('history', 'Library', () => setLibOpen(true), { badge: library.length })}
+          {/* the app's sections, as on every page; the studio's own drawers follow */}
+          {APP_SECTIONS.map((sec) =>
+            sec.id === 'citation' ? (
+              <Fragment key={sec.id}>{rail(sec.icon, sec.label, () => mainEl.current?.scrollTo({ top: 0, behavior: 'smooth' }), { current: true, cls: 'at-hide-phone' })}</Fragment>
+            ) : sec.id === 'library' ? (
+              <Fragment key={sec.id}>{rail('history', 'Library', () => setLibOpen(true), { badge: library.length })}</Fragment>
+            ) : (
+              <RailLink key={sec.id} href={sec.href} icon={sec.icon} label={sec.label} short={sec.short} cls={sec.id === 'chat' ? undefined : 'at-hide-phone'} />
+            ),
+          )}
           {rail('quote', 'Style and claims', () => setDrawer('nav'), { cls: 'at-only-compact', short: 'Style' })}
           {rail('sliders', 'Trace settings', () => setDrawer('insp'), { cls: 'at-only-compact', short: 'Settings' })}
           {rail('search', 'Commands', openPalette, { cls: 'at-only-phone', short: 'Search' })}
-          <RailLink href="/app/history" icon="clock" label="History" cls="at-hide-phone" />
-          <RailLink href="/app/papers" icon="book" label="Find papers" cls="at-hide-phone" />
-          <RailLink href="/app/shelf" icon="layers" label="My shelf" cls="at-hide-phone" />
         </div>
         <div className="at-rail-end">
           <RailLink href="/#method" icon="help" label="How it works" cls="at-hide-phone" />
