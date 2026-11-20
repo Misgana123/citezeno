@@ -159,7 +159,7 @@ function TitleMenu({ id, title, pinned, onRenamed }: { id: string; title: string
   );
 }
 
-export function Chat({ initialId }: { initialId: string | null }) {
+export function Chat({ initialId, initialAsk = null }: { initialId: string | null; initialAsk?: string | null }) {
   const { index } = useChatIndex();
   const { data: session } = useSession();
   const [activeId, setActiveId] = useState<string | null>(initialId);
@@ -232,6 +232,16 @@ export function Chat({ initialId }: { initialId: string | null }) {
     load(initialId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialId]);
+
+  // words handed over from Search ("Ask the assistant"): ready to send
+  useEffect(() => {
+    if (!initialAsk) return;
+    setText(initialAsk);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('ask');
+    window.history.replaceState(window.history.state, '', url);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, [initialAsk]);
 
   useEffect(() => {
     const renamed = (e: Event) => {

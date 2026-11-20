@@ -13,10 +13,12 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 /* The research assistant: where people land after signing in. */
 export default async function ChatPage({ searchParams }: Props) {
   await requireSession('/app/chat');
-  const c = (await searchParams).c;
+  const sp = await searchParams;
+  const c = sp.c;
+  const ask = typeof sp.ask === 'string' ? sp.ask.slice(0, 2000) : null;
   return (
     <AppShell current="chat" title="Assistant" variant="panel">
-      <Chat initialId={typeof c === 'string' && c.length <= 80 ? c : null} />
+      <Chat initialId={typeof c === 'string' && c.length <= 80 ? c : null} initialAsk={ask} />
     </AppShell>
   );
 }
