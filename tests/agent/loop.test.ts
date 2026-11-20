@@ -266,3 +266,20 @@ describe.skipIf(!TEST_DB_URL)('conversations (Postgres)', () => {
     expect(toView((await getConversation(db.pool, user, c.id))!, await loadMessages(db.pool, c.id)).entries.map((e) => e.kind)).toEqual(['user', 'steps', 'assistant']);
   });
 });
+
+describe('paper numbers across a reply', () => {
+  it('numbers papers in tool results and keeps the numbers through a pause', async () => {
+    const many = Array.from({ length: 12 }, (_, i) => `i_${i}`);
+    const { chat, requests } = scripted(
+      { toolCalls: [call('s1', 'search_papers', { query: 'sleep', mode: 'keyword' })] },
+      { toolCalls: [call('o1', 'organize_papers', { itemIds: many, action: 'set_status', status: 'done' })] },
+      { text: 'Done [1].' },
+    );
+    const h = harness(chat);
+    await answer(h.deps, [], 'go');
+    const search = (requests[1].messages.at(-1) as Extract<ChatMessage, { role: 'tool' }>).results[0].content;
+    expect(search).toContain('"ref":1,"paperId":"openalex:W1"');
+    expect(h.events.find((e) => e.type === 'step_done')).toMatchObject({ step: { display: { refs: { 'openalex:W1': 1 } } } });
+    expect(h.pending()?.refs).toEqual({ 'openalex:W1': 1 });
+  });
+});

@@ -5,8 +5,8 @@ import type { Pending, StepView, StoredMessage } from './types';
 
 /* Conversations and their messages. Every query is scoped to the user. */
 
-export type Conversation = { id: string; title: string; model: string; pending: Pending | null; costUsd: number; createdAt: string; updatedAt: string };
-export type ConversationSummary = Pick<Conversation, 'id' | 'title' | 'model' | 'updatedAt'>;
+export type Conversation = { id: string; title: string; model: string; pinned: boolean; pending: Pending | null; costUsd: number; createdAt: string; updatedAt: string };
+export type ConversationSummary = Pick<Conversation, 'id' | 'title' | 'model' | 'pinned' | 'updatedAt'>;
 
 export const TITLE_MAX = 80;
 
@@ -20,13 +20,14 @@ const row = (r: Record<string, unknown>): Conversation => ({
   id: r.id as string,
   title: r.title as string,
   model: r.model as string,
+  pinned: r.pinned === true,
   pending: (r.pending as Pending | null) ?? null,
   costUsd: Number(r.costUsd ?? 0),
   createdAt: iso(r.createdAt as Date)!,
   updatedAt: iso(r.updatedAt as Date)!,
 });
 
-const COLS = `id, title, model, pending, "costUsd", "createdAt", "updatedAt"`;
+const COLS = `id, title, model, pinned, pending, "costUsd", "createdAt", "updatedAt"`;
 
 export async function createConversation(q: Queryable, userId: string, title: string, model: string): Promise<Conversation> {
   const { rows } = await q.query(`insert into agent_conversation (id, "userId", title, model) values ($1, $2, $3, $4) returning ${COLS}`, [`c_${randomUUID()}`, userId, title.slice(0, TITLE_MAX), model]);
@@ -39,12 +40,17 @@ export async function getConversation(q: Queryable, userId: string, id: string):
 }
 
 export async function listConversations(q: Queryable, userId: string, limit = 100): Promise<ConversationSummary[]> {
-  const { rows } = await q.query(`select id, title, model, "updatedAt" from agent_conversation where "userId" = $1 order by "updatedAt" desc limit $2`, [userId, limit]);
-  return rows.map((r) => ({ id: r.id, title: r.title, model: r.model, updatedAt: iso(r.updatedAt)! }));
+  const { rows } = await q.query(`select id, title, model, pinned, "updatedAt" from agent_conversation where "userId" = $1 order by pinned desc, "updatedAt" desc limit $2`, [userId, limit]);
+  return rows.map((r) => ({ id: r.id, title: r.title, model: r.model, pinned: r.pinned === true, updatedAt: iso(r.updatedAt)! }));
 }
 
 export async function renameConversation(q: Queryable, userId: string, id: string, title: string): Promise<boolean> {
   const { rowCount } = await q.query(`update agent_conversation set title = $3 where id = $1 and "userId" = $2`, [id, userId, title.slice(0, TITLE_MAX)]);
+  return (rowCount ?? 0) > 0;
+}
+
+export async function setPinned(q: Queryable, userId: string, id: string, pinned: boolean): Promise<boolean> {
+  const { rowCount } = await q.query(`update agent_conversation set pinned = $3 where id = $1 and "userId" = $2`, [id, userId, pinned]);
   return (rowCount ?? 0) > 0;
 }
 

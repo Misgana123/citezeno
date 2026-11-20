@@ -24,7 +24,10 @@ export const clientResultBody = z.object({
   ]),
 });
 
-export const renameBody = z.object({ title: z.string().trim().min(1, 'Give it a title.').max(80) });
+/* PATCH a conversation: rename it and / or pin it. */
+export const conversationPatchBody = z
+  .object({ title: z.string().trim().min(1, 'Give it a title.').max(80).optional(), pinned: z.boolean().optional() })
+  .refine((v) => v.title !== undefined || v.pinned !== undefined, 'Nothing to change.');
 
 /* A validated JSON body, or a 400. */
 export async function readBody<S extends z.ZodType>(req: Request, schema: S): Promise<z.infer<S>> {

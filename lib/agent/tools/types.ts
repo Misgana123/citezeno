@@ -14,6 +14,8 @@ export type ToolDisplay = {
   items?: ShelfItem[];
   file?: { name: string; mime: string; text: string };
   sources?: CitedSource[];
+  /* the reply's number for each paper shown here (by paper ID), as the answer cites them: [1], [2]… */
+  refs?: Record<string, number>;
 };
 
 export type ToolOutput = {

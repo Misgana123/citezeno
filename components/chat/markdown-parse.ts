@@ -8,13 +8,15 @@ export type Inline =
   | { kind: 'strong'; children: Inline[] }
   | { kind: 'em'; children: Inline[] }
   | { kind: 'code'; text: string }
-  | { kind: 'link'; href: string; text: string };
+  | { kind: 'link'; href: string; text: string }
+  /* [3]: the reply's paper number 3 */
+  | { kind: 'cite'; n: number };
 
 export type Block = { kind: 'p'; lines: string[] } | { kind: 'ul' | 'ol'; items: string[] } | { kind: 'h'; text: string };
 
 export const safeHref = (u: string) => (/^https?:\/\//i.test(u) ? u : null);
 
-const INLINE = /(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"])/g;
+const INLINE = /(\[\d{1,3}\](?!\()|\*\*[^*]+\*\*|\*[^*\s][^*]*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"])/g;
 
 export function inlineTokens(text: string): Inline[] {
   const out: Inline[] = [];
@@ -22,7 +24,8 @@ export function inlineTokens(text: string): Inline[] {
   for (const m of text.matchAll(INLINE)) {
     const t = m[0];
     if (m.index! > last) out.push({ kind: 'text', text: text.slice(last, m.index) });
-    if (t.startsWith('**')) out.push({ kind: 'strong', children: inlineTokens(t.slice(2, -2)) });
+    if (/^\[\d{1,3}\]$/.test(t)) out.push({ kind: 'cite', n: Number(t.slice(1, -1)) });
+    else if (t.startsWith('**')) out.push({ kind: 'strong', children: inlineTokens(t.slice(2, -2)) });
     else if (t.startsWith('`')) out.push({ kind: 'code', text: t.slice(1, -1) });
     else if (t.startsWith('[')) {
       const [, label, url] = t.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/)!;

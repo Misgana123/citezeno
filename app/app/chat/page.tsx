@@ -15,7 +15,7 @@ export default async function ChatPage({ searchParams }: Props) {
   await requireSession('/app/chat');
   const c = (await searchParams).c;
   return (
-    <AppShell current="chat" title="Assistant">
+    <AppShell current="chat" title="Assistant" variant="panel">
       <Chat initialId={typeof c === 'string' && c.length <= 80 ? c : null} />
     </AppShell>
   );

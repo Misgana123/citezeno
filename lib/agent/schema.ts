@@ -18,6 +18,8 @@ create table if not exists agent_conversation (
   "updatedAt"   timestamptz not null default now()
 );
 create index if not exists agent_conversation_user on agent_conversation ("userId", "updatedAt" desc);
+-- pinned to the top of the user's chat list
+alter table agent_conversation add column if not exists pinned boolean not null default false;
 
 -- One message of a conversation, in the vendor-neutral chat format, with what
 -- the chat page shows for it (the steps of a tool turn).

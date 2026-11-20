@@ -1,8 +1,8 @@
 import { pool } from '@/lib/db';
 import { json } from '@/lib/http';
-import { readBody, renameBody } from '@/lib/agent/bodies';
+import { conversationPatchBody, readBody } from '@/lib/agent/bodies';
 import { AgentHttpError, agentRoute } from '@/lib/agent/server';
-import { deleteConversation, getConversation, loadMessages, renameConversation } from '@/lib/agent/store';
+import { deleteConversation, getConversation, loadMessages, renameConversation, setPinned } from '@/lib/agent/store';
 import { toView } from '@/lib/agent/view';
 
 export const runtime = 'nodejs';
@@ -19,8 +19,9 @@ export const GET = agentRoute<P>(async (_req, userId, { id }) => {
 });
 
 export const PATCH = agentRoute<P>(async (req, userId, { id }) => {
-  const { title } = await readBody(req, renameBody);
-  if (!(await renameConversation(pool, userId, id, title))) throw notFound();
+  const { title, pinned } = await readBody(req, conversationPatchBody);
+  if (title !== undefined && !(await renameConversation(pool, userId, id, title))) throw notFound();
+  if (pinned !== undefined && !(await setPinned(pool, userId, id, pinned))) throw notFound();
   return json({ ok: true });
 });
 

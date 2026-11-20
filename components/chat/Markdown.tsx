@@ -4,12 +4,16 @@ import { blocks, inlineTokens, type Inline } from './markdown-parse';
 /* The assistant's replies, built as React elements: no HTML from the model
    ever reaches the page. */
 
-function render(tokens: Inline[]): ReactNode[] {
+/* How a [n] citation shows: a chip linked to paper n of this reply. */
+export type CiteRender = (n: number, key: number) => ReactNode;
+
+function render(tokens: Inline[], cite?: CiteRender): ReactNode[] {
   return tokens.map((t, i) => {
+    if (t.kind === 'cite') return cite ? cite(t.n, i) : <Fragment key={i}>[{t.n}]</Fragment>;
     if (t.kind === 'text') return <Fragment key={i}>{t.text}</Fragment>;
     if (t.kind === 'code') return <code key={i}>{t.text}</code>;
-    if (t.kind === 'strong') return <strong key={i}>{render(t.children)}</strong>;
-    if (t.kind === 'em') return <em key={i}>{render(t.children)}</em>;
+    if (t.kind === 'strong') return <strong key={i}>{render(t.children, cite)}</strong>;
+    if (t.kind === 'em') return <em key={i}>{render(t.children, cite)}</em>;
     return (
       <a key={i} href={t.href} target="_blank" rel="noopener noreferrer">
         {t.text}
@@ -18,9 +22,8 @@ function render(tokens: Inline[]): ReactNode[] {
   });
 }
 
-const inline = (text: string) => render(inlineTokens(text));
-
-export function Markdown({ text }: { text: string }) {
+export function Markdown({ text, cite }: { text: string; cite?: CiteRender }) {
+  const inline = (t: string) => render(inlineTokens(t), cite);
   return (
     <div className="ch-md">
       {blocks(text).map((b, i) =>

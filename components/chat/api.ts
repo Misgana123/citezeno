@@ -6,7 +6,7 @@ import type { ModelInfo } from '@/lib/providers/chat/catalog';
 
 /* Browser-side calls to /api/agent. Only our own server is called. */
 
-export type ConversationSummary = { id: string; title: string; model: string; updatedAt: string };
+export type ConversationSummary = { id: string; title: string; model: string; pinned: boolean; updatedAt: string };
 export type ChatList = { conversations: ConversationSummary[]; models: ModelInfo[]; defaultModel: string | null };
 
 async function readError(res: Response): Promise<Error> {
@@ -33,6 +33,7 @@ export async function agentFetch<T>(url: string, init: { method?: string; body?:
 export const listChats = () => agentFetch<ChatList>('/api/agent/conversations');
 export const openChat = (id: string) => agentFetch<ConversationView>(`/api/agent/conversations/${encodeURIComponent(id)}`);
 export const renameChat = (id: string, title: string) => agentFetch(`/api/agent/conversations/${encodeURIComponent(id)}`, { method: 'PATCH', body: { title } });
+export const pinChat = (id: string, pinned: boolean) => agentFetch(`/api/agent/conversations/${encodeURIComponent(id)}`, { method: 'PATCH', body: { pinned } });
 export const deleteChat = (id: string) => agentFetch(`/api/agent/conversations/${encodeURIComponent(id)}`, { method: 'DELETE' });
 
 /* POST and read the reply as it streams: one JSON event per line. */

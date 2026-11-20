@@ -56,6 +56,10 @@ const PATHS: Record<string, string> = {
   redo: 'm15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
   tag: 'M3.5 12.5V4.5a1 1 0 0 1 1-1h8l8 8-9 9zM8 8h.01',
   zip: 'M6 3h12v18H6zM11 3v2h2v2h-2v2h2v2h-2M10.5 14h3v3h-3z',
+  pin: 'M12 17v4.5M9 3.5h6l-1 6 3.5 3.5h-11L10 9.5z',
+  pencil: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
+  panel: 'M4 5h16v14H4zM9.5 5v14',
+  send: 'M12 19V5M6 11l6-6 6 6',
 };
 
 export type IconName = keyof typeof PATHS;

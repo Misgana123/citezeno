@@ -9,6 +9,7 @@ export type ConversationView = {
   id: string;
   title: string;
   model: string;
+  pinned: boolean;
   entries: ChatEntry[];
   /* a yes / no question, or a tool the browser should run (asking first, since reopening shouldn't spend credits silently) */
   waiting: { callId: string; kind: 'confirm'; question: string } | { callId: string; kind: 'client'; name: string; input: unknown; label: string } | null;
@@ -28,6 +29,7 @@ export function toView(c: Conversation, messages: StoredMessage[]): Conversation
     id: c.id,
     title: c.title,
     model: c.model,
+    pinned: c.pinned,
     entries,
     waiting: c.pending?.waiting ?? null,
   };

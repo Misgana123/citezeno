@@ -3,7 +3,7 @@ import type { AgentContext } from './context';
 import { asData, systemPrompt } from './prompt';
 import { toolSpecs } from './tools';
 import { failureMessage, runTool } from './tools/run';
-import type { ToolDisplay } from './tools/types';
+import type { ToolDisplay, ToolOutput } from './tools/types';
 import type { AgentEvent, Pending, StepView, StoredMessage } from './types';
 
 /* The agent loop for one user message: ask the model, run the tools it asks
@@ -24,7 +24,30 @@ export type LoopDeps = {
   deadline: number;
   now?: () => number;
   maxOutputTokens?: number;
+  /* this reply's paper numbers (paper ID → n), so the answer can cite [n] */
+  refs?: Map<string, number>;
 };
+
+/* Number the papers and saved items a step found, in the order they first
+   appear in this reply: the model reads each as "ref": n and cites it as [n];
+   the page shows the same numbers. */
+export function numberPapers(output: ToolOutput, refs: Map<string, number>): ToolOutput {
+  const n = (id: string) => {
+    if (!refs.has(id)) refs.set(id, refs.size + 1);
+    return refs.get(id)!;
+  };
+  const shown: Record<string, number> = {};
+  for (const p of output.display?.papers ?? []) shown[p.id] = n(p.id);
+  for (const i of output.display?.items ?? []) shown[i.paper.id] = n(i.paper.id);
+  const walk = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (!v || typeof v !== 'object') return v;
+    const o = Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)]));
+    return typeof o.paperId === 'string' && shown[o.paperId] != null ? { ref: shown[o.paperId], ...o } : o;
+  };
+  if (!Object.keys(shown).length) return output;
+  return { result: walk(output.result), display: { ...output.display, refs: shown } };
+}
 
 /* What the model is sent: the latest messages, cut at a user message so a
    tool call is never separated from its result. */
@@ -58,21 +81,22 @@ async function runCalls(d: LoopDeps, calls: ToolCall[], from: number, results: T
     if (!started) d.emit({ type: 'step', callId: call.id, name: call.name, label: run.label, input: run.input });
     const o = run.outcome;
     if (o.status === 'needs_confirmation') {
-      await d.setPending({ calls, results, steps, waiting: { callId: call.id, kind: 'confirm', question: o.question }, turns });
+      await d.setPending({ calls, results, steps, waiting: { callId: call.id, kind: 'confirm', question: o.question }, turns, refs: Object.fromEntries(d.refs ?? []) });
       d.emit({ type: 'confirm', callId: call.id, question: o.question, label: run.label });
       return { status: 'paused' };
     }
     if (o.status === 'client') {
-      await d.setPending({ calls, results, steps, waiting: { callId: call.id, kind: 'client', name: call.name, input: run.input, label: run.label }, turns });
+      await d.setPending({ calls, results, steps, waiting: { callId: call.id, kind: 'client', name: call.name, input: run.input, label: run.label }, turns, refs: Object.fromEntries(d.refs ?? []) });
       d.emit({ type: 'client_tool', callId: call.id, name: call.name, input: run.input, label: run.label });
       return { status: 'paused' };
     }
+    const out = o.status === 'done' ? numberPapers(o.output, (d.refs ??= new Map())) : null;
     const step: StepView =
-      o.status === 'done'
-        ? { callId: call.id, name: call.name, label: run.label, input: run.input, status: 'done', ...(o.output.display ? { display: o.output.display } : {}) }
-        : { callId: call.id, name: call.name, label: run.label, input: run.input, status: 'error', error: o.message };
+      out
+        ? { callId: call.id, name: call.name, label: run.label, input: run.input, status: 'done', ...(out.display ? { display: out.display } : {}) }
+        : { callId: call.id, name: call.name, label: run.label, input: run.input, status: 'error', error: (o as { message: string }).message };
     steps = [...steps, step];
-    results = [...results, o.status === 'done' ? { callId: call.id, name: call.name, content: asData(call.name, o.output.result) } : { callId: call.id, name: call.name, content: o.message, isError: true }];
+    results = [...results, out ? { callId: call.id, name: call.name, content: asData(call.name, out.result) } : { callId: call.id, name: call.name, content: (o as { message: string }).message, isError: true }];
     d.emit({ type: 'step_done', step });
   }
   return { status: 'done', results, steps };
@@ -115,6 +139,7 @@ async function think(d: LoopDeps, history: ChatMessage[], turns: number): Promis
 
 /* A new message from the user. */
 export async function answer(d: LoopDeps, history: ChatMessage[], text: string): Promise<void> {
+  d.refs = new Map();
   const user: ChatMessage = { role: 'user', text };
   await d.save([{ message: user }]);
   await guarded(d, () => think(d, [...history, user], 0));
@@ -135,6 +160,7 @@ async function finishTurn(d: LoopDeps, history: ChatMessage[], pending: Pending,
 
 /* The user's yes / no to the step that was waiting; then carry on. */
 export async function resume(d: LoopDeps, history: ChatMessage[], pending: Pending, approved: boolean): Promise<void> {
+  d.refs = new Map(Object.entries(pending.refs ?? {}));
   await guarded(d, async () => {
     await d.setPending(null);
     const at = pending.calls.findIndex((c) => c.id === pending.waiting.callId);
@@ -152,6 +178,7 @@ export async function resume(d: LoopDeps, history: ChatMessage[], pending: Pendi
 export type ClientOutcome = { ok: true; result: unknown; display?: ToolDisplay } | { ok: false; error: string };
 
 export async function resumeWithClientResult(d: LoopDeps, history: ChatMessage[], pending: Pending, outcome: ClientOutcome): Promise<void> {
+  d.refs = new Map(Object.entries(pending.refs ?? {}));
   await guarded(d, async () => {
     await d.setPending(null);
     const at = pending.calls.findIndex((c) => c.id === pending.waiting.callId);
