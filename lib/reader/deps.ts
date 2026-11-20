@@ -1,3 +1,4 @@
+import type { ChatModels } from '@/lib/providers/chat/catalog';
 import type { Embedder } from '@/lib/providers/embeddings/embedder';
 import type { PaperSources } from '@/lib/providers/papers/sources';
 import type { PdfPagesReader } from '@/lib/providers/pdf-text/pages';
@@ -14,6 +15,8 @@ export type ReaderDeps = {
   pages: () => PdfPagesReader;
   embedder: () => Embedder | null;
   sources: () => PaperSources;
+  /* The chat models on offer (summaries, answers, Explain); absent → AI is off. */
+  chat?: () => ChatModels;
   /* Largest PDF the reader opens or processes, in bytes. */
   maxPdfBytes: number;
   now?: () => number;

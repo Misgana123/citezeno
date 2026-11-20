@@ -67,7 +67,7 @@ const fakeEmbedder = (id = 'fake-embed'): Embedder => ({
   embed: vi.fn(async (_kind, inputs) => ({ vectors: inputs.map((_: unknown, i: number) => [1, i, 0, 0]), tokens: inputs.length * 10, costUsd: 0.0001 })),
 });
 
-describe.skipIf(!TEST_DB_URL)('opening and processing papers (Postgres)', () => {
+describe.skipIf(!TEST_DB_URL)('opening and processing papers (Postgres)', { timeout: 30_000 }, () => {
   let db: TestDb;
   let user: string;
   let other: string;

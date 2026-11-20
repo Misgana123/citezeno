@@ -40,7 +40,7 @@ describe('annotation bodies', () => {
   });
 });
 
-describe.skipIf(!TEST_DB_URL)('highlights and notes (Postgres)', () => {
+describe.skipIf(!TEST_DB_URL)('highlights and notes (Postgres)', { timeout: 30_000 }, () => {
   let db: TestDb;
   let user: string;
   let other: string;

@@ -17,6 +17,9 @@ import { FindBar, MoreMenu, TopBar } from './TopBar';
 import { Annotator } from './annotations/Annotator';
 import type { Flash } from './annotations/AnnotationLayer';
 import { NotesPanel } from './annotations/NotesPanel';
+import { ExplainList, type ExplainItem } from './ai/ExplainList';
+import { SummaryCard } from './ai/SummaryCard';
+import { usePassages } from './ai/usePassages';
 import { useAnnotations } from './annotations/useAnnotations';
 import { removeFromShelf, uploadForPaper } from './upload';
 
@@ -85,7 +88,11 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
       toast((e as Error).message, true);
     }
   };
-  /* Jump to a place in the PDF and flash it (a highlight, a note, or later a cited passage). */
+  // AI: passages for citation links, Explain answers
+  const textReady = data?.text?.status === 'ready';
+  const passages = usePassages(paperId, pdfId, textReady);
+  const [explains, setExplains] = useState<ExplainItem[]>([]);
+  /* Jump to a place in the PDF and flash it (a highlight, a note, or a cited passage). */
   const jumpTo = useCallback(
     (target: { page: number; rects?: { x: number; y: number; w: number; h: number }[] }) => {
       if (!pdf) return;
@@ -133,6 +140,36 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
     }, 1200);
     return () => clearTimeout(t);
   }, [page, pdf, data, paperId]);
+
+  const cite = useCallback(
+    (id: string) => {
+      const p = passages.get(id);
+      if (!p) return toast('That passage isn’t available in this copy of the PDF.', true);
+      jumpTo({ page: p.page, rects: [{ x: p.box.x, y: p.box.y, w: p.box.w, h: p.box.h }] });
+    },
+    [passages, jumpTo],
+  );
+  const showPanel = useCallback(
+    (tab: RightTab) => {
+      setLayout((l) => ({ ...l, tab, right: true }));
+      if (phone) setSheet(tab);
+      else if (tablet) setDrawer(true);
+    },
+    [phone, tablet, setLayout],
+  );
+  const explain = useCallback(
+    async (quote: string, page: number, id = `x_${Date.now()}`) => {
+      setExplains((xs) => [{ id, quote, page, status: 'loading' as const }, ...xs.filter((x) => x.id !== id)]);
+      showPanel('chat');
+      try {
+        const r = await readerFetch<{ text: string }>(readerUrl(paperId, `/explain${pdfId ? `?pdf=${encodeURIComponent(pdfId)}` : ''}`), { method: 'POST', body: { quote, page } });
+        setExplains((xs) => xs.map((x) => (x.id === id ? { ...x, status: 'done', text: r.text } : x)));
+      } catch (e) {
+        setExplains((xs) => xs.map((x) => (x.id === id ? { ...x, status: 'error', error: (e as Error).message } : x)));
+      }
+    },
+    [paperId, pdfId, showPanel],
+  );
 
   useEffect(() => {
     if (!flash) return;
@@ -224,9 +261,14 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
   const hasPdf = data.pdf.kind !== 'none';
   const panelContent = (tab: RightTab) =>
     tab === 'details' ? (
-      <Details data={data}>{slots?.summary}</Details>
+      <Details data={data}>{slots?.summary ?? <SummaryCard data={data} pdfId={pdfId} passages={passages} onCite={cite} />}</Details>
     ) : tab === 'chat' ? (
-      (slots?.chat ?? <PanelEmpty icon="chat" title="Ask about this paper" text="Questions about the paper, answered from its own text with links to the passages, come here." />)
+      (slots?.chat ??
+        (explains.length ? (
+          <ExplainList items={explains} passages={passages} onCite={cite} onRetry={(it) => explain(it.quote, it.page, it.id)} />
+        ) : (
+          <PanelEmpty icon="chat" title="Ask about this paper" text="Select text in the PDF and choose Explain for a plain explanation. Questions about the paper come here." />
+        )))
     ) : (
       (slots?.notes ?? (
         <NotesPanel
@@ -315,6 +357,7 @@ export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfI
               onPlacing={setPlacing}
               flash={flash}
               onMissing={setMissing}
+              onExplain={data.ai ? (quote, a) => void explain(quote, a.page) : undefined}
             />
           )}
           {hasPdf && !pdf && !pdfError && <div className="rd-pdf-loading" aria-label="Loading the PDF"><span className="spin" /></div>}

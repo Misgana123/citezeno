@@ -20,6 +20,7 @@ export function readerDeps(): ReaderDeps {
     pages: () => pdfPagesReader(),
     embedder: () => (embedder === undefined ? (embedder = embedderFor()) : embedder),
     sources: () => papersServer().sources(newMeter()),
+    chat: () => chatModelsFor(),
     maxPdfBytes: config.maxPdfBytes,
   };
 }

@@ -254,3 +254,34 @@
 .rd.is-phone .rd-saved-pill, .rd.is-phone .rd-upload-pill { bottom: calc(70px + env(safe-area-inset-bottom)); }
 .rd.is-phone .rd-pop-btn { min-height: 40px; }
 .rd.is-phone .rd-swatch { width: 30px; height: 30px; }
+
+/* ---------- AI: citations, summary, Explain ---------- */
+.rd-cite {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin: 0 1px 0 3px; padding: 0 4px; vertical-align: 2px;
+  border: 0; border-radius: 6px; background: var(--thread-soft); color: var(--ink); font: inherit; font-size: 11px; font-weight: 700; line-height: 1; cursor: pointer;
+}
+.rd-cite:hover { background: var(--thread); color: var(--thread-ink); }
+.rd-summary { display: grid; gap: 10px; }
+.rd-sum-sec h4 { margin: 4px 0 6px; font-size: 13px; font-weight: 700; color: var(--ink); }
+.rd-sum-sec ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.rd-sum-sec li { font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.rd-terms { margin: 0; display: grid; gap: 6px; }
+.rd-terms div { display: grid; gap: 1px; }
+.rd-terms dt { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.rd-terms dd { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
+.rd-sum-label { justify-self: start; margin: 0; padding: 3px 9px; border-radius: 999px; background: var(--wash-soft); font-size: 12px; font-weight: 650; color: var(--ink-2); }
+.rd-sum-warn { display: flex; gap: 8px; margin: 0; padding: 9px 12px; border-radius: 10px; background: var(--warn-soft); color: var(--warn); font-size: 13px; font-weight: 600; }
+.rd-sum-warn svg { flex: none; width: 15px; height: 15px; margin-top: 1px; }
+.rd-sum-foot { margin: 2px 0 0; font-size: 12px; color: var(--ink-3); }
+.rd-sum-start { display: grid; gap: 10px; justify-items: start; }
+.rd-sum-start p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+.rd-ai-error { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; font-size: 13px; color: var(--warn); }
+.rd-ai-error svg { width: 14px; height: 14px; }
+.rd-explains { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.rd-explain { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--rule-2); border-radius: 14px; background: var(--sheet); }
+.rd-explain-kicker { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
+.rd-explain-kicker svg { width: 13px; height: 13px; color: var(--thread); }
+.rd-explain blockquote { margin: 0; padding: 2px 0 2px 10px; border-left: 3px solid var(--thread); font-family: var(--f-read); font-size: 14px; line-height: 1.45; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.rd-explain-text { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--ink); }
+.rd-explain-copy { justify-self: start; }
+.rd-muted .spin { margin-right: 6px; vertical-align: -2px; }
