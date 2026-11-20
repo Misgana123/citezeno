@@ -1,37 +1,50 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSession } from '@/lib/auth-client';
 import type { AgentEvent } from '@/lib/agent/types';
 import type { ConversationView } from '@/lib/agent/view';
 import { Icon, type IconName } from '../Icon';
-import { answerQuestion, deleteChat, listChats, openChat, pinChat, renameChat, sendClientResult, sendMessage, type ChatList as ChatIndex } from './api';
+import { InlineName } from '../shelf/InlineName';
+import { answerQuestion, deleteChat, openChat, pinChat, renameChat, sendClientResult, sendMessage } from './api';
+import { refreshChats, useChatIndex } from './chat-index';
 import { runClientTool } from './citations';
-import { ChatList } from './ChatList';
-import { ChatSettings, savedModel } from './ChatSettings';
+import { Composer, type ComposeMode } from './Composer';
 import { applyEvent, type Entry } from './events';
 import { Markdown } from './Markdown';
 import { refAnchor } from './PaperRefs';
 import { Steps } from './Steps';
 
-/* The research assistant: the chat list, the conversation, and a floating
-   message box. Each step the assistant takes shows up as it happens; the
-   answer cites the papers it found by number ([2]), linked to the list. */
+/* The research assistant. A new chat opens on a greeting with a large message
+   box; a conversation shows each turn (the steps it took, folded to one line;
+   the answer, citing the papers it found by number; the papers) with the
+   message box docked below. The chats themselves live in the sidebar. */
 
 type Waiting = NonNullable<ConversationView['waiting']>;
 type ClientTask = { callId: string; name: string; input: unknown; label: string };
 
-const SUGGESTIONS: { icon: IconName; title: string; prompt: string }[] = [
-  { icon: 'search', title: 'Find and save papers', prompt: 'Find recent papers on sleep and memory, save the three most relevant to my Thesis project, and tag them “memory”.' },
-  { icon: 'layers', title: 'Ask about your shelf', prompt: 'What’s in my library about machine learning in healthcare?' },
-  { icon: 'quote', title: 'Cite a claim', prompt: 'Find citations for: regular exercise improves sleep quality in older adults.' },
-  { icon: 'shield', title: 'Check for retractions', prompt: 'Which papers on my shelf are retracted?' },
+const MODEL_KEY = 'cz:chat-model';
+
+const CHIPS: { icon: IconName; label: string; prompt: string; mode?: ComposeMode }[] = [
+  { icon: 'search', label: 'Find papers', prompt: 'Find recent papers on ' },
+  { icon: 'quote', label: 'Cite a claim', prompt: '', mode: 'cite' },
+  { icon: 'layers', label: 'Ask my shelf', prompt: 'What’s on my shelf about ' },
+  { icon: 'shield', label: 'Check retractions', prompt: 'Which papers on my shelf are retracted?' },
 ];
+
+function greeting(name: string | null | undefined): string {
+  const h = new Date().getHours();
+  const part = h < 5 ? 'Good evening' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  const first = name?.trim().split(/\s+/)[0];
+  return first ? `${part}, ${first}` : part;
+}
 
 function setUrl(id: string | null) {
   const url = new URL(window.location.href);
   if (id) url.searchParams.set('c', id);
   else url.searchParams.delete('c');
-  window.history.replaceState(null, '', url);
+  window.history.replaceState(window.history.state, '', url);
 }
 
 /* Entries as turns: each user message with everything the assistant did after it. */
@@ -61,60 +74,140 @@ function refTitles(turn: Turn): Map<number, string> {
   return m;
 }
 
+/* The chat's title, with pin / rename / delete. */
+function TitleMenu({ id, title, pinned, onRenamed }: { id: string; title: string; pinned: boolean; onRenamed(t: string): void }) {
+  const [open, setOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, [open]);
+
+  if (renaming)
+    return (
+      <div className="ch-title-edit">
+        <InlineName
+          initial={title}
+          label="Chat title"
+          placeholder="Title"
+          onCancel={() => setRenaming(false)}
+          onSave={async (t) => {
+            await renameChat(id, t);
+            onRenamed(t);
+            setRenaming(false);
+            refreshChats();
+          }}
+        />
+      </div>
+    );
+
+  return (
+    <div className="ch-title" ref={box}>
+      <button type="button" className="ch-title-btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span>{title}</span> <Icon name="chevron" />
+      </button>
+      {open && (
+        <div className="cz-menu ch-title-menu" role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            onClick={async () => {
+              setOpen(false);
+              await pinChat(id, !pinned);
+              refreshChats();
+            }}
+          >
+            <Icon name="pin" /> {pinned ? 'Unpin' : 'Pin'}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              setRenaming(true);
+            }}
+          >
+            <Icon name="pencil" /> Rename
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="is-danger"
+            onClick={async () => {
+              setOpen(false);
+              if (!window.confirm('Delete this chat? This can’t be undone.')) return;
+              await deleteChat(id);
+              await refreshChats();
+              router.push('/app/chat');
+            }}
+          >
+            <Icon name="trash" /> Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Chat({ initialId }: { initialId: string | null }) {
-  const [index, setIndex] = useState<ChatIndex | null>(null);
-  const [listError, setListError] = useState<string | null>(null);
+  const { index } = useChatIndex();
+  const { data: session } = useSession();
   const [activeId, setActiveId] = useState<string | null>(initialId);
   const [title, setTitle] = useState<string | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [waiting, setWaiting] = useState<Waiting | null>(null);
   const [model, setModel] = useState<string | null>(null);
+  const [mode, setMode] = useState<ComposeMode>('chat');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(!!initialId);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState('');
-  const [listOpen, setListOpen] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const models = index?.models ?? [];
+  const models = useMemo(() => index?.models ?? [], [index]);
   const noModels = index != null && models.length === 0;
-  /* the model new chats start with: the one chosen in Settings, if still offered */
-  const startModel = useCallback((l: ChatIndex | null) => {
-    const saved = savedModel();
-    return l?.models.some((m) => m.id === saved) ? saved : (l?.defaultModel ?? null);
-  }, []);
+  const pinned = index?.conversations.find((c) => c.id === activeId)?.pinned ?? false;
 
-  const refreshList = useCallback(async () => {
+  /* the model new chats start with: the last one picked on a new chat, if still offered */
+  const startModel = useCallback(() => {
+    let saved: string | null = null;
     try {
-      const l = await listChats();
-      setIndex(l);
-      setListError(null);
-      setModel((m) => m ?? startModel(l));
-    } catch (e) {
-      setListError((e as Error).message);
+      saved = localStorage.getItem(MODEL_KEY);
+    } catch {
+      /* storage blocked */
     }
-  }, [startModel]);
+    return models.some((m) => m.id === saved) ? saved : (index?.defaultModel ?? null);
+  }, [models, index]);
 
   useEffect(() => {
-    refreshList();
-  }, [refreshList]);
+    if (!model && index) setModel(startModel());
+  }, [index, model, startModel]);
 
   const load = useCallback(
     async (id: string | null) => {
       abort.current?.abort();
       setActiveId(id);
-      setUrl(id);
       setError(null);
       setWaiting(null);
       setBusy(false);
-      setListOpen(false);
       if (!id) {
         setEntries([]);
         setTitle(null);
-        setModel(startModel(index));
-        inputRef.current?.focus();
+        setModel(startModel());
+        setLoading(false);
+        setTimeout(() => inputRef.current?.focus(), 0);
         return;
       }
       setLoading(true);
@@ -131,14 +224,23 @@ export function Chat({ initialId }: { initialId: string | null }) {
         setLoading(false);
       }
     },
-    [index, startModel],
+    [startModel],
   );
 
+  // the page's ?c= decides the chat: the sidebar's links and New chat change it
   useEffect(() => {
-    if (initialId) load(initialId);
-    // only on first open
+    load(initialId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialId]);
+
+  useEffect(() => {
+    const renamed = (e: Event) => {
+      const d = (e as CustomEvent<{ id: string; title: string }>).detail;
+      if (d.id === activeId) setTitle(d.title);
+    };
+    window.addEventListener('citezeno:chat-renamed', renamed);
+    return () => window.removeEventListener('citezeno:chat-renamed', renamed);
+  }, [activeId]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
@@ -152,13 +254,11 @@ export function Chat({ initialId }: { initialId: string | null }) {
     abort.current = ctrl;
     setBusy(true);
     setError(null);
-    let newId: string | null = null;
     let conversationId = activeId;
     let task: ClientTask | null = null;
     try {
       await start((e) => {
         if (e.type === 'conversation') {
-          newId = e.id;
           conversationId = e.id;
           setActiveId(e.id);
           setTitle(e.title);
@@ -172,7 +272,7 @@ export function Chat({ initialId }: { initialId: string | null }) {
       setError((e as Error).message);
     } finally {
       if (abort.current === ctrl) setBusy(false);
-      if (newId) refreshList();
+      refreshChats();
     }
     if (task && conversationId && !ctrl.signal.aborted) await runInBrowser(conversationId, task);
   };
@@ -184,11 +284,20 @@ export function Chat({ initialId }: { initialId: string | null }) {
     await run((onEvent, signal) => sendClientResult({ conversationId, callId: task.callId, outcome }, onEvent, signal));
   };
 
-  const send = async (raw: string) => {
-    const message = raw.trim();
-    if (!message || busy || noModels) return;
+  const send = async (raw: string = text) => {
+    const typed = raw.trim();
+    if (!typed || busy || noModels) return;
+    const message = mode === 'cite' ? `Find citations for this text:\n\n${typed}` : typed;
     setText('');
+    setMode('chat');
     setWaiting(null);
+    if (!activeId && model) {
+      try {
+        localStorage.setItem(MODEL_KEY, model);
+      } catch {
+        /* storage blocked */
+      }
+    }
     setEntries((prev) => [...prev, { kind: 'user', text: message }]);
     await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: message, model }, onEvent, signal));
   };
@@ -206,202 +315,139 @@ export function Chat({ initialId }: { initialId: string | null }) {
     await run((onEvent, signal) => answerQuestion({ conversationId: activeId, callId: w.callId, approve }, onEvent, signal));
   };
 
-  const act = async (fn: () => Promise<unknown>) => {
-    try {
-      await fn();
-      await refreshList();
-    } catch (e) {
-      setListError((e as Error).message);
-    }
-  };
-
-  const remove = (id: string) => {
-    if (!window.confirm('Delete this chat? This can’t be undone.')) return;
-    act(async () => {
-      await deleteChat(id);
-      if (id === activeId) load(null);
-    });
-  };
-
   const turns = useMemo(() => toTurns(entries), [entries]);
   const working = busy && !entries.some((e) => e.kind === 'steps' && e.steps.some((s) => s.status === 'running'));
-  const empty = !loading && entries.length === 0 && !waiting;
+  const home = !activeId && !loading && entries.length === 0;
+
+  const composer = (big: boolean) => (
+    <Composer
+      ref={inputRef}
+      big={big}
+      text={text}
+      onText={setText}
+      mode={mode}
+      onMode={(m) => {
+        setMode(m);
+        inputRef.current?.focus();
+      }}
+      models={models}
+      model={model}
+      onModel={setModel}
+      busy={busy}
+      disabled={noModels}
+      placeholder={big ? 'Ask about papers, citations or your shelf…' : waiting ? 'Answer above, or ask something else…' : 'Reply…'}
+      onSend={() => send()}
+      onStop={() => abort.current?.abort()}
+    />
+  );
+
+  if (home)
+    return (
+      <div className="ch ch-home">
+        <div className="ch-home-in">
+          <h1 className="ch-greet">
+            <span className="ch-orb" aria-hidden="true" /> {greeting(session?.user.name)}
+          </h1>
+          {noModels ? <p className="ch-quiet">The assistant isn’t set up yet: no AI model is available.</p> : composer(true)}
+          <div className="ch-chips">
+            {CHIPS.map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                className="ch-chip"
+                disabled={noModels}
+                onClick={() => {
+                  setMode(c.mode ?? 'chat');
+                  if (c.prompt.endsWith('?')) return send(c.prompt);
+                  setText(c.prompt);
+                  inputRef.current?.focus();
+                }}
+              >
+                <Icon name={c.icon} /> {c.label}
+              </button>
+            ))}
+          </div>
+          {error && (
+            <p className="ch-error" role="alert">
+              <Icon name="alert" /> {error}
+            </p>
+          )}
+        </div>
+        <p className="ch-disclaimer is-home">Answers come only from real papers. Check important claims against the source.</p>
+      </div>
+    );
 
   return (
-    <div className={`ch${listOpen ? ' is-list-open' : ''}`}>
-      <aside className="ch-side" aria-label="Chats">
-        <ChatList
-          chats={index?.conversations ?? null}
-          activeId={activeId}
-          error={listError}
-          onOpen={(id) => load(id)}
-          onNew={() => load(null)}
-          onRename={(id, t) =>
-            act(async () => {
-              await renameChat(id, t);
-              if (id === activeId) setTitle(t);
-            })
-          }
-          onPin={(id, pinned) => act(() => pinChat(id, pinned))}
-          onDelete={remove}
-        />
-      </aside>
-      {listOpen && <button type="button" className="ch-scrim" aria-label="Close the chat list" onClick={() => setListOpen(false)} />}
+    <div className="ch">
+      <header className="ch-head">
+        {activeId && title ? <TitleMenu id={activeId} title={title} pinned={pinned} onRenamed={setTitle} /> : <span className="ch-title-plain">{title ?? 'New chat'}</span>}
+      </header>
 
-      <section className="ch-main" aria-label={title ?? 'New chat'}>
-        <header className="ch-head">
-          <button type="button" className="ch-icon ch-list-toggle" aria-label="Show your chats" aria-expanded={listOpen} onClick={() => setListOpen(true)}>
-            <Icon name="panel" />
-          </button>
-          <h1 className="ch-title">{title ?? 'New chat'}</h1>
-          <div className="ch-head-acts">
-            <ChatSettings models={models} onDefaultModel={(id) => !activeId && setModel(id)} />
-            <button type="button" className="ch-pill is-dark" onClick={() => load(null)}>
-              <Icon name="plus" /> <span className="ch-pill-lbl">New chat</span>
-            </button>
-          </div>
-        </header>
+      <div className="ch-thread">
+        <div className="ch-col">
+          {loading && <p className="ch-quiet">Opening the chat…</p>}
 
-        <div className="ch-thread">
-          <div className="ch-col">
-            {loading && <p className="ch-quiet">Opening the chat…</p>}
-
-            {empty && (
-              <div className="ch-hello">
-                <span className="ch-orb" aria-hidden="true" />
-                <h2>What are you researching?</h2>
-                <p>Find papers, keep your shelf in order, or cite a claim. I only use real papers, and I ask before changing anything big.</p>
-                <div className="ch-suggest">
-                  {SUGGESTIONS.map((s) => (
-                    <button key={s.title} type="button" onClick={() => send(s.prompt)} disabled={busy || noModels}>
-                      <span className="ch-suggest-icon">
-                        <Icon name={s.icon} />
-                      </span>
-                      <b>{s.title}</b>
-                      <span>{s.prompt}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {turns.map((t) => {
-              const titles = refTitles(t);
-              const cite = (n: number, key: number) =>
-                titles.has(n) ? (
-                  <a key={key} className="ch-cite" href={`#${refAnchor(t.key, n)}`} title={titles.get(n)}>
-                    {n}
-                  </a>
-                ) : (
-                  <Fragment key={key}>[{n}]</Fragment>
-                );
-              return (
-                <div key={t.key} className="ch-turn">
-                  {t.user != null && <div className="ch-user">{t.user}</div>}
-                  {t.parts.length > 0 && (
-                    <div className="ch-ai">
-                      <div className="ch-ai-head">
-                        <span className="ch-orb is-small" aria-hidden="true" /> Citezeno
-                      </div>
-                      {t.parts.map((p, i) =>
-                        p.kind === 'steps' ? (
-                          <Steps key={i} steps={p.steps} turn={t.key} />
-                        ) : p.kind === 'assistant' ? (
-                          <div key={i} className="ch-answer">
-                            <Markdown text={p.text} cite={cite} />
-                          </div>
-                        ) : null,
-                      )}
-                    </div>
-                  )}
-                </div>
+          {turns.map((t) => {
+            const titles = refTitles(t);
+            const cite = (n: number, key: number) =>
+              titles.has(n) ? (
+                <a key={key} className="ch-cite" href={`#${refAnchor(t.key, n)}`} title={titles.get(n)}>
+                  {n}
+                </a>
+              ) : (
+                <Fragment key={key}>[{n}]</Fragment>
               );
-            })}
-
-            {waiting && (
-              <div className="ch-ask" role="alertdialog" aria-label="The assistant is asking first">
-                <p>{waiting.kind === 'confirm' ? waiting.question : `${waiting.label}. This uses 1 credit.`}</p>
-                <div className="ch-ask-acts">
-                  <button type="button" className="ch-btn is-go" onClick={() => answer(true)} disabled={busy}>
-                    {waiting.kind === 'confirm' ? 'Yes' : 'Run it'}
-                  </button>
-                  <button type="button" className="ch-btn" onClick={() => answer(false)} disabled={busy}>
-                    {waiting.kind === 'confirm' ? 'No' : 'Skip'}
-                  </button>
-                </div>
+            return (
+              <div key={t.key} className="ch-turn">
+                {t.user != null && <div className="ch-user">{t.user}</div>}
+                {t.parts.length > 0 && (
+                  <div className="ch-ai">
+                    {t.parts.map((p, i) =>
+                      p.kind === 'steps' ? (
+                        <Steps key={i} steps={p.steps} turn={t.key} />
+                      ) : p.kind === 'assistant' ? (
+                        <div key={i} className="ch-answer">
+                          <Markdown text={p.text} cite={cite} />
+                        </div>
+                      ) : null,
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-            {working && <p className="ch-quiet ch-thinking">Thinking</p>}
-            {error && (
-              <p className="ch-error" role="alert">
-                <Icon name="alert" /> {error}
-              </p>
-            )}
-            <div ref={endRef} />
-          </div>
-        </div>
+            );
+          })}
 
-        <div className="ch-dock">
-          <form
-            className="ch-compose"
-            onSubmit={(e) => {
-              e.preventDefault();
-              send(text);
-            }}
-          >
-            {noModels ? (
-              <p className="ch-quiet">The assistant isn’t set up yet: no AI model is available.</p>
-            ) : (
-              <>
-                <textarea
-                  ref={inputRef}
-                  className="ch-input"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                      e.preventDefault();
-                      send(text);
-                    }
-                  }}
-                  placeholder={waiting ? 'Answer above, or ask something else…' : 'Ask about papers, citations or your shelf…'}
-                  rows={1}
-                  maxLength={8000}
-                  aria-label="Message"
-                />
-                <div className="ch-compose-bar">
-                  {models.length > 1 ? (
-                    <label className="ch-model">
-                      <Icon name="sparkle" />
-                      <select value={model ?? ''} onChange={(e) => setModel(e.target.value)} aria-label="AI model for this chat">
-                        {models.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ) : (
-                    <span className="ch-model is-one">
-                      <Icon name="sparkle" /> {models[0]?.label}
-                    </span>
-                  )}
-                  {busy ? (
-                    <button type="button" className="ch-send is-stop" onClick={() => abort.current?.abort()}>
-                      <Icon name="stop" /> Stop
-                    </button>
-                  ) : (
-                    <button type="submit" className="ch-send" disabled={!text.trim()}>
-                      <Icon name="send" /> Send
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </form>
-          <p className="ch-disclaimer">Answers come only from real papers the tools found. Check important claims against the source.</p>
+          {waiting && (
+            <div className="ch-ask" role="alertdialog" aria-label="The assistant is asking first">
+              <p>{waiting.kind === 'confirm' ? waiting.question : `${waiting.label}. This uses 1 credit.`}</p>
+              <div className="ch-ask-acts">
+                <button type="button" className="ch-btn is-go" onClick={() => answer(true)} disabled={busy}>
+                  {waiting.kind === 'confirm' ? 'Yes' : 'Run it'}
+                </button>
+                <button type="button" className="ch-btn" onClick={() => answer(false)} disabled={busy}>
+                  {waiting.kind === 'confirm' ? 'No' : 'Skip'}
+                </button>
+              </div>
+            </div>
+          )}
+          {working && (
+            <p className="ch-quiet ch-thinking">
+              <span className="ch-orb is-small is-pulse" aria-hidden="true" /> Thinking
+            </p>
+          )}
+          {error && (
+            <p className="ch-error" role="alert">
+              <Icon name="alert" /> {error}
+            </p>
+          )}
+          <div ref={endRef} />
         </div>
-      </section>
+      </div>
+
+      <div className="ch-dock">
+        {noModels ? <p className="ch-quiet">The assistant isn’t set up yet: no AI model is available.</p> : composer(false)}
+        <p className="ch-disclaimer">Answers come only from real papers. Check important claims against the source.</p>
+      </div>
     </div>
   );
 }

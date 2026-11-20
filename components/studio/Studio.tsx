@@ -25,6 +25,7 @@ import { DEFAULT_PREFS, type ApiSettings, type Mode, type Prefs, type Result, ty
 export type ClaimMode = 'auto' | 'pick';
 import { CreditsPill, RailLink, openPalette } from '../app/AppShell';
 import { APP_SECTIONS } from '../app/sections';
+import { Sidebar } from '../app/Sidebar';
 import { registerCommands, type Command } from '../CommandPalette';
 import { Icon, LogoMark, type IconName } from '../Icon';
 import { ThemeToggle } from '../Nav';
@@ -113,6 +114,7 @@ function RunModeMenu({ mode, setMode }: { mode: ClaimMode; setMode: (m: ClaimMod
 }
 
 export function Studio() {
+  const [sideOpen, setSideOpen] = useState(false);
   const [draft, setDraft] = usePersistent('draft', '');
   const [prefs, setPrefsRaw] = usePersistent<Prefs>('prefs', DEFAULT_PREFS, mergePrefs);
   const [settings, setSettings] = usePersistent<ApiSettings>('settings', {});
@@ -705,10 +707,18 @@ export function Studio() {
 
   return (
     <div className={`at${drawer === 'nav' ? ' is-nav' : ''}${drawer === 'insp' ? ' is-insp' : ''}`}>
+      {sideOpen && (
+        <>
+          <div className="cz-float-side">
+            <Sidebar current="citation" compact={false} onToggle={() => setSideOpen(false)} onNavigate={() => setSideOpen(false)} />
+          </div>
+          <button type="button" className="cz-scrim is-fixed" aria-label="Close the sidebar" onClick={() => setSideOpen(false)} />
+        </>
+      )}
       <nav className="at-rail" aria-label="Studio navigation">
-        <Link className="at-logo" href="/" aria-label="Citezeno home">
+        <button type="button" className="at-logo at-side-open" onClick={() => setSideOpen(true)} aria-label="Open the sidebar" title="Open the sidebar">
           <LogoMark className="at-logo-mark" />
-        </Link>
+        </button>
         <div className="at-rail-main">
           {/* the app's sections, as on every page; the studio's own drawers follow */}
           {APP_SECTIONS.map((sec) =>

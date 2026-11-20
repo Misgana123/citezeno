@@ -1,18 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
-import { Icon, LogoMark, type IconName } from '../Icon';
-import { ThemeToggle } from '../Nav';
-import { UserMenu } from '../UserMenu';
+import { usePathname } from 'next/navigation';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Icon, type IconName } from '../Icon';
 import { useCredits } from '../useCredits';
-import { useShelfNotices } from '../shelf/useShelfNotices';
-import { APP_SECTIONS, type AppSection } from './sections';
+import { type AppSection } from './sections';
+import { openPalette, Sidebar } from './Sidebar';
 
-/* The workspace frame shared by every signed-in page: a navigation rail, a
-   slim top bar (the page's title and actions), and the page between them,
-   either a scrolling page or, for the assistant, one full-height panel.
-   Styles live in app/atelier.css. */
+/* The workspace frame shared by every signed-in page: the sidebar (New chat,
+   Search, the tools, the user's chats and account) and the page beside it,
+   either a scrolling page or, for the assistant, the whole window. On phones
+   the sidebar is a drawer opened from a slim top bar. Styles: app/atelier.css. */
 
 export type { AppSection };
 
@@ -46,7 +45,30 @@ export function CreditsPill({ need = 5 }: { need?: number }) {
   );
 }
 
-export const openPalette = () => window.dispatchEvent(new Event('citezeno:palette'));
+export { openPalette };
+
+/* Whether the sidebar is folded to icons, remembered in this browser. */
+function useCompactSidebar(): [boolean, (v: boolean) => void] {
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    try {
+      setCompact(localStorage.getItem('cz:sidebar') === 'compact');
+    } catch {
+      /* storage blocked */
+    }
+  }, []);
+  const set = (v: boolean) => {
+    setCompact(v);
+    try {
+      localStorage.setItem('cz:sidebar', v ? 'compact' : 'full');
+    } catch {
+      /* storage blocked */
+    }
+  };
+  return [compact, set];
+}
+
+const isPhone = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches;
 
 export function AppShell({
   current,
@@ -57,75 +79,55 @@ export function AppShell({
 }: {
   current: AppSection;
   title: ReactNode;
-  /* buttons at the right of the top bar, before the account controls */
+  /* buttons for the page's top bar (shown on phones, and beside the title on pages that have one) */
   actions?: ReactNode;
-  /* page: one scrolling column with a footer; panel: one full-height panel (the assistant) */
+  /* page: one scrolling column with a footer; panel: the page fills the window (the assistant) */
   variant?: 'page' | 'panel';
   children: ReactNode;
 }) {
-  const shelfNotices = useShelfNotices();
+  const [compact, setCompact] = useCompactSidebar();
+  const [drawer, setDrawer] = useState(false);
+  const path = usePathname();
+  useEffect(() => setDrawer(false), [path]);
+  useEffect(() => {
+    if (!drawer) return;
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setDrawer(false);
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [drawer]);
+
   return (
     <div className="at-frame">
-      <div className="at at-page">
-        <nav className="at-rail" aria-label="Workspace">
-          <Link className="at-logo" href="/" aria-label="Citezeno home">
-            <LogoMark className="at-logo-mark" />
-          </Link>
-          <div className="at-rail-main">
-            {APP_SECTIONS.map((s) => (
-              <RailLink key={s.id} href={s.href} icon={s.icon} label={s.label} short={s.short} current={current === s.id} badge={s.id === 'shelf' ? shelfNotices : undefined} cls={s.id === 'library' || s.id === 'history' ? 'at-hide-phone' : undefined} />
-            ))}
-            <button className="at-rb at-only-phone" onClick={openPalette} aria-label="Commands">
-              <Icon name="search" />
-              <span className="at-rb-lbl" data-short="Search">
-                Commands
-              </span>
+      <div className={`cz-app at-page${compact ? ' is-compact' : ''}${drawer ? ' is-drawer' : ''}`}>
+        <Sidebar current={current} compact={compact && !drawer} onToggle={() => (isPhone() ? setDrawer(false) : setCompact(!compact))} onNavigate={() => setDrawer(false)} />
+        {drawer && <button type="button" className="cz-scrim" aria-label="Close the menu" onClick={() => setDrawer(false)} />}
+
+        <div className="cz-main">
+          <header className="cz-bar">
+            <button type="button" className="cz-ib" onClick={() => setDrawer(true)} aria-label="Open the menu" aria-expanded={drawer}>
+              <Icon name="menu" />
             </button>
-            {current === 'admin' && <RailLink href="/admin" icon="chart" label="Admin" current cls="at-hide-phone" />}
-          </div>
-          <div className="at-rail-end">
-            <RailLink href="/#method" icon="help" label="How it works" cls="at-hide-phone" />
-            <RailLink href="/app/account" icon="user" label="Account" current={current === 'account'} />
-          </div>
-        </nav>
+            <span className="cz-bar-title">{title}</span>
+            {actions && <div className="cz-bar-acts">{actions}</div>}
+          </header>
 
-        <header className="at-top">
-          <Link className="at-top-logo" href="/" aria-label="Citezeno home">
-            <LogoMark className="at-logo-mark" />
-          </Link>
-          <div className="at-doc">
-            <span className="at-here">{title}</span>
-          </div>
-          {actions && <div className="at-top-actions">{actions}</div>}
-          <button className="at-cmdk" onClick={openPalette} aria-label="Open the command menu">
-            <Icon name="search" />
-            <span>Search commands</span>
-            <span className="kbd">Ctrl K</span>
-          </button>
-          <CreditsPill />
-          <span className="at-top-sep" aria-hidden="true" />
-          <ThemeToggle />
-          <UserMenu />
-        </header>
-
-        {variant === 'panel' ? (
-          <main className="at-main is-panel">
-            <div className="at-panel">{children}</div>
-          </main>
-        ) : (
-          <main className="at-main">
-            <div className="at-page-in">
-              {children}
-              <footer className="at-page-foot">
-                <span>© {new Date().getFullYear()} Citezeno</span>
-                <Link href="/pricing">Pricing</Link>
-                <Link href="/contact">Contact</Link>
-                <Link href="/privacy">Privacy</Link>
-                <Link href="/terms">Terms</Link>
-              </footer>
-            </div>
-          </main>
-        )}
+          {variant === 'panel' ? (
+            <main className="cz-panel">{children}</main>
+          ) : (
+            <main className="cz-page">
+              <div className="at-page-in">
+                {children}
+                <footer className="at-page-foot">
+                  <span>© {new Date().getFullYear()} Citezeno</span>
+                  <Link href="/pricing">Pricing</Link>
+                  <Link href="/contact">Contact</Link>
+                  <Link href="/privacy">Privacy</Link>
+                  <Link href="/terms">Terms</Link>
+                </footer>
+              </div>
+            </main>
+          )}
+        </div>
       </div>
     </div>
   );

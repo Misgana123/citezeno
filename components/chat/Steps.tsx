@@ -53,8 +53,22 @@ export function Steps({ steps, turn }: { steps: LiveStep[]; turn: number }) {
   const uniquePapers = papers.filter((p) => !seen.has(p.id) && seen.add(p.id));
   const uniqueItems = items.filter((i) => !seen.has(i.paper.id) && seen.add(i.paper.id));
 
+  const running = steps.some((s) => s.status === 'running');
+  const failed = !running && steps.some((s) => s.status === 'error');
+  const current = steps.find((s) => s.status === 'running') ?? steps.at(-1);
+  const summary = running ? current?.label : steps.length === 1 ? steps[0].label : `${steps[0].label}, and ${steps.length - 1} more`;
+
   return (
     <div className="ch-turn-work">
+      <details className="ch-steps-box" open={running || undefined}>
+        <summary>
+          <StepIcon status={running ? 'running' : failed ? 'error' : 'done'} />
+          <span className="ch-steps-sum">{summary}</span>
+          <span className="ch-step-count">
+            {steps.length} step{steps.length === 1 ? '' : 's'}
+          </span>
+          <Icon name="chevron" className="ch-steps-chev" />
+        </summary>
       <ol className="ch-steps" aria-label="Steps">
         {steps.map((s) => (
           <li key={s.callId} className={`ch-step is-${s.status}`}>
@@ -70,6 +84,7 @@ export function Steps({ steps, turn }: { steps: LiveStep[]; turn: number }) {
           </li>
         ))}
       </ol>
+      </details>
 
       <PaperRefs papers={uniquePapers} items={uniqueItems} refs={refs} turn={turn} />
 
