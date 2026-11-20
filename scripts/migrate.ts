@@ -5,6 +5,9 @@ import { getMigrations } from 'better-auth/db/migration';
 import { authOptions } from '../lib/auth';
 import { pool } from '../lib/db';
 import { AGENT_SQL } from '../lib/agent/schema';
+import { embeddingSettings } from '../lib/providers/embeddings/embedder';
+import { READER_SQL } from '../lib/reader/schema';
+import { enableVectors } from '../lib/reader/vector';
 import { OLD_SHELF_CHECK, SHELF_RESET_SQL, SHELF_SQL } from '../lib/shelf/schema';
 
 const APP_SQL = `
@@ -164,7 +167,10 @@ async function main() {
   }
   await pool.query(SHELF_SQL);
   await pool.query(AGENT_SQL);
-  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity, papers, provider gateway, shelf, agent).');
+  await pool.query(READER_SQL);
+  const vectors = await enableVectors(pool, embeddingSettings(process.env).dimensions);
+  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity, papers, provider gateway, shelf, agent, reader).');
+  console.log(vectors ? 'Reader: search by meaning is on (pgvector).' : 'Reader: pgvector is not available, so questions use keyword search only.');
 }
 
 main()

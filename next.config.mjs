@@ -31,6 +31,9 @@ const nextConfig = {
   reactStrictMode: true,
   eslint: { ignoreDuringBuilds: true },
   poweredByHeader: false,
+  // PDF.js reads PDFs on the server (the reader's text processing); loaded from
+  // node_modules as is, so its worker file is found at run time
+  serverExternalPackages: ['pdfjs-dist'],
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

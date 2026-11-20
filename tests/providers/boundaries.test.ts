@@ -21,7 +21,7 @@ const PROVIDERS_DIR = 'lib/providers/';
 const EXEMPT = new Set(['lib/sources.ts']);
 
 /* Job folders and shared files features may import; every other folder in lib/providers is an adapter. */
-const JOB_DIRS = new Set(['gateway', 'papers', 'storage', 'pdf-text', 'chat']);
+const JOB_DIRS = new Set(['gateway', 'papers', 'storage', 'pdf-text', 'chat', 'embeddings']);
 
 /* An outside service's API address: an api.* host, or the citation sources' search endpoints. */
 const VENDOR_API = /https?:\/\/(api\.[a-z0-9-]+\.[a-z.]+|[a-z0-9-]+\.googleapis\.com|[a-z.]*openlibrary\.org\/search|[a-z]+\.wikipedia\.org\/w\/api)/i;
@@ -73,7 +73,7 @@ function offending(test: (line: string) => boolean, list = outside): string[] {
 describe('provider boundaries', () => {
   it('finds the app code and the adapters', () => {
     expect(outside.length).toBeGreaterThan(50);
-    expect(adapters).toEqual(expect.arrayContaining(['openalex', 'cloudinary', 'basic-pdf', 'gemini', 'openai', 'anthropic']));
+    expect(adapters).toEqual(expect.arrayContaining(['openalex', 'cloudinary', 'r2', 'basic-pdf', 'gemini', 'openai', 'anthropic']));
   });
 
   it('no outside service API address outside lib/providers (citation exempt)', () => {

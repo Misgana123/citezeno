@@ -1,6 +1,7 @@
 import 'server-only';
 import { chatModels, type ChatModels } from './chat/catalog';
 import { chooseProviders, choose } from './config';
+import { embedder, type Embedder } from './embeddings/embedder';
 import { sendSpendAlert } from './gateway/alert';
 import { createLimiter, type Limiter } from './gateway/limiter';
 import { newMeter, type Meter } from './gateway/meter';
@@ -10,6 +11,7 @@ import { DEFAULT_PAPER_PROVIDERS, PAPER_PROVIDERS } from './papers/registry';
 import { paperSources, type PaperSources } from './papers/sources';
 import type { PaperSource } from './papers/types';
 import { DEFAULT_PDF_TEXT, PDF_TEXT_PROVIDERS } from './pdf-text/registry';
+import { pagesReader, type PdfPagesReader } from './pdf-text/pages';
 import type { PdfTextReader } from './pdf-text/types';
 import { DEFAULT_FILE_STORAGE, FILE_STORAGE_PROVIDERS } from './storage/registry';
 import type { FileStore } from './storage/types';
@@ -57,8 +59,19 @@ export function pdfTextReader(env: Env = process.env): PdfTextReader {
   return reader;
 }
 
+/* A PDF text reader that can read each page's text with positions (for the reader). */
+export function pdfPagesReader(env: Env = process.env): PdfPagesReader {
+  return pagesReader(env, gateFor(newMeter()));
+}
+
 /* The chat models on offer (AGENT_MODELS), each provider wired through the
    gateway with this request's meter. */
 export function chatModelsFor(meter: Meter = newMeter(), env: Env = process.env): ChatModels {
   return chatModels(env, gateFor(meter));
+}
+
+/* The configured embedding model (READER_EMBEDDING_MODEL), wired through the
+   gateway with this request's meter; null when its provider has no key. */
+export function embedderFor(meter: Meter = newMeter(), env: Env = process.env): Embedder | null {
+  return embedder(env, gateFor(meter));
 }

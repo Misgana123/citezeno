@@ -1,4 +1,4 @@
-import { chatPolicy, chatTransport, tokens, type ChatHttpRequest } from '../chat/http';
+import { chatPolicy, chatTransport, tokens, type ChatHttpRequest, type StreamAccumulator } from '../chat/http';
 import type { ChatMessage, ChatProvider, ChatRequest, ChatStop, ToolCall } from '../chat/types';
 import type { Transport } from '../gateway/types';
 import type { Env, Gate } from '../types';
@@ -50,22 +50,69 @@ export function toGeminiContents(messages: ChatMessage[]): Content[] {
 
 const STOP: Record<string, ChatStop> = { STOP: 'end', MAX_TOKENS: 'max_tokens' };
 
+const requestBody = (req: ChatRequest) => ({
+  systemInstruction: { parts: [{ text: req.system }] },
+  contents: toGeminiContents(req.messages),
+  ...(req.tools.length ? { tools: [{ functionDeclarations: req.tools.map((t) => ({ name: t.name, description: t.description, parameters: toGeminiSchema(t.parameters) })) }] } : {}),
+  generationConfig: { maxOutputTokens: req.maxOutputTokens },
+});
+
+/* Gemini streams whole GenerateResponse chunks: text parts to add up, the
+   finish reason and the (running) usage in the last ones. */
+function geminiStream(onText: (delta: string) => void): StreamAccumulator {
+  let text = '';
+  let finishReason: string | undefined;
+  let usage: GenerateResponse['usageMetadata'];
+  return {
+    event(data) {
+      const chunk = data as GenerateResponse;
+      const candidate = chunk.candidates?.[0];
+      for (const p of candidate?.content?.parts ?? []) {
+        const t = (p as { text?: unknown; thought?: boolean }).text;
+        if (typeof t === 'string' && t && !(p as { thought?: boolean }).thought) {
+          text += t;
+          onText(t);
+        }
+      }
+      if (candidate?.finishReason) finishReason = candidate.finishReason;
+      if (chunk.usageMetadata) usage = chunk.usageMetadata;
+    },
+    result() {
+      const body: GenerateResponse = { candidates: [{ content: { parts: text ? [{ text }] : [] }, finishReason }], usageMetadata: usage };
+      return { body, usage: readUsage(body) };
+    },
+  };
+}
+
 export function geminiChat(apiKey: string, transport: Transport<ChatHttpRequest>): ChatProvider {
+  const url = (model: ChatRequest['model'], action: string) => `${BASE}/${encodeURIComponent(model.vendorModel)}:${action}`;
   return {
     name: PROVIDER,
+    async stream(req, onText) {
+      const { body, costUsd } = await transport.call<GenerateResponse>({
+        model: req.model,
+        url: url(req.model, 'streamGenerateContent?alt=sse'),
+        headers: { 'x-goog-api-key': apiKey },
+        body: requestBody(req),
+        stream: geminiStream(onText),
+      });
+      const candidate = body.candidates?.[0];
+      const parts = candidate?.content?.parts ?? [];
+      return {
+        text: (parts[0] as { text?: string } | undefined)?.text ?? '',
+        toolCalls: [],
+        stop: STOP[candidate?.finishReason ?? ''] ?? 'other',
+        usage: readUsage(body),
+        costUsd,
+        native: { provider: PROVIDER, content: parts },
+      };
+    },
     async complete(req: ChatRequest) {
       const { body, costUsd } = await transport.call<GenerateResponse>({
         model: req.model,
-        url: `${BASE}/${encodeURIComponent(req.model.vendorModel)}:generateContent`,
+        url: url(req.model, 'generateContent'),
         headers: { 'x-goog-api-key': apiKey },
-        body: {
-          systemInstruction: { parts: [{ text: req.system }] },
-          contents: toGeminiContents(req.messages),
-          ...(req.tools.length
-            ? { tools: [{ functionDeclarations: req.tools.map((t) => ({ name: t.name, description: t.description, parameters: toGeminiSchema(t.parameters) })) }] }
-            : {}),
-          generationConfig: { maxOutputTokens: req.maxOutputTokens },
-        },
+        body: requestBody(req),
       });
       const candidate = body.candidates?.[0];
       const parts = candidate?.content?.parts ?? [];

@@ -6,8 +6,18 @@ import { costOf, type ChatModel } from './types';
 /* Shared plumbing for chat adapters: one JSON POST to a vendor, its failures
    in the common errors, and the gateway policy every chat provider uses. */
 
-/* One call to a chat vendor. */
-export type ChatHttpRequest = { model: ChatModel; url: string; headers: Record<string, string>; body: unknown };
+/* Builds a streamed answer from the vendor's server-sent events: each event's
+   JSON goes to `event` as it arrives; `result` gives the finished answer
+   (shaped like the vendor's one-shot answer) and its token counts. */
+export type StreamAccumulator = {
+  event(data: unknown): void;
+  result(): { body: unknown; usage: { inputTokens: number; outputTokens: number } };
+};
+
+/* One call to a chat vendor: a one-shot JSON answer, or a streamed one when
+   `stream` is set. Both go through the same gateway layers (cap, cost log,
+   limits, retries); a streamed call's cost is logged when the stream ends. */
+export type ChatHttpRequest = { model: ChatModel; url: string; headers: Record<string, string>; body: unknown; stream?: StreamAccumulator };
 
 /* Reads the token counts out of a vendor's answer. */
 export type UsageReader = (body: unknown) => { inputTokens: number; outputTokens: number };
@@ -56,12 +66,69 @@ export function chatTransport(provider: string, label: string, readUsage: UsageR
         const timedOut = (e as Error)?.name === 'TimeoutError' || (e as Error)?.name === 'AbortError';
         throw new ProviderError('unavailable', timedOut ? `${label} timed out.` : `Could not reach ${label}.`, { provider, reason: timedOut ? 'timeout' : 'network' });
       }
+      if (req.stream && res.ok) {
+        await readEvents(res, (data) => {
+          const err = (data as { type?: unknown; error?: unknown } | null)?.error;
+          // an error sent mid-stream: not retried (part of the answer may already be shown)
+          if (err && ((data as { type?: unknown }).type === 'error' || typeof err === 'object')) {
+            throw new ProviderError('unavailable', `${label} stopped while answering.`, { provider, status: res.status, reason: vendorMessage(data) });
+          }
+          req.stream!.event(data);
+        }).catch((e) => {
+          if (e instanceof ProviderError) throw e;
+          const timedOut = (e as Error)?.name === 'TimeoutError' || (e as Error)?.name === 'AbortError';
+          throw new ProviderError('unavailable', timedOut ? `${label} timed out.` : `${label} stopped while answering.`, { provider, reason: timedOut ? 'timeout' : 'network' });
+        });
+        const { body, usage } = req.stream.result();
+        return { body: body as T, costUsd: costOf(req.model, usage), status: res.status };
+      }
       const body = await res.json().catch(() => null);
       if (!res.ok) throw chatError(provider, label, res.status, body, res.headers);
       if (body == null || typeof body !== 'object') throw new ProviderError('unavailable', `${label} sent an unreadable answer.`, { provider, status: res.status });
       return { body: body as T, costUsd: costOf(req.model, readUsage(body)), status: res.status };
     },
   };
+}
+
+/* Reads a server-sent event stream, handing each event's JSON data on. */
+async function readEvents(res: Response, onData: (data: unknown) => void): Promise<void> {
+  if (!res.body) return;
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let data: string[] = [];
+  const flush = () => {
+    if (!data.length) return;
+    const raw = data.join('\n');
+    data = [];
+    if (raw.trim() === '[DONE]') return;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return; // not JSON (a keep-alive or comment): skip it
+    }
+    onData(parsed);
+  };
+  const line = (l: string) => {
+    if (l === '') flush();
+    else if (l.startsWith('data:')) data.push(l.slice(5).replace(/^ /, ''));
+    // "event:", "id:", "retry:" and ":" comments carry nothing we need (the JSON says its type)
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let i: number;
+    while ((i = buffer.search(/\r?\n/)) >= 0) {
+      const m = buffer.match(/\r?\n/)!;
+      line(buffer.slice(0, i));
+      buffer = buffer.slice(i + m[0].length);
+    }
+  }
+  buffer += decoder.decode();
+  if (buffer) line(buffer);
+  flush();
 }
 
 function positive(v: string | undefined, fallback: number) {

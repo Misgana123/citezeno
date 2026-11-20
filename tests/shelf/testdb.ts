@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { AGENT_SQL } from '@/lib/agent/schema';
+import { READER_SQL } from '@/lib/reader/schema';
 import { SHELF_SQL } from '@/lib/shelf/schema';
 
 /* A throwaway Postgres schema for the Shelf store tests, so they run the real
@@ -15,12 +16,15 @@ export async function openTestDb(): Promise<TestDb> {
   const schema = `shelf_test_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
   const admin = new Pool({ connectionString: TEST_DB_URL, max: 1 });
   await admin.query(`create schema ${schema}`);
+  // pgvector (when the database has it) lives in public, so dropping a test schema never removes it
+  await admin.query('create extension if not exists vector with schema public').catch(() => {});
   await admin.end();
   const pool = new Pool({ connectionString: TEST_DB_URL, max: 4, options: `-c search_path=${schema}` });
   // the app's "user" table, reduced to what the foreign keys need
   await pool.query(`create table "user" (id text primary key)`);
   await pool.query(SHELF_SQL);
   await pool.query(AGENT_SQL);
+  await pool.query(READER_SQL);
   return {
     pool,
     async addUser(id = `u_${randomUUID()}`) {

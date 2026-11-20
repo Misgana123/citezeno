@@ -54,6 +54,18 @@ export type ChatResponse = {
 export interface ChatProvider {
   readonly name: string;
   complete(req: ChatRequest): Promise<ChatResponse>;
+  /* Optional: the same answer, with its text handed to `onText` piece by piece
+     as it is written. Only for requests without tools. */
+  stream?(req: ChatRequest, onText: (delta: string) => void): Promise<ChatResponse>;
+}
+
+/* Stream the answer when the provider can (and the request has no tools),
+   otherwise make the one-shot call and hand on its whole text at once. */
+export async function streamOrComplete(provider: ChatProvider, req: ChatRequest, onText: (delta: string) => void): Promise<ChatResponse> {
+  if (provider.stream && !req.tools.length) return provider.stream(req, onText);
+  const res = await provider.complete(req);
+  if (res.text) onText(res.text);
+  return res;
 }
 
 export type ChatProviderDefinition = ProviderDefinition<ChatProvider>;

@@ -1,4 +1,4 @@
-import { chatPolicy, chatTransport, tokens, type ChatHttpRequest } from '../chat/http';
+import { chatPolicy, chatTransport, tokens, type ChatHttpRequest, type StreamAccumulator } from '../chat/http';
 import type { ChatMessage, ChatProvider, ChatRequest, ChatStop, ToolCall } from '../chat/types';
 import type { Transport } from '../gateway/types';
 import type { Env, Gate } from '../types';
@@ -40,9 +40,55 @@ export function toAnthropicMessages(messages: ChatMessage[]): { role: 'user' | '
 
 const STOP: Record<string, ChatStop> = { end_turn: 'end', stop_sequence: 'end', tool_use: 'tool_use', max_tokens: 'max_tokens' };
 
+/* Anthropic streams typed events: message_start (input tokens), text deltas,
+   and message_delta (stop reason, output tokens). */
+function anthropicStream(onText: (delta: string) => void): StreamAccumulator {
+  let text = '';
+  let stop: string | undefined;
+  let input = 0;
+  let output = 0;
+  return {
+    event(data) {
+      const e = data as { type?: string; message?: { usage?: { input_tokens?: number; output_tokens?: number } }; delta?: { type?: string; text?: string; stop_reason?: string }; usage?: { output_tokens?: number } };
+      if (e.type === 'message_start') {
+        input = tokens(e.message?.usage?.input_tokens);
+        output = tokens(e.message?.usage?.output_tokens);
+      } else if (e.type === 'content_block_delta' && e.delta?.type === 'text_delta' && typeof e.delta.text === 'string') {
+        text += e.delta.text;
+        onText(e.delta.text);
+      } else if (e.type === 'message_delta') {
+        if (e.delta?.stop_reason) stop = e.delta.stop_reason;
+        if (e.usage?.output_tokens != null) output = tokens(e.usage.output_tokens);
+      }
+    },
+    result() {
+      const body: MessagesResponse = { content: text ? [{ type: 'text', text }] : [], stop_reason: stop, usage: { input_tokens: input, output_tokens: output } };
+      return { body, usage: readUsage(body) };
+    },
+  };
+}
+
 export function anthropicChat(apiKey: string, transport: Transport<ChatHttpRequest>): ChatProvider {
   return {
     name: PROVIDER,
+    async stream(req, onText) {
+      const { body, costUsd } = await transport.call<MessagesResponse>({
+        model: req.model,
+        url: URL,
+        headers: { 'x-api-key': apiKey, 'anthropic-version': VERSION },
+        body: { model: req.model.vendorModel, max_tokens: req.maxOutputTokens, system: req.system, messages: toAnthropicMessages(req.messages), stream: true },
+        stream: anthropicStream(onText),
+      });
+      const content = body.content ?? [];
+      return {
+        text: content.map((b) => (b.type === 'text' ? (b as { text: string }).text : '')).join(''),
+        toolCalls: [],
+        stop: STOP[body.stop_reason ?? ''] ?? 'other',
+        usage: readUsage(body),
+        costUsd,
+        native: { provider: PROVIDER, content },
+      };
+    },
     async complete(req: ChatRequest) {
       const { body, costUsd } = await transport.call<MessagesResponse>({
         model: req.model,
