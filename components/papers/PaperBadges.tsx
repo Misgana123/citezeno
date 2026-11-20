@@ -12,14 +12,8 @@ export function PaperBadges({ paper }: { paper: Paper }) {
           <Icon name="alert" /> Retracted
         </span>
       )}
-      {paper.isOpenAccess &&
-        (paper.pdfUrl ? (
-          <a className="tag oa fp-tag" href={paper.pdfUrl} target="_blank" rel="noopener noreferrer" title="Open the free PDF">
-            <Icon name="pdf" /> Open access · PDF
-          </a>
-        ) : (
-          <span className="tag oa fp-tag">Open access</span>
-        ))}
+      {/* the free PDF opens in the reader (the card's Read button) */}
+      {paper.isOpenAccess && <span className="tag oa fp-tag">{paper.pdfUrl ? 'Open access · PDF' : 'Open access'}</span>}
     </span>
   );
 }

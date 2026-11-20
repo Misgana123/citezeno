@@ -67,3 +67,6 @@ export function readerRoute<P = Record<string, never>>(handler: (ctx: ReaderCont
     }
   };
 }
+
+/* "?pdf=" picks one of the user's own uploads of the paper. */
+export const pdfParam = (req: Request) => new URL(req.url).searchParams.get('pdf')?.slice(0, 80) || null;

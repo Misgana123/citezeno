@@ -1,5 +1,6 @@
 import type { Queryable } from '@/lib/shelf/db';
 import { listItems } from '@/lib/shelf/store/items';
+import { recentPositions } from '@/lib/reader/store/positions';
 
 /* The search dialog: one user's chats (titles and what was said), the papers
    on their shelf (the shelf's own full-text search) and their citation studio
@@ -10,9 +11,11 @@ export const SEARCH_TYPES = ['all', 'chats', 'papers', 'drafts'] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];
 
 export type ChatHit = { id: string; title: string; at: string; snippet: string | null };
-export type PaperHit = { itemId: string; title: string; authors: string; year: number | null; retracted: boolean; at: string };
+export type PaperHit = { itemId: string; paperId: string; title: string; authors: string; year: number | null; retracted: boolean; at: string };
+/* A paper the user opened in the reader, and the page they reached. */
+export type ReadingHit = { paperId: string; title: string; page: number; pageCount: number | null; at: string };
 export type DraftHit = { id: string; title: string; at: string; snippet: string | null };
-export type SearchResult = { chats: ChatHit[]; papers: PaperHit[]; drafts: DraftHit[] };
+export type SearchResult = { chats: ChatHit[]; papers: PaperHit[]; drafts: DraftHit[]; reading?: ReadingHit[] };
 
 /* Words for ILIKE, with % and _ taken literally. */
 const like = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -61,6 +64,7 @@ async function papers(db: Queryable, userId: string, q: string, limit: number): 
     const names = i.paper.authors.map((a) => a.name);
     return {
       itemId: i.id,
+      paperId: i.paper.id,
       title: i.paper.title,
       authors: names.length > 2 ? `${names.slice(0, 2).join(', ')} et al.` : names.join(', '),
       year: i.paper.year,
@@ -80,14 +84,25 @@ async function drafts(db: Queryable, userId: string, q: string, limit: number): 
   return rows.map((r) => ({ id: r.id, title: r.title || 'Untitled draft', at: new Date(r.savedAt).toISOString(), snippet: q ? snippetAround(r.snippet, q) : null }));
 }
 
+async function reading(db: Queryable, userId: string, q: string, limit: number): Promise<ReadingHit[]> {
+  const opened = await recentPositions(db, userId, q ? 50 : limit);
+  const words = q.toLowerCase().split(' ').filter(Boolean);
+  return opened
+    .filter((o) => words.every((w) => o.title.toLowerCase().includes(w)))
+    .slice(0, limit)
+    .map((o) => ({ paperId: o.paperId, title: o.title, page: o.page, pageCount: o.pageCount, at: o.updatedAt }));
+}
+
 export async function search(db: Queryable, userId: string, rawQ: string, type: SearchType): Promise<SearchResult> {
   const q = rawQ.replace(/\s+/g, ' ').trim().slice(0, 200);
   const limit = type === 'all' ? (q ? 6 : 5) : 20;
   const want = (t: SearchType) => type === 'all' || type === t;
-  const [c, p, d] = await Promise.all([
+  const [c, p, d, r] = await Promise.all([
     want('chats') ? chats(db, userId, q, type === 'all' && !q ? 8 : limit) : [],
     want('papers') ? papers(db, userId, q, limit) : [],
     want('drafts') ? drafts(db, userId, q, limit) : [],
+    // "Continue reading": the papers opened last in the reader
+    want('papers') ? reading(db, userId, q, type === 'all' ? 3 : 8) : [],
   ]);
-  return { chats: c, papers: p, drafts: d };
+  return { chats: c, papers: p, drafts: d, reading: r };
 }

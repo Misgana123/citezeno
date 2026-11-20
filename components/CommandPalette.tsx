@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { SearchResult } from '@/lib/search';
 import { Icon, type IconName } from './Icon';
+import { readHref } from './reader/api';
 
 /* Search (Ctrl K): one box for the user's chats, the papers on their shelf,
    their citation studio drafts, and actions (going somewhere, page commands).
@@ -164,15 +165,19 @@ export function CommandPalette() {
   const sections: Section[] = useMemo(() => {
     const push = (href: string) => () => router.push(href);
     const chatRows = found.chats.map((c): Row => ({ key: `c:${c.id}`, icon: 'chat', title: c.title, sub: c.snippet, meta: when(c.at), go: push(`/app/chat?c=${encodeURIComponent(c.id)}`) }));
+    // papers open in the reader
     const paperRows = found.papers.map(
-      (p): Row => ({ key: `p:${p.itemId}`, icon: 'layers', title: p.title, sub: [p.authors, p.year].filter(Boolean).join(' · ') || null, flag: p.retracted ? 'Retracted' : undefined, go: push(`/app/shelf?item=${encodeURIComponent(p.itemId)}`) }),
+      (p): Row => ({ key: `p:${p.itemId}`, icon: 'layers', title: p.title, sub: [p.authors, p.year].filter(Boolean).join(' · ') || null, flag: p.retracted ? 'Retracted' : undefined, go: push(readHref(p.paperId)) }),
+    );
+    const readingRows = (found.reading ?? []).map(
+      (r): Row => ({ key: `r:${r.paperId}`, icon: 'book', title: r.title, sub: r.pageCount ? `Page ${r.page} of ${r.pageCount}` : `Page ${r.page}`, meta: when(r.at), go: push(readHref(r.paperId)) }),
     );
     const draftRows = found.drafts.map((d): Row => ({ key: `d:${d.id}`, icon: 'doc', title: d.title, sub: d.snippet, meta: when(d.at), go: push(`/app/citation?open=${encodeURIComponent(d.id)}`) }));
     const actionRows = (list: Command[]) => list.map((c): Row => ({ key: `a:${c.id}`, icon: c.icon || 'arrow', title: c.label, meta: c.meta, go: c.run }));
     const searching = q.trim().length > 0;
 
     if (tab === 'chats') return [{ label: searching ? 'Chats' : 'Recent chats', rows: chatRows }];
-    if (tab === 'papers') return [{ label: searching ? 'Papers on your shelf' : 'Recently saved papers', rows: paperRows }];
+    if (tab === 'papers') return [{ label: 'Continue reading', rows: readingRows }, { label: searching ? 'Papers on your shelf' : 'Recently saved papers', rows: paperRows }];
     if (tab === 'drafts') return [{ label: searching ? 'Drafts' : 'Recent drafts', rows: draftRows }];
     if (tab === 'actions') return [{ label: 'Actions', rows: actionRows(matchedActions) }];
     if (!searching) {
@@ -183,12 +188,14 @@ export function CommandPalette() {
         ...found.papers.slice(0, 3).map((p, i) => ({ at: p.at, row: paperRows[i] })),
       ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
       return [
+        { label: 'Continue reading', rows: readingRows },
         { label: 'Recents', rows: dated.slice(0, 8).map((d) => d.row) },
         { label: 'Actions', rows: actionRows(actions.slice(0, inApp ? 3 : 6)) },
       ];
     }
     return [
       { label: 'Chats', rows: chatRows },
+      { label: 'Continue reading', rows: readingRows },
       { label: 'Papers on your shelf', rows: paperRows },
       { label: 'Drafts', rows: draftRows },
       { label: 'Actions', rows: actionRows(matchedActions.slice(0, 5)) },

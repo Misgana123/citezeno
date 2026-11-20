@@ -6,6 +6,7 @@ import type { Paper } from '@/lib/papers/types';
 import type { ShelfItem } from '@/lib/shelf/types';
 import { Icon } from '../Icon';
 import { authorsShort } from '../papers/format';
+import { ReadButton } from '../reader/ReadButton';
 import { SaveButton } from '../shelf/SaveButton';
 
 /* Papers a step found, as a numbered reference list: the number the answer
@@ -45,7 +46,21 @@ function Row({ n, turn, paper, action }: { n?: number; turn: number; paper: Pape
 export function PaperRefs({ papers, items, refs, turn }: { papers?: Paper[]; items?: ShelfItem[]; refs?: Record<string, number>; turn: number }) {
   const [all, setAll] = useState(false);
   const rows = [
-    ...(papers ?? []).map((p) => ({ key: p.id, n: refs?.[p.id], node: (n?: number) => <Row key={p.id} n={n} turn={turn} paper={p} action={<SaveButton paper={p} />} /> })),
+    ...(papers ?? []).map((p) => ({ key: p.id, n: refs?.[p.id], node: (n?: number) => (
+        <Row
+          key={p.id}
+          n={n}
+          turn={turn}
+          paper={p}
+          action={
+            <>
+              <ReadButton paperId={p.id} hasPdf={!!p.pdfUrl} />
+              <SaveButton paper={p} />
+            </>
+          }
+        />
+      ),
+    })),
     ...(items ?? []).map((i) => ({
       key: i.id,
       n: refs?.[i.paper.id],
@@ -56,9 +71,12 @@ export function PaperRefs({ papers, items, refs, turn }: { papers?: Paper[]; ite
           turn={turn}
           paper={i.paper}
           action={
-            <Link className="ch-ref-open" href={`/app/shelf?item=${encodeURIComponent(i.id)}`}>
-              <Icon name="layers" /> On your shelf
-            </Link>
+            <>
+              <ReadButton paperId={i.paper.id} hasPdf={(i.pdfs?.length ?? 0) > 0 || !!i.paper.pdfUrl} />
+              <Link className="ch-ref-open" href={`/app/shelf?item=${encodeURIComponent(i.id)}`}>
+                <Icon name="layers" /> On your shelf
+              </Link>
+            </>
           }
         />
       ),

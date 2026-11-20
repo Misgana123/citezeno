@@ -73,15 +73,15 @@ export async function storageUsed(q: Queryable, userId: string): Promise<number>
   return Number(rows[0].n ?? 0);
 }
 
-/* Every PDF of the user's, newest first, with the title of the paper it belongs to. */
-export async function listPdfs(q: Queryable, userId: string): Promise<(PdfRow & { paperTitle: string | null })[]> {
+/* Every PDF of the user's, newest first, with the paper it belongs to (its ID opens it in the reader). */
+export async function listPdfs(q: Queryable, userId: string): Promise<(PdfRow & { paperTitle: string | null; paperId: string | null })[]> {
   const { rows } = await q.query(
-    `select ${COLS.split(', ').map((c) => `f.${c}`).join(', ')}, p.title as "paperTitle"
+    `select ${COLS.split(', ').map((c) => `f.${c}`).join(', ')}, p.title as "paperTitle", p.id as "paperId"
      from shelf_pdf f left join shelf_item i on i.id = f."itemId" left join shelf_paper p on p.id = i."paperId"
      where f."userId" = $1 and f.status = 'ready' order by f."uploadedAt" desc limit 1000`,
     [userId],
   );
-  return rows.map((r) => ({ ...toRow(r), paperTitle: (r.paperTitle as string) ?? null }));
+  return rows.map((r) => ({ ...toRow(r), paperTitle: (r.paperTitle as string) ?? null, paperId: (r.paperId as string) ?? null }));
 }
 
 /* A merge keeps every PDF: move them from one item to the other. */

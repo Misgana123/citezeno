@@ -24,7 +24,7 @@ type Layout = { left: boolean; right: boolean; width: number; tab: RightTab; lef
 const LAYOUT: Layout = { left: true, right: true, width: 380, tab: 'details', leftTab: 'pages' };
 const clampWidth = (w: number) => Math.min(640, Math.max(300, Math.round(w)));
 
-export function Reader({ paperId, slots }: { paperId: string; slots?: { chat?: ReactNode; notes?: ReactNode; summary?: ReactNode } }) {
+export function Reader({ paperId, pdfId = null, slots }: { paperId: string; pdfId?: string | null; slots?: { chat?: ReactNode; notes?: ReactNode; summary?: ReactNode } }) {
   const router = useRouter();
   const [data, setData] = useState<ReaderData | null>(null);
   const [error, setError] = useState<ReaderApiError | null>(null);
@@ -49,14 +49,14 @@ export function Reader({ paperId, slots }: { paperId: string; slots?: { chat?: R
   useEffect(() => {
     const ctl = new AbortController();
     setError(null);
-    readerFetch<ReaderData>(readerUrl(paperId), { signal: ctl.signal })
+    readerFetch<ReaderData>(readerUrl(paperId, pdfId ? `?pdf=${encodeURIComponent(pdfId)}` : ''), { signal: ctl.signal })
       .then((d) => {
         setData(d);
         setPdfError(null);
       })
       .catch((e) => (e as Error)?.name !== 'AbortError' && setError(e as ReaderApiError));
     return () => ctl.abort();
-  }, [paperId, reload]);
+  }, [paperId, pdfId, reload]);
 
   // while the paper is being prepared, check on it now and then
   const text = data?.text ?? null;
@@ -65,14 +65,14 @@ export function Reader({ paperId, slots }: { paperId: string; slots?: { chat?: R
     if (!preparing) return;
     const t = setInterval(async () => {
       try {
-        const r = await readerFetch<{ text: ReaderTextState | null }>(readerUrl(paperId, '/status'));
+        const r = await readerFetch<{ text: ReaderTextState | null }>(readerUrl(paperId, `/status${pdfId ? `?pdf=${encodeURIComponent(pdfId)}` : ''}`));
         setData((d) => (d ? { ...d, text: r.text } : d));
       } catch {
         /* try again next time */
       }
     }, 4000);
     return () => clearInterval(t);
-  }, [preparing, paperId]);
+  }, [preparing, paperId, pdfId]);
 
   // remember the page, a moment after the user stops on it
   useEffect(() => {
@@ -142,7 +142,7 @@ export function Reader({ paperId, slots }: { paperId: string; slots?: { chat?: R
 
   const retry = async () => {
     try {
-      await readerFetch(readerUrl(paperId, '/retry'), { method: 'POST' });
+      await readerFetch(readerUrl(paperId, `/retry${pdfId ? `?pdf=${encodeURIComponent(pdfId)}` : ''}`), { method: 'POST' });
       setPdf(null);
       setReload((n) => n + 1);
     } catch (e) {

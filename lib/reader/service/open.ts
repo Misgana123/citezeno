@@ -41,14 +41,15 @@ export function textState(t: TextRow, embedding: { model: string; dims: number }
   return { id: t.id, status: t.status, search: t.status === 'ready' ? (meaning ? 'meaning' : 'keywords') : null, pageCount: t.pageCount, error: t.error };
 }
 
-export async function openPaper(deps: ReaderDeps, userId: string, rawId: string): Promise<{ view: ReaderView; needsWork: string | null }> {
+export async function openPaper(deps: ReaderDeps, userId: string, rawId: string, opts: { pdfId?: string | null } = {}): Promise<{ view: ReaderView; needsWork: string | null }> {
   const { paper, item } = await loadPaper(deps, userId, rawId);
   const emb = deps.embedder();
   const embedding = emb ? { model: emb.model.id, dims: emb.dimensions } : null;
   let pdf: ReaderPdf = { kind: 'none', reason: 'no_pdf' };
   let text: TextRow | null = null;
 
-  const upload = item?.pdfs.at(-1);
+  // a chosen upload of this paper, else the newest
+  const upload = (opts.pdfId ? item?.pdfs.find((f) => f.id === opts.pdfId) : undefined) ?? item?.pdfs.at(-1);
   const uploadRow = upload ? await getPdfRow(deps.db, userId, upload.id) : null;
   if (uploadRow && uploadRow.status === 'ready') {
     if (!deps.store) pdf = { kind: 'none', reason: 'storage_off' };

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import type { Paper } from '@/lib/papers/types';
 import type { DupSummary } from '@/lib/shelf/api/saved-response';
@@ -7,6 +8,7 @@ import type { CompleteResult } from '@/lib/shelf/service/pdf-upload';
 import type { ShelfItem } from '@/lib/shelf/types';
 import { Icon } from '../../Icon';
 import { authorsShort } from '../../papers/format';
+import { readHref } from '../../reader/api';
 import { emptyDraft, ManualForm } from '../add/ManualForm';
 import { ShelfApiError, shelfFetch } from '../api';
 import { savedToast } from '../dup-hint';
@@ -151,6 +153,11 @@ export function PdfUploadTab({ projectId, onAdded, onManageFiles }: { projectId:
             {r.stage === 'done' && r.item && (
               <p className="sh-up-done">
                 <Icon name="check" /> Added as <b>{r.item.paper.title}</b>
+                {r.result && (
+                  <Link className="sh-up-open" href={readHref(r.item.paper.id, r.result.pdf.id)} prefetch={false}>
+                    Open
+                  </Link>
+                )}
               </p>
             )}
             {r.stage === 'match' && r.result?.match && !r.manual && (

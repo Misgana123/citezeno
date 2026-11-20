@@ -1,5 +1,6 @@
 import type { Paper } from '@/lib/papers/types';
 import { authorsShort, citationLabel, typeLabel } from './format';
+import { ReadButton } from '../reader/ReadButton';
 import { SaveButton } from '../shelf/SaveButton';
 import { PaperBadges, PaperLinks } from './PaperBadges';
 
@@ -32,6 +33,7 @@ export function PaperCard({ paper, onOpen, active = false }: { paper: Paper; onO
       <p className={`fp-abstract${paper.abstract ? '' : ' is-empty'}`}>{paper.abstract ?? 'No abstract available.'}</p>
       <div className="fp-card-actions">
         <PaperLinks paper={paper} />
+        <ReadButton paperId={paper.id} hasPdf={!!paper.pdfUrl} />
         <SaveButton paper={paper} />
       </div>
     </li>

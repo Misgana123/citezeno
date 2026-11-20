@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { appendMessages, createConversation } from '@/lib/agent/store';
+import { savePosition, touchPosition } from '@/lib/reader/store/positions';
 import { search, snippetAround } from '@/lib/search';
 import { addItem } from '@/lib/shelf/store/items';
 import { putShared } from '@/lib/shelf/store/papers';
@@ -49,6 +50,16 @@ describe.skipIf(!TEST_DB_URL)('search (Postgres)', () => {
     expect(r.drafts.map((d) => d.title)).toEqual(['Climate essay']);
     expect((await search(db.pool, user, 'spindles', 'papers')).papers).toEqual([expect.objectContaining({ title: 'Sleep spindles and overnight memory', retracted: false })]);
     expect((await search(db.pool, other, 'sleep', 'all')).papers).toEqual([]);
+  });
+
+  it('gives each shelf paper its paper ID, and lists papers opened in the reader', async () => {
+    expect((await search(db.pool, user, 'spindles', 'papers')).papers[0].paperId).toBe('openalex:W70');
+    await touchPosition(db.pool, user, 'openalex:W70', 'Sleep spindles and overnight memory');
+    await savePosition(db.pool, user, 'openalex:W70', 4, 12);
+    expect((await search(db.pool, user, '', 'all')).reading).toEqual([expect.objectContaining({ paperId: 'openalex:W70', page: 4, pageCount: 12 })]);
+    expect((await search(db.pool, user, 'overnight', 'all')).reading).toHaveLength(1);
+    expect((await search(db.pool, user, 'climate', 'all')).reading).toEqual([]);
+    expect((await search(db.pool, other, '', 'all')).reading).toEqual([]);
   });
 
   it('lists recent things with no words, and takes % literally', async () => {

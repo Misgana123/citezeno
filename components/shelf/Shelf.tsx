@@ -26,6 +26,7 @@ import { filtersFromParams, filtersToParams, SORT_LABELS, STATUS_LABELS, type Sh
 import { useShelfGroups } from './useShelfGroups';
 import { useShelfList } from './useShelfList';
 import { Select } from '../Select';
+import { ContinueReading } from '../reader/ContinueReading';
 
 /* The shelf page: views on the left (all, Unsorted, projects, folders, tags),
    the papers on the right, a selection bar for bulk actions, and a drawer
@@ -185,6 +186,7 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
 
       <section className="sh-main" aria-label={title}>
         <RetractionNotices onOpen={openItem} onRead={() => window.dispatchEvent(new Event('citezeno:shelf-notices'))} />
+        <ContinueReading />
         <div className="sh-head">
           <h2 className="h3">{title}</h2>
           <button type="button" className="btn btn-thread btn-sm sh-add-btn" onClick={() => setAdding(true)}>

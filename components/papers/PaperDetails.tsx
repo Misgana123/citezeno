@@ -1,6 +1,7 @@
 import type { Paper } from '@/lib/papers/types';
 import { Icon } from '../Icon';
 import { citationLabel, languageName, typeLabel } from './format';
+import { ReadButton } from '../reader/ReadButton';
 import { SaveButton } from '../shelf/SaveButton';
 import { PaperLinks } from './PaperBadges';
 
@@ -45,15 +46,11 @@ export function PaperDetails({ paper, loading }: { paper: Paper; loading: boolea
       </div>
 
       <div className="fp-detail-links">
+        <ReadButton paperId={paper.id} hasPdf={!!paper.pdfUrl} main />
         <SaveButton paper={paper} menuAlign="left" />
-        {paper.pdfUrl && (
-          <a className="btn btn-thread btn-sm" href={paper.pdfUrl} target="_blank" rel="noopener noreferrer">
-            <Icon name="pdf" /> Free PDF
-          </a>
-        )}
-        {!paper.pdfUrl && paper.landingUrl && (
-          <a className="btn btn-ghost btn-sm" href={paper.landingUrl} target="_blank" rel="noopener noreferrer">
-            <Icon name="external" /> Publisher page
+        {(paper.landingUrl ?? paper.pdfUrl) && (
+          <a className="fp-open-original" href={(paper.landingUrl ?? paper.pdfUrl)!} target="_blank" rel="noopener noreferrer">
+            <Icon name="external" /> Open original
           </a>
         )}
         <PaperLinks paper={paper} both />

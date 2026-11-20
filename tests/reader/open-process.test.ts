@@ -193,6 +193,17 @@ describe.skipIf(!TEST_DB_URL)('opening and processing papers (Postgres)', () => 
     expect(await processNext(deps, { id: r.needsWork!, deadline: later() })).toBe('embedded');
     expect((await readableText(deps, user, 'openalex:W7')).text).toMatchObject({ scope: 'user', ownerId: user, status: 'ready' });
 
+    // a second, newer upload opens by default; the first one when it is asked for
+    const second = await createPending(db.pool, user, { fileName: 'newer.pdf', sizeBytes: PAPER_PDF.byteLength, itemId: item.id });
+    await markReady(db.pool, user, second.id, { sizeBytes: PAPER_PDF.byteLength, pageCount: 2, textStatus: 'done', text: null, found: { doi: null, title: null } });
+    store.put(second.storageKey, PAPER_PDF);
+    expect((await openPaper(deps, user, 'openalex:W7')).view.pdf).toMatchObject({ kind: 'upload', fileName: 'newer.pdf' });
+    expect((await openPaper(deps, user, 'openalex:W7', { pdfId: pdf.id })).view.pdf).toMatchObject({ kind: 'upload', fileName: 'mine.pdf' });
+    expect((await readableText(deps, user, 'openalex:W7', { pdfId: pdf.id })).text).toMatchObject({ pdfId: pdf.id });
+    // someone else's file ID is ignored (their own copy, or the open-access PDF, opens instead)
+    expect((await openPaper(deps, other, 'openalex:W7', { pdfId: pdf.id })).view.pdf).toMatchObject({ kind: 'open_access' });
+    await db.pool.query(`delete from shelf_pdf where id = $1`, [second.id]);
+
     // another user gets the open-access text, never this upload
     const theirs = await openPaper(deps, other, 'openalex:W7');
     expect(theirs.view.pdf).toMatchObject({ kind: 'open_access' });

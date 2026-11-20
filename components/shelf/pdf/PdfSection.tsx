@@ -1,8 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { useRef, useState } from 'react';
 import type { ShelfItem } from '@/lib/shelf/types';
 import { Icon } from '../../Icon';
+import { readHref } from '../../reader/api';
 import { toast } from '../../toast';
 import { shelfFetch } from '../api';
 import { fileSize, pdfHref, uploadPdf } from './upload';
@@ -44,9 +46,9 @@ export function PdfSection({ item, onChange }: { item: ShelfItem; onChange: (ite
             <li key={f.id}>
               <Icon name="pdf" />
               <span className="sh-pdf-name">
-                <a href={pdfHref(f.id)} target="_blank" rel="noopener noreferrer">
+                <Link href={readHref(item.paper.id, f.id)} prefetch={false} title="Read it">
                   {f.fileName}
-                </a>
+                </Link>
                 <span className="small">
                   {[fileSize(f.sizeBytes), f.pageCount && `${f.pageCount} pages`, f.textStatus === 'none' && 'text not available for search'].filter(Boolean).join(' · ')}
                 </span>

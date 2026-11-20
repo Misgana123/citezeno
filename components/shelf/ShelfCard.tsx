@@ -2,7 +2,10 @@
 
 import type { ShelfItem, Tag } from '@/lib/shelf/types';
 import { READING_STATUSES, type ReadingStatus } from '@/lib/shelf/types';
+import Link from 'next/link';
 import { Icon } from '../Icon';
+import { readHref } from '../reader/api';
+import { ReadButton } from '../reader/ReadButton';
 import { authorsShort, citationLabel, doiHref, typeLabel } from '../papers/format';
 import { STATUS_LABELS } from './shelf-state';
 import { Select } from '../Select';
@@ -62,9 +65,14 @@ export function ShelfCard({
             {p.origin === 'manual' && <span className="tag fp-tag">Added manually</span>}
             {p.origin === 'import' && <span className="tag fp-tag">Imported</span>}
             {item.pdfs.length > 0 && (
-              <span className="tag fp-tag" title={item.pdfs.some((f) => f.textStatus === 'none') ? 'Your PDF (scanned: text not available for search)' : 'Your PDF'}>
+              <Link
+                className="tag fp-tag sh-pdf-tag"
+                href={readHref(p.id, item.pdfs.at(-1)!.id)}
+                prefetch={false}
+                title={item.pdfs.some((f) => f.textStatus === 'none') ? 'Read your PDF (scanned: text not available for search)' : 'Read your PDF'}
+              >
                 <Icon name="pdf" /> PDF
-              </span>
+              </Link>
             )}
             {badges}
           </span>
@@ -95,6 +103,7 @@ export function ShelfCard({
       </div>
       <div className="sh-card-side">
         <span className="sh-card-tools">
+          <ReadButton paperId={p.id} hasPdf={item.pdfs.length > 0 || !!p.pdfUrl} />
           <Select<ReadingStatus>
             className={`select sh-status is-${item.readingStatus}`}
             value={item.readingStatus}

@@ -1,13 +1,15 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import type { PdfRow } from '@/lib/shelf/store/pdfs';
 import { Icon } from '../../Icon';
+import { readHref } from '../../reader/api';
 import { toast } from '../../toast';
 import { shelfFetch } from '../api';
 import { fileSize, pdfHref } from './upload';
 
-type Files = { files: (PdfRow & { paperTitle: string | null })[]; usedBytes: number; limitBytes: number; enabled: boolean };
+type Files = { files: (PdfRow & { paperTitle: string | null; paperId: string | null })[]; usedBytes: number; limitBytes: number; enabled: boolean };
 
 /* Every uploaded PDF and the storage they take, to free up space. */
 export function FilesDialog({ onClose, onDeleted }: { onClose: () => void; onDeleted: () => void }) {
@@ -65,11 +67,20 @@ export function FilesDialog({ onClose, onDeleted }: { onClose: () => void; onDel
                   <li key={f.id}>
                     <Icon name="pdf" />
                     <span className="sh-pdf-name">
-                      <a href={pdfHref(f.id)} target="_blank" rel="noopener noreferrer">
-                        {f.fileName}
-                      </a>
+                      {f.paperId ? (
+                        <Link href={readHref(f.paperId, f.id)} prefetch={false} title="Read it">
+                          {f.fileName}
+                        </Link>
+                      ) : (
+                        <a href={pdfHref(f.id)} target="_blank" rel="noopener noreferrer">
+                          {f.fileName}
+                        </a>
+                      )}
                       <span className="small">{[fileSize(f.sizeBytes), f.paperTitle ?? 'not matched to a paper yet'].join(' · ')}</span>
                     </span>
+                    <a className="icon-btn sh-remove" href={pdfHref(f.id)} target="_blank" rel="noopener noreferrer" aria-label={`Download ${f.fileName}`} title="Download">
+                      <Icon name="download" />
+                    </a>
                     <button type="button" className="icon-btn sh-remove" onClick={() => remove(f)} aria-label={`Delete ${f.fileName}`} title="Delete">
                       <Icon name="trash" />
                     </button>

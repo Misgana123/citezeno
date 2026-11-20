@@ -39,4 +39,5 @@ export async function readerFetch<T>(url: string, init: { method?: string; body?
 }
 
 export const readerUrl = (paperId: string, rest = '') => `/api/reader/${encodeURIComponent(paperId)}${rest}`;
-export const readHref = (paperId: string) => `/app/read/${encodeURIComponent(paperId)}`;
+/* The reader's page for a paper (optionally one of the user's own PDFs of it). */
+export const readHref = (paperId: string, pdfId?: string | null) => `/app/read/${encodeURIComponent(paperId)}${pdfId ? `?pdf=${encodeURIComponent(pdfId)}` : ''}`;

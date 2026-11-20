@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { BulkBody } from '@/lib/shelf/api/bodies';
 import { READING_STATUSES, type ReadingStatus, type ShelfItem } from '@/lib/shelf/types';
 import { Icon } from '../Icon';
+import { ReadButton } from '../reader/ReadButton';
 import { authorsShort, citationLabel, doiHref, languageName, typeLabel } from '../papers/format';
 import { toast } from '../toast';
 import { emptyDraft, ManualForm } from './add/ManualForm';
@@ -92,14 +93,10 @@ export function ItemDrawer({
               {p.isOpenAccess && <span className="tag oa">Open access</span>}
             </div>
             <div className="fp-detail-links">
-              {p.pdfUrl && (
-                <a className="btn btn-thread btn-sm" href={p.pdfUrl} target="_blank" rel="noopener noreferrer">
-                  <Icon name="pdf" /> Free PDF
-                </a>
-              )}
-              {!p.pdfUrl && p.landingUrl && (
-                <a className="btn btn-ghost btn-sm" href={p.landingUrl} target="_blank" rel="noopener noreferrer">
-                  <Icon name="external" /> Publisher page
+              <ReadButton paperId={p.id} hasPdf={item.pdfs.length > 0 || !!p.pdfUrl} main />
+              {(p.landingUrl ?? p.pdfUrl) && (
+                <a className="fp-open-original" href={(p.landingUrl ?? p.pdfUrl)!} target="_blank" rel="noopener noreferrer">
+                  <Icon name="external" /> Open original
                 </a>
               )}
               <span className="fp-links">

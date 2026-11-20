@@ -15,6 +15,7 @@ import { applyEvent, type Entry } from './events';
 import { Markdown } from './Markdown';
 import { refAnchor } from './PaperRefs';
 import { Steps } from './Steps';
+import { ContinueReading } from '../reader/ContinueReading';
 
 /* The research assistant. A new chat opens on a greeting with a large message
    box; a conversation shows each turn (the steps it took, folded to one line;
@@ -382,6 +383,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
               <Icon name="alert" /> {error}
             </p>
           )}
+          <ContinueReading limit={3} />
         </div>
         <p className="ch-disclaimer is-home">Answers come only from real papers. Check important claims against the source.</p>
       </div>
