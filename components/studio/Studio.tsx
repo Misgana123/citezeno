@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useMediaQuery } from '../useMediaQuery';
 import { DEFAULT_DOC, suggestTitle, type DocOptions } from '@/lib/docmodel';
 import {
   MAX_CLAIMS, TraceError, addSource, attachClaim, attachToSentence, citedSet, importReferences, reattachDetached, removeDetached, removeMine, removeSource, render,
@@ -158,6 +159,20 @@ export function Studio() {
   const progressEl = useRef<HTMLDivElement>(null);
   const resultsEl = useRef<HTMLDivElement>(null);
   const mainEl = useRef<HTMLDivElement>(null);
+  /* The top bar's own width (not the window's: the app sidebar takes a share),
+     so it can drop labels before its buttons run out of room. */
+  const topEl = useRef<HTMLElement>(null);
+  const [topFit, setTopFit] = useState('');
+  useEffect(() => {
+    const el = topEl.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => {
+      const w = e.contentRect.width;
+      setTopFit(w < 560 ? ' fit-md fit-sm fit-xs' : w < 700 ? ' fit-md fit-sm' : w < 860 ? ' fit-md' : '');
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const [scroll, setScroll] = useState({ y: 0, p: 0 });
   const onMainScroll = useCallback(() => {
     const el = mainEl.current;
@@ -391,6 +406,13 @@ export function Studio() {
     // wait for a drawer to slide away before moving the focus
     setTimeout(() => editorApi.current?.select(c.start, c.end), 40);
   }, []);
+
+  /* the panel is a drawer below this width (keep in step with atelier.css);
+     close it when the screen grows and the panel docks again */
+  const panelDocked = useMediaQuery('(min-width: 1280px)');
+  useEffect(() => {
+    if (panelDocked) setDrawer('');
+  }, [panelDocked]);
 
   useEffect(() => {
     if (!drawer) return;
@@ -710,7 +732,7 @@ export function Studio() {
 
   return (
     <div className={`at studio-app${drawer === 'insp' ? ' is-insp' : ''}`}>
-      <header className="at-top">
+      <header className={`at-top${topFit}`} ref={topEl}>
         <div className="at-doc">
           <input value={doc.title} onChange={(e) => setDoc({ title: e.target.value })} placeholder="Untitled draft" aria-label="Document title" spellCheck={false} />
           {entryId && unsaved === entryId ? (
@@ -719,7 +741,7 @@ export function Studio() {
             </button>
           ) : (
             <span className="at-saved" title={userId ? 'Saved to your account' : 'Saved in this browser'}>
-              <Icon name="check" /> <span>{userId ? 'Saved to your account' : 'Saved in this browser'}</span>
+              <Icon name="check" /> <span>Saved</span>
             </span>
           )}
         </div>
@@ -736,6 +758,17 @@ export function Studio() {
         )}
         <CreditsPill need={cost} />
         <div className="at-run-top">{runControl}</div>
+        <button
+          className="at-tbtn at-panel-btn"
+          onClick={() => setDrawer((d) => (d ? '' : 'insp'))}
+          aria-expanded={drawer === 'insp'}
+          aria-controls="at-insp"
+          aria-label={drawer === 'insp' ? 'Hide style, settings and claims' : 'Show style, settings and claims'}
+          title="Style, settings and claims"
+        >
+          <Icon name="panel" />
+          {outline.length > 0 && <span className="at-tbtn-n">{outline.length}</span>}
+        </button>
       </header>
 
       <SidePanel

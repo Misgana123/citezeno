@@ -10,6 +10,7 @@ import type { DupSummary } from '@/lib/shelf/api/saved-response';
 import type { GroupsApi } from '../useShelfGroups';
 import { LookupTab } from './LookupTab';
 import { emptyDraft, ManualForm, type ManualDraft } from './ManualForm';
+import { Select } from '../../Select';
 
 /* "Add papers": find one by DOI, link or title, or type it in by hand. Later
    features add more ways in through `extraTabs` (PDF upload, file import). */
@@ -98,14 +99,11 @@ export function AddPapersDialog({
         </div>
         <label className="sh-add-into">
           Add to
-          <select className="select" value={projectId ?? ''} onChange={(e) => setProjectId(e.target.value || null)}>
-            <option value="">Unsorted</option>
-            {groups.projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={projectId ?? ''}
+            onChange={(v) => setProjectId(v || null)}
+            options={[{ value: '', label: 'Unsorted' }, ...groups.projects.map((p) => ({ value: p.id, label: p.name }))]}
+          />
         </label>
         <div className="sh-add-body" role="tabpanel">
           {current.render(ctx)}

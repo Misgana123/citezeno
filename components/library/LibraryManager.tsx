@@ -9,6 +9,7 @@ import { Icon } from '../Icon';
 import { ShareDialog } from '../share/ShareDialog';
 import { DownloadAll, LibraryNearlyFull } from './DownloadAll';
 import { toast } from '../toast';
+import { Select } from '../Select';
 
 export type LibRow = {
   id: string;
@@ -113,20 +114,18 @@ export function LibraryManager({ initial, owner }: { initial: LibRow[]; owner: s
           <Icon name="search" />
           <input className="input" placeholder="Search titles and drafts" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the library" />
         </label>
-        <select className="select" value={style} onChange={(e) => setStyle(e.target.value)} aria-label="Filter by style">
-          <option value="">All styles</option>
-          {styles.map((s) => (
-            <option key={s} value={s}>
-              {STYLES[s].name}
-            </option>
-          ))}
-        </select>
-        <select className="select" value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort">
-          <option value="new">Newest first</option>
-          <option value="old">Oldest first</option>
-          <option value="title">Title A–Z</option>
-          <option value="sources">Most sources</option>
-        </select>
+        <Select<string> value={style} onChange={setStyle} aria-label="Filter by style" options={[{ value: '', label: 'All styles' }, ...styles.map((s) => ({ value: s, label: STYLES[s].name }))]} />
+        <Select<Sort>
+          value={sort}
+          onChange={setSort}
+          aria-label="Sort"
+          options={[
+            { value: 'new', label: 'Newest first' },
+            { value: 'old', label: 'Oldest first' },
+            { value: 'title', label: 'Title A–Z' },
+            { value: 'sources', label: 'Most sources' },
+          ]}
+        />
         <DownloadAll items={rows} />
       </div>
       <p className="libm-count">

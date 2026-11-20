@@ -66,7 +66,7 @@ export function SidePanel({
   const pct = claims.length ? Math.round((cited / claims.length) * 100) : 0;
 
   return (
-    <aside className="at-insp" aria-label="Trace settings and claims">
+    <aside id="at-insp" className="at-insp" aria-label="Trace settings and claims">
       <div className="at-panel-head">
         <div className="at-seg" role="tablist" aria-label="Panel">
           <button role="tab" aria-selected={tab === 'settings'} onClick={() => setTab('settings')}>

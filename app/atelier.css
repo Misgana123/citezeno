@@ -5,8 +5,9 @@
    in globals.css, so it follows the light and dark themes.
 
    It sits beside the app sidebar (AppShell, variant "panel").
-   ≥ 1081px   top bar and canvas · the style, settings and claims panel
-   ≤ 1080px   canvas; the panel slides in as a drawer, Trace moves to the top bar
+   ≥ 1280px   top bar and canvas · the style, settings and claims panel
+   ≤ 1279px   canvas; the panel slides in as a drawer (top-bar panel button
+              and the context chips open it), Trace moves to the top bar
    ≤ 720px    Trace floats at the bottom
    ===================================================================== */
 
@@ -67,6 +68,7 @@ body:has(.at-frame) { overflow: hidden; }
 }
 .at-tbtn:hover { border-color: var(--rule); background: var(--ground); color: var(--ink); }
 .at-tbtn svg { width: 16px; height: 16px; }
+.at-panel-btn { display: none; } /* shown when the panel is a drawer */
 .at-tbtn-n { min-width: 19px; height: 19px; padding: 0 6px; border-radius: 999px; background: var(--ground-2); font: 650 11px/19px var(--f-mono); color: var(--ink-2); text-align: center; }
 .at-credits { background: var(--sheet); border-color: var(--rule); }
 .at-run-top { display: none; flex: none; }
@@ -420,15 +422,17 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 
 /* ========================================================= responsive */
 @media (max-width: 1440px) { .at-run .kbd, .at-credits-lbl { display: none; } }
-@media (max-width: 1279px) {
+@media (max-width: 1440px) and (min-width: 1280px) {
   .at { --at-right: 320px; }
-  .at-main-in { padding: 20px 20px 32px; }
+  .at-credits-bar { display: none; }
 }
-@media (max-width: 1180px) and (min-width: 1081px) { .at-saved > span, .at-credits-bar { display: none; } .at-saved { padding: 0 6px; } }
 
-/* tablets and small laptops: the two panels become drawers */
-@media (max-width: 1080px) {
+/* laptops beside the app sidebar, tablets: the panel becomes a drawer */
+@media (max-width: 1279px) {
+  .at-main-in { padding: 20px 20px 32px; }
   .at { grid-template-columns: minmax(0, 1fr); }
+  .at-panel-btn { display: inline-flex; padding: 0 10px; }
+  .at.is-insp .at-panel-btn { border-color: var(--ink-3); background: var(--ground-2); color: var(--ink); }
   .at-top, .at-main { grid-column: 1; }
   .at-run-top { display: flex; }
   .at-context { display: flex; }
@@ -441,11 +445,12 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
   .at-panel-head { padding: 14px 12px 10px 14px; }
   .at-panel-body { padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
 }
-@media (max-width: 900px) {
-  .at-saved > span, .at-tbtn > span, .at-credits-bar { display: none; }
-  .at-saved { padding: 0 6px; }
-  .at-tbtn { padding: 0 10px; }
-}
+/* the top bar sheds labels by its own width (fit-* set in Studio.tsx) */
+.at-top.fit-md .at-credits-bar, .at-top.fit-md .at-tbtn > span:not(.at-tbtn-n) { display: none; }
+.at-top.fit-md .at-tbtn { padding: 0 10px; }
+.at-top.fit-sm .at-saved > span, .at-top.fit-xs .at-tbtn-n { display: none; }
+.at-top.fit-sm .at-saved { padding: 0 6px; }
+@media (min-width: 721px) { .at-top.fit-sm .at-run-cost { display: none; } }
 
 /* phones: bottom bar, floating Trace button */
 @media (max-width: 720px) {

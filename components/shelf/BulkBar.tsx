@@ -3,6 +3,7 @@
 import type { BulkBody } from '@/lib/shelf/api/bodies';
 import { READING_STATUSES, type ReadingStatus } from '@/lib/shelf/types';
 import { Icon } from '../Icon';
+import { Select, type SelectGroup } from '../Select';
 import { STATUS_LABELS } from './shelf-state';
 import type { GroupsApi } from './useShelfGroups';
 
@@ -31,11 +32,6 @@ export function BulkBar({
   extra?: React.ReactNode;
 }) {
   const folderLabel = (projectId: string, name: string) => `${groups.projects.find((p) => p.id === projectId)?.name ?? ''} › ${name}`;
-  const pick = (fn: (v: string) => void) => (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const v = e.target.value;
-    e.target.value = '';
-    if (v) fn(v);
-  };
   const viewProject = viewProjectId ? groups.projects.find((p) => p.id === viewProjectId) : null;
 
   return (
@@ -49,61 +45,53 @@ export function BulkBar({
         </button>
       )}
 
-      <select className="select sh-bulk-sel" defaultValue="" disabled={busy} aria-label="Set reading status" onChange={pick((v) => onRun({ action: 'status', status: v as ReadingStatus }, `Marked ${STATUS_LABELS[v as ReadingStatus].toLowerCase()}`))}>
-        <option value="">Status…</option>
-        {READING_STATUSES.map((s) => (
-          <option key={s} value={s}>
-            {STATUS_LABELS[s]}
-          </option>
-        ))}
-      </select>
-
-      <select
+      <Select
         className="select sh-bulk-sel"
-        defaultValue=""
+        value=""
+        placeholder="Status…"
+        disabled={busy}
+        aria-label="Set reading status"
+        options={READING_STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] }))}
+        onChange={(v) => onRun({ action: 'status', status: v as ReadingStatus }, `Marked ${STATUS_LABELS[v as ReadingStatus].toLowerCase()}`)}
+      />
+
+      <Select
+        className="select sh-bulk-sel"
+        value=""
+        placeholder="Move to…"
         disabled={busy}
         aria-label="Move to"
-        onChange={pick((v) => {
+        options={[{ value: 'unsorted', label: 'Unsorted' }, ...groupOptions(groups, folderLabel)]}
+        onChange={(v) => {
           if (v === 'unsorted') onRun({ action: 'move', projectId: null, folderId: null }, 'Moved to Unsorted');
           else if (v.startsWith('p:')) onRun({ action: 'move', projectId: v.slice(2) }, 'Moved');
           else onRun({ action: 'move', folderId: v.slice(2) }, 'Moved');
-        })}
-      >
-        <option value="">Move to…</option>
-        <option value="unsorted">Unsorted</option>
-        <GroupOptions groups={groups} folderLabel={folderLabel} />
-      </select>
+        }}
+      />
 
-      <select
+      <Select
         className="select sh-bulk-sel"
-        defaultValue=""
+        value=""
+        placeholder="Add to…"
         disabled={busy || !groups.projects.length}
         aria-label="Add to a project or folder"
-        onChange={pick((v) => onRun(v.startsWith('p:') ? { action: 'add_project', projectId: v.slice(2) } : { action: 'add_folder', folderId: v.slice(2) }, 'Added'))}
-      >
-        <option value="">Add to…</option>
-        <GroupOptions groups={groups} folderLabel={folderLabel} />
-      </select>
+        options={groupOptions(groups, folderLabel)}
+        onChange={(v) => onRun(v.startsWith('p:') ? { action: 'add_project', projectId: v.slice(2) } : { action: 'add_folder', folderId: v.slice(2) }, 'Added')}
+      />
 
-      <select
+      <Select
         className="select sh-bulk-sel"
-        defaultValue=""
+        value=""
+        placeholder="Tag…"
         disabled={busy}
         aria-label="Add a tag"
-        onChange={pick((v) => {
+        options={[...groups.tags.map((t) => ({ value: t.id, label: `#${t.name}` })), { value: 'new', label: 'New tag…' }]}
+        onChange={(v) => {
           if (v !== 'new') return onRun({ action: 'tag', tagIds: [v], tagNames: [] }, 'Tagged');
           const name = window.prompt('New tag name')?.trim();
           if (name) onRun({ action: 'tag', tagIds: [], tagNames: [name.slice(0, 80)] }, `Tagged #${name}`);
-        })}
-      >
-        <option value="">Tag…</option>
-        {groups.tags.map((t) => (
-          <option key={t.id} value={t.id}>
-            #{t.name}
-          </option>
-        ))}
-        <option value="new">New tag…</option>
-      </select>
+        }}
+      />
 
       {viewProject && (
         <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => onRun({ action: 'remove_project', projectId: viewProject.id }, `Removed from ${viewProject.name}`)}>
@@ -121,29 +109,11 @@ export function BulkBar({
   );
 }
 
-function GroupOptions({ groups, folderLabel }: { groups: GroupsApi; folderLabel: (projectId: string, name: string) => string }) {
-  return (
-    <>
-      {groups.projects.length > 0 && (
-        <optgroup label="Projects">
-          {groups.projects.map((p) => (
-            <option key={p.id} value={`p:${p.id}`}>
-              {p.name}
-            </option>
-          ))}
-        </optgroup>
-      )}
-      {groups.folders.length > 0 && (
-        <optgroup label="Folders">
-          {groups.folders.map((f) => (
-            <option key={f.id} value={`f:${f.id}`}>
-              {folderLabel(f.projectId, f.name)}
-            </option>
-          ))}
-        </optgroup>
-      )}
-    </>
-  );
+function groupOptions(groups: GroupsApi, folderLabel: (projectId: string, name: string) => string): SelectGroup[] {
+  return [
+    { label: 'Projects', options: groups.projects.map((p) => ({ value: `p:${p.id}`, label: p.name })) },
+    { label: 'Folders', options: groups.folders.map((f) => ({ value: `f:${f.id}`, label: folderLabel(f.projectId, f.name) })) },
+  ];
 }
 
 /* Omit for each member of a union (BulkBody without `ids`). */

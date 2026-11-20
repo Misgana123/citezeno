@@ -58,7 +58,7 @@
 .fp-results-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .fp-count { margin: 0 2px; font-size: 13.5px; font-weight: 650; color: var(--ink); }
 .fp-sort { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink-3); }
-.fp-sort .select { width: auto; min-height: 34px; padding-right: 30px; font-size: 13.5px; border-width: 1px; border-radius: 10px; }
+.fp-sort .select { width: auto; min-height: 34px; padding-right: 10px; font-size: 13.5px; border-width: 1px; border-radius: 10px; }
 
 .fp-notices { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .fp-notices li { display: flex; gap: 9px; padding: 10px 13px; border-radius: 12px; background: var(--thread-soft); font-size: 13px; line-height: 1.5; color: var(--ink-2); }

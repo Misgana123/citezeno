@@ -25,6 +25,7 @@ import { ShelfSidebar, type ViewPick } from './ShelfSidebar';
 import { filtersFromParams, filtersToParams, SORT_LABELS, STATUS_LABELS, type ShelfFilters } from './shelf-state';
 import { useShelfGroups } from './useShelfGroups';
 import { useShelfList } from './useShelfList';
+import { Select } from '../Select';
 
 /* The shelf page: views on the left (all, Unsorted, projects, folders, tags),
    the papers on the right, a selection bar for bulk actions, and a drawer
@@ -224,15 +225,11 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
                 <ExportMenu groups={groups} query={new URLSearchParams(query)} baseName={exportName(title)} />
                 <label className="fp-sort">
                   Sort
-                  <select className="select" value={filters.sort} onChange={(e) => patchFilters({ sort: e.target.value as ListSort })}>
-                    {Object.entries(SORT_LABELS)
-                      .filter(([k]) => k !== 'relevance' || filters.q.trim())
-                      .map(([k, v]) => (
-                        <option key={k} value={k}>
-                          {v}
-                        </option>
-                      ))}
-                  </select>
+                  <Select<ListSort>
+                    value={filters.sort}
+                    onChange={(sort) => patchFilters({ sort })}
+                    options={(Object.entries(SORT_LABELS) as [ListSort, string][]).filter(([k]) => k !== 'relevance' || filters.q.trim()).map(([k, v]) => ({ value: k, label: v }))}
+                  />
                 </label>
               </span>
             </div>

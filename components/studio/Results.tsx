@@ -17,6 +17,9 @@ import { SourceCards, scoreFor } from './SourceCards';
 import { DetachedList } from './DetachedList';
 import { MySources, type ImportOutcome } from './MySources';
 import { toast } from '../toast';
+import { Select } from '../Select';
+
+const STYLE_OPTIONS = STYLE_GROUPS.map(([g, ids]) => ({ label: g, options: ids.map((id) => ({ value: id, label: `${STYLES[id].name}, ${STYLES[id].edition}` })) }));
 
 export type Tab = 'doc' | 'refs' | 'sources' | 'map' | 'insights' | 'export';
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
@@ -203,27 +206,11 @@ export function Results({
           )}
           <label className="field">
             Style
-            <select className="select" value={prefs.style} onChange={(e) => setPrefs({ style: e.target.value })}>
-              {STYLE_GROUPS.map(([g, ids]) => (
-                <optgroup key={g} label={g}>
-                  {ids.map((id) => (
-                    <option key={id} value={id}>
-                      {STYLES[id].name}, {STYLES[id].edition}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            <Select value={prefs.style} onChange={(style) => setPrefs({ style })} options={STYLE_OPTIONS} />
           </label>
           <label className="field">
             Output
-            <select className="select" value={prefs.mode} onChange={(e) => setPrefs({ mode: e.target.value as Mode })}>
-              {MODES.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+            <Select<Mode> value={prefs.mode} onChange={(mode) => setPrefs({ mode })} options={MODES.map((m) => ({ value: m.id, label: m.label }))} />
           </label>
         </div>
       </header>

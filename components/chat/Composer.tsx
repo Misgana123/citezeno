@@ -3,6 +3,7 @@
 import { forwardRef } from 'react';
 import type { ModelInfo } from '@/lib/providers/chat/catalog';
 import { Icon } from '../Icon';
+import { Select } from '../Select';
 
 /* The message box: what to ask, Chat or Cite (Cite asks for sources for the
    text), which model, and Send / Stop. */
@@ -62,16 +63,14 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
         </div>
         <span className="ch-grow" />
         {p.models.length > 1 ? (
-          <label className="ch-model">
-            <select value={p.model ?? ''} onChange={(e) => p.onModel(e.target.value)} aria-label="AI model">
-              {p.models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-            <Icon name="chevron" />
-          </label>
+          <Select
+            className="ch-model"
+            menuClassName="ch-model-pop"
+            value={p.model ?? ''}
+            onChange={p.onModel}
+            aria-label="AI model"
+            options={p.models.map((m) => ({ value: m.id, label: m.label }))}
+          />
         ) : (
           p.models[0] && <span className="ch-model is-one">{p.models[0].label}</span>
         )}

@@ -8,7 +8,7 @@ import type { ChatModel } from './types';
 
    v1: the cheapest model of each provider. */
 export const CHAT_MODELS: readonly ChatModel[] = [
-  { id: 'gemini-flash-lite', provider: 'gemini', label: 'Gemini 2.5 Flash-Lite', vendorModel: 'gemini-2.5-flash-lite', inputUsdPerM: 0.1, outputUsdPerM: 0.4 },
+  { id: 'gemini-flash-lite', provider: 'gemini', label: 'Gemini 3.5 Flash-Lite', vendorModel: 'gemini-3.5-flash-lite', inputUsdPerM: 0.3, outputUsdPerM: 2.5 },
   { id: 'gpt-luna', provider: 'openai', label: 'GPT-6 Luna', vendorModel: 'gpt-6-luna', inputUsdPerM: 0.1, outputUsdPerM: 0.5 },
   { id: 'claude-haiku', provider: 'anthropic', label: 'Claude Haiku 5.5', vendorModel: 'claude-haiku-5-5', inputUsdPerM: 0.1, outputUsdPerM: 0.5 },
 ];

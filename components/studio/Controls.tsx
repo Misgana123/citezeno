@@ -7,6 +7,7 @@ import type { Analysis, Kind, Mode, Prefs } from '@/lib/types';
 import { Icon } from '../Icon';
 import type { ClaimMode } from './Studio';
 import { PROVIDER_COLOR } from './SourceCards';
+import { Select } from '../Select';
 
 export const MODES: { id: Mode; label: string; hint: string; glyph: (st: (typeof STYLES)[string]) => string }[] = [
   {
@@ -200,11 +201,15 @@ export function Controls({
           </label>
           <label className="field span2">
             Source type
-            <select className="select" value={prefs.kind} onChange={(e) => set({ kind: e.target.value as Kind })}>
-              <option value="any">All types</option>
-              <option value="scholarly">Scholarly only</option>
-              <option value="books">Books and chapters</option>
-            </select>
+            <Select<Kind>
+              value={prefs.kind}
+              onChange={(kind) => set({ kind })}
+              options={[
+                { value: 'any', label: 'All types' },
+                { value: 'scholarly', label: 'Scholarly only' },
+                { value: 'books', label: 'Books and chapters' },
+              ]}
+            />
           </label>
           <label className="field span2">
             <span className="at-row" style={{ margin: 0 }}>

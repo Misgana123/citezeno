@@ -40,10 +40,11 @@
 .ch-seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--card); }
 .ch-seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; font-size: 13.5px; color: var(--ink-2); }
 .ch-seg button[aria-checked='true'] { background: var(--sheet); color: var(--ink); font-weight: 650; box-shadow: 0 1px 2px rgba(19, 33, 58, 0.12); }
-.ch-model { position: relative; display: inline-flex; align-items: center; height: 32px; border-radius: 9px; font-size: 13.5px; color: var(--ink); }
-.ch-model:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
-.ch-model select { height: 32px; padding: 0 26px 0 10px; border: 0; background: transparent; font: inherit; color: inherit; appearance: none; cursor: pointer; outline: none; }
-.ch-model svg { position: absolute; right: 8px; width: 12px; height: 12px; color: var(--ink-3); transform: rotate(90deg); pointer-events: none; }
+.ch-model { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; font-size: 13.5px; font-weight: 500; color: var(--ink); }
+.ch-model:hover, .ch-model.is-open { background: color-mix(in srgb, var(--ink) 6%, transparent); box-shadow: none; }
+.ch-model.cz-select:focus-visible { box-shadow: 0 0 0 2px var(--thread-soft); }
+.ch-model .cz-select-chev { width: 12px; height: 12px; color: var(--ink-3); opacity: 1; }
+.ch-model-pop { min-width: 200px !important; }
 .ch-model.is-one { padding: 0 10px; color: var(--ink-3); }
 .ch-send { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: var(--thread); color: var(--thread-ink); }
 .ch-send svg { width: 16px; height: 16px; stroke-width: 2.2; }

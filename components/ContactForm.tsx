@@ -5,6 +5,7 @@ import { useSession } from '@/lib/auth-client';
 import { TOPICS, type Topic } from '@/lib/contact';
 import { Notice } from './auth/bits';
 import { Icon } from './Icon';
+import { Select } from './Select';
 
 type Errors = Partial<Record<'name' | 'email' | 'message', string>>;
 
@@ -86,11 +87,7 @@ export function ContactForm({ initialTopic }: { initialTopic?: string }) {
       </div>
       <label className="field">
         Topic
-        <select className="select" value={topic} onChange={(e) => setTopic(e.target.value as Topic)}>
-          {TOPICS.map((t) => (
-            <option key={t}>{t}</option>
-          ))}
-        </select>
+        <Select<Topic> value={topic} onChange={setTopic} options={TOPICS.map((t) => ({ value: t, label: t }))} />
       </label>
       <label className="field">
         Message

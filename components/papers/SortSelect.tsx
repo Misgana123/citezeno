@@ -1,6 +1,7 @@
 'use client';
 
 import type { SortKey } from '@/lib/papers/search/options';
+import { Select } from '../Select';
 
 const SORT_LABELS: Record<SortKey, string> = { relevance: 'Most relevant', newest: 'Newest first', cited: 'Most cited' };
 
@@ -8,13 +9,11 @@ export function SortSelect({ value, onChange, relevanceLabel }: { value: SortKey
   return (
     <label className="fp-sort">
       <span>Sort</span>
-      <select className="select" value={value} onChange={(e) => onChange(e.target.value as SortKey)}>
-        {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
-          <option key={k} value={k}>
-            {k === 'relevance' && relevanceLabel ? relevanceLabel : SORT_LABELS[k]}
-          </option>
-        ))}
-      </select>
+      <Select<SortKey>
+        value={value}
+        onChange={onChange}
+        options={(Object.keys(SORT_LABELS) as SortKey[]).map((k) => ({ value: k, label: k === 'relevance' && relevanceLabel ? relevanceLabel : SORT_LABELS[k] }))}
+      />
     </label>
   );
 }

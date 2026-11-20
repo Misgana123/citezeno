@@ -5,6 +5,7 @@ import { READING_STATUSES, type ReadingStatus } from '@/lib/shelf/types';
 import { Icon } from '../Icon';
 import { authorsShort, citationLabel, doiHref, typeLabel } from '../papers/format';
 import { STATUS_LABELS } from './shelf-state';
+import { Select } from '../Select';
 
 /* One paper on the shelf: select it, open it in the drawer, set its status or remove it. */
 export function ShelfCard({
@@ -94,13 +95,13 @@ export function ShelfCard({
       </div>
       <div className="sh-card-side">
         <span className="sh-card-tools">
-          <select className={`select sh-status is-${item.readingStatus}`} value={item.readingStatus} onChange={(e) => onStatus(item, e.target.value as ReadingStatus)} aria-label="Reading status">
-            {READING_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
+          <Select<ReadingStatus>
+            className={`select sh-status is-${item.readingStatus}`}
+            value={item.readingStatus}
+            onChange={(s) => onStatus(item, s)}
+            aria-label="Reading status"
+            options={READING_STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] }))}
+          />
           <button type="button" className="icon-btn sh-remove" onClick={() => onRemove(item)} aria-label={`Remove “${p.title}” from your shelf`} title="Remove from shelf">
             <Icon name="trash" />
           </button>

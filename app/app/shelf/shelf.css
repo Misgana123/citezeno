@@ -76,7 +76,7 @@
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
 }
 .sh-card-tools { display: inline-flex; align-items: center; gap: 4px; }
-.sh-status { width: auto; height: 30px; min-height: 30px; padding: 0 28px 0 12px; font-size: 12.5px; font-weight: 650; border-width: 1px; border-radius: 999px; }
+.sh-status { width: auto; height: 30px; min-height: 30px; padding: 0 10px 0 12px; font-size: 12.5px; font-weight: 650; border-width: 1px; border-radius: 999px; }
 .sh-status.is-reading { border-color: color-mix(in srgb, var(--thread) 55%, var(--rule)); }
 .sh-status.is-done { border-color: color-mix(in srgb, var(--verify) 45%, var(--rule)); color: var(--verify); }
 .sh-remove { width: 30px; height: 30px; color: var(--ink-3); }
@@ -92,8 +92,8 @@
 .sh-bulk-n { margin-right: 6px; font-size: 13.5px; font-weight: 700; color: inherit; }
 .sh-bulk .btn { --b-bg: transparent; --b-fg: var(--sheet); --b-bd: var(--bk-line); }
 .sh-bulk .btn:hover { --b-bd: var(--sheet); }
-.sh-bulk-sel { width: auto; height: 32px; min-height: 32px; padding: 0 30px 0 12px; font-size: 13px; border-width: 1px; border-radius: 9px; border-color: var(--bk-line); background-color: transparent; color: var(--sheet); }
-.sh-bulk-sel option { color: var(--ink); background: var(--sheet); }
+.sh-bulk-sel { width: auto; height: 32px; min-height: 32px; padding: 0 10px 0 12px; font-size: 13px; border-width: 1px; border-radius: 9px; border-color: var(--bk-line); background-color: transparent; color: var(--sheet); }
+.sh-bulk-sel:not(:disabled):hover { border-color: var(--sheet); }
 .sh-bulk .sh-bulk-del { --b-fg: color-mix(in srgb, var(--warn) 55%, var(--sheet)); }
 .sh-bulk-x { width: 32px; height: 32px; margin-left: auto; color: var(--sheet) !important; opacity: 0.75; }
 .sh-bulk-x:hover { opacity: 1; background: var(--bk-line) !important; }
@@ -140,7 +140,7 @@
 .sh-add-tabs button { display: inline-flex; align-items: center; gap: 6px; }
 .sh-add-tabs button svg { width: 15px; height: 15px; }
 .sh-add-into { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink-3); }
-.sh-add-into .select { width: auto; max-width: 260px; height: 34px; min-height: 34px; padding: 0 30px 0 12px; font-size: 13.5px; border-width: 1px; border-radius: 10px; }
+.sh-add-into .select { width: auto; max-width: 260px; height: 34px; min-height: 34px; padding: 0 10px 0 12px; font-size: 13.5px; border-width: 1px; border-radius: 10px; }
 .sh-add-body { display: grid; gap: 12px; min-width: 0; }
 .dialog .sh-add-body p { margin: 0; }
 

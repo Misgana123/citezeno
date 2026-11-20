@@ -3,6 +3,7 @@
 import { WORK_TYPES, type WorkType } from '@/lib/papers/search/options';
 import { LANGUAGES, languageName, TYPE_LABELS } from './format';
 import type { SearchState } from './state';
+import { Select } from '../Select';
 
 type Patch = (p: Partial<SearchState>) => void;
 
@@ -45,26 +46,20 @@ export function FilterPanel({ state, onChange, onClear, active }: { state: Searc
 
         <label className="field">
           Type
-          <select className="select" value={state.type} onChange={(e) => onChange({ type: e.target.value as WorkType | '' })}>
-            <option value="">Any type</option>
-            {WORK_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {TYPE_LABELS[t]}
-              </option>
-            ))}
-          </select>
+          <Select<WorkType | ''>
+            value={state.type}
+            onChange={(type) => onChange({ type })}
+            options={[{ value: '', label: 'Any type' }, ...WORK_TYPES.map((t) => ({ value: t, label: TYPE_LABELS[t] }))]}
+          />
         </label>
 
         <label className="field">
           Language
-          <select className="select" value={state.lang} onChange={(e) => onChange({ lang: e.target.value })}>
-            <option value="">Any language</option>
-            {LANGUAGES.map((l) => (
-              <option key={l} value={l}>
-                {languageName(l)}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={state.lang}
+            onChange={(lang) => onChange({ lang })}
+            options={[{ value: '', label: 'Any language' }, ...LANGUAGES.map((l) => ({ value: l, label: languageName(l) ?? l }))]}
+          />
         </label>
 
         <label className="field">
