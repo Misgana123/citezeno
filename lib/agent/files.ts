@@ -19,8 +19,12 @@ export type AgentFileRef = { id: string; name: string; mime: string; size: numbe
 
 export type AgentFileRow = AgentFileRef & { storageKey: string; conversationId: string };
 
-/* What a tool may do with files: save one it made, for this conversation. */
-export type AgentFiles = { save(f: { name: string; mime: string; bytes: Uint8Array }): Promise<AgentFileRef> };
+/* What a tool may do with files: save one it made for this conversation, or
+   read back one this user's assistant made (null when it isn't theirs or is gone). */
+export type AgentFiles = {
+  save(f: { name: string; mime: string; bytes: Uint8Array }): Promise<AgentFileRef>;
+  read(id: string): Promise<{ file: AgentFileRef; bytes: Uint8Array } | null>;
+};
 
 const EXTENSIONS: Record<string, string> = {
   'application/pdf': 'pdf',
@@ -102,5 +106,17 @@ export async function saveAgentFile(
   return { id, name, mime: f.mime, size: f.bytes.byteLength };
 }
 
+/* A made file's bytes, for its owner. */
+export async function readAgentFile(deps: { db: Db; store: FileStore | null }, userId: string, id: string): Promise<{ file: AgentFileRef; bytes: Uint8Array } | null> {
+  if (!deps.store) throw new ShelfError('unavailable', 'Reading files isn’t set up yet. Please try again later.');
+  const row = await getAgentFile(deps.db, userId, id);
+  if (!row) return null;
+  const bytes = await deps.store.read(row.storageKey, AGENT_FILE_MAX_BYTES);
+  return bytes ? { file: fileRef(row), bytes } : null;
+}
+
 /* The file service one reply's tools use. */
-export const agentFiles = (deps: { db: Db; store: FileStore | null }, owner: { userId: string; conversationId: string }): AgentFiles => ({ save: (f) => saveAgentFile(deps, owner, f) });
+export const agentFiles = (deps: { db: Db; store: FileStore | null }, owner: { userId: string; conversationId: string }): AgentFiles => ({
+  save: (f) => saveAgentFile(deps, owner, f),
+  read: (id) => readAgentFile(deps, owner.userId, id),
+});

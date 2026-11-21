@@ -51,7 +51,7 @@ function harness(chat: ChatProvider, over: Partial<LoopDeps> & { db?: unknown; u
     papersConfig: { maxQueryChars: 1500, dailySearchesPerUser: 100 },
     shelfConfig: shelfConfig({}),
     reserveSearches: vi.fn(async () => {}),
-    files: { save: vi.fn(async () => { throw new Error('no files in this test'); }) },
+    files: { save: vi.fn(async () => { throw new Error('no files in this test'); }), read: vi.fn(async () => null) },
     webSearch: () => null, webFiles: () => { throw new Error('no web in this test'); }, pdfText: () => { throw new Error('no PDFs in this test'); },
   };
   const deps: LoopDeps = {

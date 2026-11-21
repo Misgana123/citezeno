@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { ToolSpec } from '@/lib/providers/chat/types';
 import { CLIENT_TOOLS, type ClientTool } from './client';
+import { DOCUMENT_TOOLS } from './documents';
 import { EXPORT_TOOLS } from './export';
 import { LIBRARY_TOOLS } from './library';
 import { ORGANIZE_TOOLS } from './organize';
@@ -12,7 +13,7 @@ import { WEB_TOOL_NAMES, WEB_TOOLS } from './web';
 
 /* Every action the agent can take: one tool per thing a user can do in the
    app. New features add their tools here and the agent can use them. */
-export const AGENT_TOOLS: readonly AgentTool[] = [...PAPER_TOOLS, ...LIBRARY_TOOLS, ...SAVE_TOOLS, ...ORGANIZE_TOOLS, ...EXPORT_TOOLS, ...READER_TOOLS, ...WEB_TOOLS] as AgentTool[];
+export const AGENT_TOOLS: readonly AgentTool[] = [...PAPER_TOOLS, ...LIBRARY_TOOLS, ...SAVE_TOOLS, ...ORGANIZE_TOOLS, ...EXPORT_TOOLS, ...READER_TOOLS, ...WEB_TOOLS, ...DOCUMENT_TOOLS] as AgentTool[];
 
 const byName = new Map<string, AgentTool | ClientTool>([...AGENT_TOOLS, ...CLIENT_TOOLS].map((t) => [t.name, t]));
 
