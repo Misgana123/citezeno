@@ -34,12 +34,15 @@ type Props = {
   /* the Web switch (in the + menu, shown as a chip while on) */
   webSearch?: boolean;
   onWebSearch?(on: boolean): void;
+  /* Deep research for the next message (in the + menu, shown as a chip while chosen) */
+  deepResearch?: boolean;
+  onDeepResearch?(on: boolean): void;
 };
 
 type Web = { on: boolean; onChange(on: boolean): void };
 
 /* The + button: upload files, take a screenshot, or turn web search on or off. */
-function AddMenu({ disabled, onAddFiles, onScreenshot, web }: { disabled?: boolean; onAddFiles(files: File[]): void; onScreenshot(): void; web?: Web }) {
+function AddMenu({ disabled, onAddFiles, onScreenshot, web, research }: { disabled?: boolean; onAddFiles(files: File[]): void; onScreenshot(): void; web?: Web; research?: Web }) {
   const [open, setOpen] = useState(false);
   const [shots, setShots] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -63,8 +66,8 @@ function AddMenu({ disabled, onAddFiles, onScreenshot, web }: { disabled?: boole
       <button
         type="button"
         className="ch-add"
-        aria-label="Add files, a screenshot or web search"
-        title="Add files, a screenshot or web search"
+        aria-label="Add files, a screenshot, web search or deep research"
+        title="Add files, a screenshot, web search or deep research"
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={disabled}
@@ -108,6 +111,20 @@ function AddMenu({ disabled, onAddFiles, onScreenshot, web }: { disabled?: boole
               }}
             >
               <Icon name="globe" /> Web search <span className={`ch-switch${web.on ? ' is-on' : ''}`} aria-hidden="true" />
+            </button>
+          )}
+          {research && (
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={research.on}
+              className="ch-add-toggle"
+              onClick={() => {
+                setOpen(false);
+                research.onChange(!research.on);
+              }}
+            >
+              <Icon name="compass" /> Deep research {research.on && <Icon name="check" className="ch-add-check" />}
             </button>
           )}
         </div>
@@ -181,7 +198,15 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
         disabled={p.disabled}
       />
       <div className="ch-compose-bar">
-        {p.onAddFiles && p.onScreenshot && <AddMenu disabled={p.disabled} onAddFiles={p.onAddFiles} onScreenshot={p.onScreenshot} web={p.onWebSearch ? { on: !!p.webSearch, onChange: p.onWebSearch } : undefined} />}
+        {p.onAddFiles && p.onScreenshot && <AddMenu disabled={p.disabled} onAddFiles={p.onAddFiles} onScreenshot={p.onScreenshot} web={p.onWebSearch ? { on: !!p.webSearch, onChange: p.onWebSearch } : undefined} research={p.onDeepResearch ? { on: !!p.deepResearch, onChange: p.onDeepResearch } : undefined} />}
+        {p.deepResearch && p.onDeepResearch && (
+          <span className="ch-chip">
+            <Icon name="compass" /> Deep research
+            <button type="button" onClick={() => p.onDeepResearch!(false)} aria-label="Turn off deep research" title="Turn off deep research">
+              <Icon name="x" />
+            </button>
+          </span>
+        )}
         {p.webSearch && p.onWebSearch && (
           <span className="ch-chip">
             <Icon name="globe" /> Web

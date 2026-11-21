@@ -33,6 +33,14 @@ export const messageBody = z
   .refine((b) => b.text || b.attachments?.length, 'Type a message.')
   .refine((b) => (b.attachments ?? []).reduce((n, a) => n + (a.kind === 'text' ? a.text.length : a.data.length), 0) <= ATTACH_TOTAL_MAX, 'The attached files are too large together.');
 
+/* Deep research (the + menu): one question, in a new or existing chat. */
+export const researchBody = z.object({
+  conversationId: ID.nullish(),
+  text: z.string().trim().min(3, 'Say what to research.').max(2000, 'Keep the research question under 2,000 characters.'),
+  model: z.string().trim().max(80).nullish(),
+  webSearch: z.boolean().optional(),
+});
+
 export const confirmBody = z.object({ conversationId: ID, callId: z.string().trim().min(1).max(200), approve: z.boolean() });
 
 /* What the browser sends back for a tool it ran. Kept small: it becomes data the model reads. */

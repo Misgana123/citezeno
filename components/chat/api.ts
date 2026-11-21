@@ -75,6 +75,10 @@ export const sendMessage = (
   signal?: AbortSignal,
 ) => streamReply('/api/agent/chat', body, onEvent, signal);
 
+/* Deep research (the + menu): its steps and then the report stream back like a reply. */
+export const startResearch = (body: { conversationId: string | null; text: string; model: string | null; webSearch?: boolean }, onEvent: (e: AgentEvent) => void, signal?: AbortSignal) =>
+  streamReply('/api/agent/research', body, onEvent, signal);
+
 export const answerQuestion = (body: { conversationId: string; callId: string; approve: boolean }, onEvent: (e: AgentEvent) => void, signal?: AbortSignal) =>
   streamReply('/api/agent/chat/confirm', body, onEvent, signal);
 

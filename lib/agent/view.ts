@@ -37,6 +37,8 @@ export function toView(c: Conversation, messages: StoredMessage[]): Conversation
           : {}),
       });
     else if (m.role === 'assistant') {
+      // deep research keeps its steps on the report itself
+      if (ui?.length) entries.push({ kind: 'steps', steps: ui });
       if (m.text) entries.push({ kind: 'assistant', text: m.text });
     } else if (ui?.length) entries.push({ kind: 'steps', steps: ui });
   }

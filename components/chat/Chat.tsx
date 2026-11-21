@@ -10,7 +10,7 @@ import { Icon, LogoMark, type IconName } from '../Icon';
 import { InlineName } from '../shelf/InlineName';
 import type { AttachmentView } from '@/lib/agent/view';
 import { ATTACH_MAX } from '@/lib/agent/attachments';
-import { answerQuestion, deleteChat, openChat, pinChat, renameChat, sendClientResult, sendMessage } from './api';
+import { answerQuestion, deleteChat, openChat, pinChat, renameChat, sendClientResult, sendMessage, startResearch } from './api';
 import { newAttachId, readAttachment, takeScreenshot, type AttachItem } from './attach';
 import { refreshChats, useChatIndex } from './chat-index';
 import { runClientTool } from './citations';
@@ -66,6 +66,12 @@ function toTurns(entries: Entry[]): Turn[] {
     else turns.push({ key: i, user: null, parts: [e] });
   });
   return turns;
+}
+
+/* A finished deep research report: the answer right after the research's "Writing the report" step. */
+function isReport(turn: Turn, at: number): boolean {
+  const before = turn.parts[at - 1];
+  return before?.kind === 'steps' && before.steps.some((s) => s.name === 'deep_research' && s.label === 'Writing the report' && s.status === 'done');
 }
 
 /* The titles of a turn's numbered papers, for the citation chips' tooltips. */
@@ -182,6 +188,8 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
   const [files, setFiles] = useState<AttachItem[]>([]);
   /* the Web switch in the + menu (off by default; kept per chat) */
   const [webSearch, setWebSearch] = useState(false);
+  /* Deep research chosen from the + menu, for the next message only */
+  const [deepResearch, setDeepResearch] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -358,6 +366,15 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
     const typed = raw.trim();
     const ready = files.filter((f) => f.status === 'ready' && f.attachment);
     if ((!typed && !ready.length) || busy || noModels || files.some((f) => f.status === 'reading')) return;
+    if (deepResearch) {
+      if (files.length) return setError('Deep research takes a question only. Remove the added files, or turn off Deep research.');
+      if (typed.length < 3) return setError('Say what to research.');
+      setText('');
+      setWaiting(null);
+      setDeepResearch(false);
+      setEntries((prev) => [...prev, { kind: 'user', text: typed }]);
+      return run((onEvent, signal) => startResearch({ conversationId: activeId, text: typed, model, webSearch }, onEvent, signal));
+    }
     const attachments = ready.map((f) => f.attachment!);
     const shown: AttachmentView[] = ready.map((f) => ({ kind: f.attachment!.kind, name: f.name, ...(f.preview ? { src: f.preview } : {}), ...(f.excerpt ? { excerpt: f.excerpt } : {}) }));
     setText('');
@@ -403,7 +420,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
       onModel={setModel}
       busy={busy}
       disabled={noModels}
-      placeholder={big ? 'Ask about papers, citations or your shelf…' : waiting ? 'Answer above, or ask something else…' : asking ? 'Ask about this paper…' : 'Reply…'}
+      placeholder={deepResearch ? 'What should I research?' : big ? 'Ask about papers, citations or your shelf…' : waiting ? 'Answer above, or ask something else…' : asking ? 'Ask about this paper…' : 'Reply…'}
       context={!big && askingTitle ? { label: askingTitle, onClear: () => setAsking(null) } : null}
       attachments={files}
       onAddFiles={addFiles}
@@ -411,6 +428,8 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
       onRemoveAttachment={removeFile}
       webSearch={webSearch}
       onWebSearch={setWebSearch}
+      deepResearch={deepResearch}
+      onDeepResearch={setDeepResearch}
       onSend={() => send()}
       onStop={() => abort.current?.abort()}
     />
@@ -504,6 +523,16 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
                           ) : p.kind === 'assistant' ? (
                             <div key={i} className="ch-answer">
                               <Markdown text={p.text} cite={cite} passage={passage} />
+                              {isReport(t, i) && !busy && (
+                                <div className="ch-report-acts">
+                                  <button type="button" className="ch-btn" onClick={() => send('Save the research report above as a Word document, with its sources.')}>
+                                    <Icon name="word" /> Save as Word
+                                  </button>
+                                  <button type="button" className="ch-btn" onClick={() => send('Save the research report above as a PDF, with its sources.')}>
+                                    <Icon name="pdf" /> Save as PDF
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           ) : null,
                         )}

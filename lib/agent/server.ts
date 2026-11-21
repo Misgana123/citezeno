@@ -11,6 +11,7 @@ import { shelfConfig } from '@/lib/shelf/config';
 import type { AgentContext } from './context';
 import { agentFiles } from './files';
 import { readingContext, webContext } from './prompt';
+import { research, RESEARCH_MS } from './research';
 import { searchReservations } from './limits';
 import { answer, repairHistory, resume, resumeWithClientResult, type ClientOutcome, type LoopDeps } from './loop';
 import { claimRun, createConversation, getConversation, loadMessages, releaseRun, setModel, setPending, setWebSearch, titleFrom, appendMessages, type Conversation } from './store';
@@ -65,7 +66,7 @@ export const agentModels = () => chatModelsFor().info();
 type Start = { conversation: Conversation; run(deps: LoopDeps, history: Parameters<typeof answer>[1]): Promise<void>; extraSystem?: string };
 
 /* A reply as a stream of events. The work happens while the stream is open. */
-async function streamReply(userId: string, req: Request, start: () => Promise<Start>, modelId: string | null | undefined): Promise<Response> {
+async function streamReply(userId: string, req: Request, start: () => Promise<Start>, modelId: string | null | undefined, replyMs = REPLY_MS): Promise<Response> {
   if (!(await allow(`agent:${userId}`, 60, PER_MINUTE))) throw new AgentHttpError(429, 'Too many messages. Please wait a moment.', 'busy');
 
   const meter = newMeter();
@@ -73,7 +74,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
   const { conversation, run, extraSystem } = await start();
   const model = models.pick(modelId ?? conversation.model);
   if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
-  if (!(await claimRun(pool, userId, conversation.id, Math.ceil(REPLY_MS / 1000) + 30))) throw new AgentHttpError(409, 'Still working on your last message.', 'busy');
+  if (!(await claimRun(pool, userId, conversation.id, Math.ceil(replyMs / 1000) + 30))) throw new AgentHttpError(409, 'Still working on your last message.', 'busy');
   if (model.id !== conversation.model) await setModel(pool, userId, conversation.id, model.id);
 
   const papers = papersServer();
@@ -112,7 +113,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     save: (m) => appendMessages(pool, conversation.id, m),
     setPending: (p) => setPending(pool, conversation.id, p),
     maxTurns: MAX_TURNS,
-    deadline: Date.now() + REPLY_MS,
+    deadline: Date.now() + replyMs,
     extraSystem: (extraSystem ?? '') + (conversation.webSearch ? webContext() : ''),
     tools: offeredTools({ web: conversation.webSearch }),
   };
@@ -160,6 +161,32 @@ export function replyToMessage(req: Request, userId: string, body: { conversatio
       return { conversation, run: (deps, history) => answer(deps, history, body.text, body.attachments ?? []), extraSystem: reading?.context };
     },
     body.model,
+  );
+}
+
+/* Deep research, started from the + menu: plan, search, read, then a cited
+   report. Its own endpoint, because it runs for a few minutes. */
+export function replyWithResearch(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null; webSearch?: boolean }) {
+  return streamReply(
+    userId,
+    req,
+    async () => {
+      let conversation = body.conversationId ? await getConversation(pool, userId, body.conversationId) : null;
+      if (body.conversationId && !conversation) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
+      if (!conversation) {
+        const model = chatModelsFor().pick(body.model);
+        if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
+        conversation = await createConversation(pool, userId, titleFrom(body.text), model.id);
+      }
+      if (conversation.pending) await setPending(pool, conversation.id, null);
+      if (body.webSearch !== undefined && body.webSearch !== conversation.webSearch) {
+        await setWebSearch(pool, userId, conversation.id, body.webSearch);
+        conversation = { ...conversation, webSearch: body.webSearch };
+      }
+      return { conversation, run: (deps) => research(deps, body.text) };
+    },
+    body.model,
+    RESEARCH_MS,
   );
 }
 
