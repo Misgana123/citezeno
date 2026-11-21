@@ -83,6 +83,9 @@ describe.skipIf(!TEST_DB_URL)('opening and processing papers (Postgres)', { time
       if (f instanceof Error) throw f;
       return { stream: new Blob([f as BlobPart]).stream(), size: f.byteLength, finalUrl: url };
     }),
+    fetchPage: vi.fn(async () => {
+      throw new ProviderError('unsupported', 'no pages in this test');
+    }),
   };
   let deps: ReaderDeps;
 

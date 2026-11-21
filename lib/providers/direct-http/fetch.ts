@@ -3,9 +3,11 @@ import { isIP } from 'node:net';
 import { ProviderError } from '../errors';
 import type { GatewayPolicy, Transport } from '../gateway/types';
 import type { Gate } from '../types';
-import type { WebFiles, WebPdf, WebPdfRefusal } from '../web-files/types';
+import { readAll } from '../web-files/read';
+import type { WebFiles, WebPage, WebPageRefusal, WebPdf, WebPdfRefusal } from '../web-files/types';
 
-/* Fetches open-access PDFs straight from the sites that host them.
+/* Fetches open-access PDFs (and, for the assistant, web pages) straight from
+   the sites that host them.
 
    Safety: only http(s) links, never a private, loopback or link-local address
    (checked for every redirect, after resolving the name), at most 5 redirects,
@@ -88,18 +90,38 @@ const looksLikePdf = (b: Uint8Array) => {
   return s.includes('%PDF-');
 };
 
-type WebRequest = { url: string; maxBytes: number };
+/* pdf: an open-access file, streamed. page: a web page's HTML (or plain text), read whole. */
+type WebRequest = { url: string; maxBytes: number; kind?: 'pdf' | 'page' };
+/* A page as fetched, before its text is pulled out. */
+export type RawPage = { body: string; contentType: string; finalUrl: string };
+
+const ACCEPT = { pdf: 'application/pdf,*/*;q=0.8', page: 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5' };
+const PAGE_TYPES = /^(text\/html|application\/xhtml\+xml|text\/plain)\b/i;
+
+const refusePage = (reason: WebPageRefusal, message: string, status?: number) =>
+  new ProviderError(reason === 'not_found' ? 'not_found' : 'bad_request', message, { provider: PROVIDER, reason, status });
+
+/* The text of a page's bytes, in the charset the site declared (UTF-8 when it didn't or it's unknown). */
+function decode(bytes: Uint8Array, contentType: string): string {
+  const charset = contentType.match(/charset=["']?([\w-]+)/i)?.[1];
+  try {
+    return new TextDecoder(charset || 'utf-8').decode(bytes);
+  } catch {
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+}
 
 export function createDirectTransport(doFetch: typeof fetch = fetch, resolve: Resolve = dnsResolve): Transport<WebRequest> {
   return {
     async call<T>(req: WebRequest) {
+      const kind = req.kind ?? 'pdf';
       let url = await checkUrl(req.url, resolve);
       let res: Response | null = null;
       for (let hop = 0; ; hop++) {
         try {
           res = await doFetch(url, {
             redirect: 'manual',
-            headers: { accept: 'application/pdf,*/*;q=0.8', 'user-agent': USER_AGENT },
+            headers: { accept: ACCEPT[kind], 'user-agent': USER_AGENT },
             signal: AbortSignal.timeout(TIMEOUT_MS),
             cache: 'no-store',
           });
@@ -110,20 +132,21 @@ export function createDirectTransport(doFetch: typeof fetch = fetch, resolve: Re
         const location = res.headers.get('location');
         if (res.status >= 300 && res.status < 400 && location) {
           await res.body?.cancel().catch(() => {});
-          if (hop >= MAX_REDIRECTS) throw refuse('not_pdf', 'The link redirected too many times.');
+          if (hop >= MAX_REDIRECTS) throw kind === 'page' ? refusePage('not_page', 'The link redirected too many times.') : refuse('not_pdf', 'The link redirected too many times.');
           url = await checkUrl(new URL(location, url).toString(), resolve);
           continue;
         }
         break;
       }
-      if (res.status === 404 || res.status === 410) throw refuse('not_found', 'The site says the file isn’t there.', res.status);
+      if (res.status === 404 || res.status === 410) throw refuse('not_found', kind === 'page' ? 'The site says the page isn’t there.' : 'The site says the file isn’t there.', res.status);
       if (res.status === 429) throw new ProviderError('busy', 'The site is limiting requests.', { provider: PROVIDER, status: 429 });
       if (!res.ok || !res.body) {
         await res.body?.cancel().catch(() => {});
-        throw refuse('not_pdf', `The site answered ${res.status}.`, res.status);
+        throw kind === 'page' ? refusePage('not_page', `The site answered ${res.status}.`, res.status) : refuse('not_pdf', `The site answered ${res.status}.`, res.status);
       }
       const declared = Number(res.headers.get('content-length'));
       const size = Number.isFinite(declared) && declared > 0 ? declared : null;
+      if (kind === 'page') return { body: (await readPage(res, url, size, req.maxBytes)) as T, costUsd: 0, status: res.status };
       if (size != null && size > req.maxBytes) {
         await res.body.cancel().catch(() => {});
         throw refuse('too_large', 'The file is too large.');
@@ -153,6 +176,28 @@ export function createDirectTransport(doFetch: typeof fetch = fetch, resolve: Re
   };
 }
 
+/* A page's HTML or text, checked to be a page (a PDF says so, so it can be read as one). */
+async function readPage(res: Response, url: URL, size: number | null, maxBytes: number): Promise<RawPage> {
+  const contentType = res.headers.get('content-type') ?? '';
+  if (/^application\/pdf\b/i.test(contentType)) {
+    await res.body?.cancel().catch(() => {});
+    throw refusePage('is_pdf', 'The link is a PDF.');
+  }
+  if (contentType && !PAGE_TYPES.test(contentType)) {
+    await res.body?.cancel().catch(() => {});
+    throw refusePage('not_page', 'The link is a file, not a web page.');
+  }
+  if (size != null && size > maxBytes) {
+    await res.body?.cancel().catch(() => {});
+    throw refusePage('too_large', 'The page is too large.');
+  }
+  const bytes = await readAll(res.body!, maxBytes).catch((e) => {
+    throw (e as ProviderError)?.details?.reason === 'too_large' ? refusePage('too_large', 'The page is too large.') : e;
+  });
+  if (looksLikePdf(bytes.subarray(0, HEADER_WINDOW))) throw refusePage('is_pdf', 'The link is a PDF.');
+  return { body: decode(bytes, contentType), contentType, finalUrl: url.toString() };
+}
+
 /* Free, never cached; a few at a time so one slow site can't hold everything up. */
 export const directPolicy: GatewayPolicy<WebRequest> = {
   provider: PROVIDER,
@@ -172,6 +217,14 @@ export function directHttp(deps: { fetch?: typeof fetch; resolve?: Resolve; gate
     name: PROVIDER,
     async fetchPdf(url, opts) {
       return (await transport.call<WebPdf>({ url, maxBytes: opts.maxBytes })).body;
+    },
+    async fetchPage(url, opts): Promise<WebPage> {
+      const raw = (await transport.call<RawPage>({ url, maxBytes: opts.maxBytes, kind: 'page' })).body;
+      // the HTML reader is loaded only when a page is read
+      const { readablePage } = await import('./page');
+      const page = readablePage(raw);
+      if (!page.text) throw refusePage('not_page', 'The page has no readable text.');
+      return page;
     },
   };
 }

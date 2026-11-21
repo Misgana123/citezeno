@@ -14,6 +14,8 @@ export type ConversationView = {
   title: string;
   model: string;
   pinned: boolean;
+  /* web search is on for this chat */
+  webSearch: boolean;
   entries: ChatEntry[];
   /* a yes / no question, or a tool the browser should run (asking first, since reopening shouldn't spend credits silently) */
   waiting: { callId: string; kind: 'confirm'; question: string } | { callId: string; kind: 'client'; name: string; input: unknown; label: string } | null;
@@ -45,6 +47,7 @@ export function toView(c: Conversation, messages: StoredMessage[]): Conversation
     title: c.title,
     model: c.model,
     pinned: c.pinned,
+    webSearch: c.webSearch,
     entries,
     waiting: c.pending?.waiting ?? null,
   };

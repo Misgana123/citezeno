@@ -5,15 +5,16 @@ import { json, sameOrigin } from '@/lib/http';
 import { papersServer } from '@/lib/papers/server';
 import { newMeter } from '@/lib/providers/gateway/meter';
 import type { Attachment } from '@/lib/providers/chat/types';
-import { chatModelsFor, fileStorage } from '@/lib/providers/server';
+import { chatModelsFor, fileStorage, pdfTextReader, webFiles, webSearchFor } from '@/lib/providers/server';
 import { allow } from '@/lib/ratelimit';
 import { shelfConfig } from '@/lib/shelf/config';
 import type { AgentContext } from './context';
 import { agentFiles } from './files';
-import { readingContext } from './prompt';
+import { readingContext, webContext } from './prompt';
 import { searchReservations } from './limits';
 import { answer, repairHistory, resume, resumeWithClientResult, type ClientOutcome, type LoopDeps } from './loop';
-import { claimRun, createConversation, getConversation, loadMessages, releaseRun, setModel, setPending, titleFrom, appendMessages, type Conversation } from './store';
+import { claimRun, createConversation, getConversation, loadMessages, releaseRun, setModel, setPending, setWebSearch, titleFrom, appendMessages, type Conversation } from './store';
+import { offeredTools } from './tools';
 import { tally, type ToolDisplay } from './tools/types';
 import type { AgentEvent, Pending } from './types';
 
@@ -78,6 +79,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
   const papers = papersServer();
   const searches = searchReservations(papers.usage, userId, papers.config.dailySearchesPerUser);
   let sources: ReturnType<typeof papers.sources> | null = null;
+  let web: ReturnType<typeof webSearchFor> | undefined;
   const ctx: AgentContext = {
     userId,
     db: pool,
@@ -85,6 +87,9 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     papersConfig: papers.config,
     shelfConfig: shelfConfig(),
     reserveSearches: searches.reserve,
+    webSearch: () => (web === undefined ? (web = webSearchFor(meter)) : web),
+    webFiles: () => webFiles(process.env, meter),
+    pdfText: () => pdfTextReader(),
     files: agentFiles({ db: pool, store: fileStorage() }, { userId, conversationId: conversation.id }),
   };
 
@@ -107,7 +112,8 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     setPending: (p) => setPending(pool, conversation.id, p),
     maxTurns: MAX_TURNS,
     deadline: Date.now() + REPLY_MS,
-    extraSystem,
+    extraSystem: (extraSystem ?? '') + (conversation.webSearch ? webContext() : ''),
+    tools: offeredTools({ web: conversation.webSearch }),
   };
 
   void (async () => {
@@ -129,7 +135,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
 }
 
 /* A new message, in a new conversation or an existing one. */
-export function replyToMessage(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null; paperId?: string | null; attachments?: Attachment[] }) {
+export function replyToMessage(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null; paperId?: string | null; attachments?: Attachment[]; webSearch?: boolean }) {
   return streamReply(
     userId,
     req,
@@ -145,6 +151,11 @@ export function replyToMessage(req: Request, userId: string, body: { conversatio
       }
       // a question left unanswered: the user moved on
       if (conversation.pending) await setPending(pool, conversation.id, null);
+      // the Web switch, as the user left it for this message
+      if (body.webSearch !== undefined && body.webSearch !== conversation.webSearch) {
+        await setWebSearch(pool, userId, conversation.id, body.webSearch);
+        conversation = { ...conversation, webSearch: body.webSearch };
+      }
       return { conversation, run: (deps, history) => answer(deps, history, body.text, body.attachments ?? []), extraSystem: reading?.context };
     },
     body.model,

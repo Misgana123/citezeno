@@ -26,6 +26,8 @@ export const messageBody = z
     model: z.string().trim().max(80).nullish(),
     /* sent from the reader: the paper the user has open (its details become context) */
     paperId: z.string().trim().max(300).nullish(),
+    /* the Web switch in the + menu: web search on for this chat */
+    webSearch: z.boolean().optional(),
     attachments: z.array(attachmentSchema).max(ATTACH_MAX, `Add at most ${ATTACH_MAX} files to a message.`).optional(),
   })
   .refine((b) => b.text || b.attachments?.length, 'Type a message.')

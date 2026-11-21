@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AgentContext } from '@/lib/agent/context';
-import { AGENT_TOOLS, findTool, toolSpecs } from '@/lib/agent/tools';
+import { AGENT_TOOLS, findTool, offeredTools, toolSpecs } from '@/lib/agent/tools';
 import { runTool } from '@/lib/agent/tools/run';
 import { toGeminiSchema } from '@/lib/providers/gemini/schema';
 import type { QueryParams } from '@/lib/providers/openalex/client';
@@ -37,6 +37,7 @@ function context(userId: string, db: unknown, get = openAlex()): AgentContext & 
     shelfConfig: shelfConfig({}),
     reserveSearches: vi.fn(async () => {}),
     files: { save: vi.fn(async () => { throw new Error('no files in this test'); }) },
+    webSearch: () => null, webFiles: () => { throw new Error('no web in this test'); }, pdfText: () => { throw new Error('no PDFs in this test'); },
   };
 }
 
@@ -172,5 +173,72 @@ describe.skipIf(!TEST_DB_URL)('shelf tools (Postgres)', () => {
     expect(c).toMatchObject({ projects: [{ name: 'Thesis', papers: 1 }], tags: [{ name: 'memory' }] });
     const del = await runTool(ctx(), 'delete_project', { projectId: (c.projects as { projectId: string }[])[0].projectId });
     expect(del.outcome).toMatchObject({ status: 'needs_confirmation', question: expect.stringContaining('“Thesis”') });
+  });
+});
+
+describe('web tools', () => {
+  const page = { title: 'WHO: sleep', text: 'Adults need 7 hours. '.repeat(1000), finalUrl: 'https://who.int/sleep' };
+  const web = (over: Partial<AgentContext> = {}): AgentContext => ({
+    ...context('u1', null),
+    webSearch: () => ({ name: 'fake', search: vi.fn(async () => [{ title: 'WHO', url: 'https://who.int/sleep', snippet: 'Adults need 7 hours', published: '2025-11-04' }]) }),
+    webFiles: () => ({ name: 'fake', fetchPdf: vi.fn(), fetchPage: vi.fn(async () => page) }),
+    ...over,
+  });
+
+  it('are offered only while web search is on', () => {
+    const names = (web: boolean) => offeredTools({ web }).map((t) => t.name);
+    expect(names(false)).not.toContain('web_search');
+    expect(names(false)).not.toContain('web_fetch');
+    expect(names(false)).toContain('search_papers');
+    expect(names(true)).toEqual(expect.arrayContaining(['web_search', 'web_fetch', 'search_papers', 'find_citations']));
+  });
+
+  it('searches the web and shows the pages found', async () => {
+    const r = await runTool(web(), 'web_search', { query: 'how much sleep do adults need' });
+    expect(r.label).toBe('Searching the web for “how much sleep do adults need”');
+    expect(r.outcome).toMatchObject({ status: 'done', output: { result: { results: [{ n: 1, url: 'https://who.int/sleep' }] }, display: { links: [{ title: 'WHO', url: 'https://who.int/sleep' }], summary: '1 result' } } });
+  });
+
+  it('says web search isn’t set up when there is no key', async () => {
+    const r = await runTool(web({ webSearch: () => null }), 'web_search', { query: 'sleep' });
+    expect(r.outcome).toMatchObject({ status: 'error', message: 'Web search isn’t set up yet.' });
+  });
+
+  it('reads a page, cut to the length asked for', async () => {
+    const r = await runTool(web(), 'web_fetch', { url: 'https://who.int/sleep', maxChars: 1000 });
+    expect(r.label).toBe('Reading who.int/sleep');
+    const out = (r.outcome as { output: { result: { text: string; cut: boolean; totalChars: number } } }).output;
+    expect(out.result.text).toHaveLength(1000);
+    expect(out.result).toMatchObject({ cut: true, totalChars: page.text.length });
+  });
+
+  it('reads an online PDF with the PDF text job', async () => {
+    const pdfBytes = new TextEncoder().encode('%PDF-1.7 fake');
+    const ctx = web({
+      webFiles: () => ({
+        name: 'fake',
+        fetchPage: vi.fn(async () => {
+          throw new ProviderError('bad_request', 'pdf', { reason: 'is_pdf' });
+        }),
+        fetchPdf: vi.fn(async () => ({ stream: new Blob([pdfBytes]).stream(), size: pdfBytes.byteLength, finalUrl: 'https://a.example/r.pdf' })),
+      }),
+      pdfText: () => ({ name: 'fake', read: vi.fn(async () => ({ pageCount: 1, title: 'Report', doi: null, text: 'The report text.' })) }),
+    });
+    const r = await runTool(ctx, 'web_fetch', { url: 'https://a.example/r.pdf' });
+    expect(r.outcome).toMatchObject({ status: 'done', output: { result: { kind: 'pdf', title: 'Report', text: 'The report text.' }, display: { summary: 'Read PDF' } } });
+  });
+
+  it('explains a link it won’t open in words the user can read', async () => {
+    const ctx = web({
+      webFiles: () => ({
+        name: 'fake',
+        fetchPdf: vi.fn(),
+        fetchPage: vi.fn(async () => {
+          throw new ProviderError('bad_request', 'private', { reason: 'blocked' });
+        }),
+      }),
+    });
+    const r = await runTool(ctx, 'web_fetch', { url: 'http://10.0.0.1/admin' });
+    expect(r.outcome).toMatchObject({ status: 'error', message: 'That link can’t be opened (it isn’t a public web address).' });
   });
 });

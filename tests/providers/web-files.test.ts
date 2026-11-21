@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { parseHTML } from 'linkedom';
 import { directHttp, isPrivateAddress } from '@/lib/providers/direct-http/fetch';
+import { blockText } from '@/lib/providers/direct-http/page';
 import { readAll } from '@/lib/providers/web-files/read';
 import { WEB_FILES_PROVIDERS } from '@/lib/providers/web-files/registry';
 
@@ -66,5 +68,60 @@ describe('web files', () => {
     const files = directHttp({ fetch: respond({ 'https://pub.example/busy': () => new Response('', { status: 429 }) }), resolve: publicDns });
     await expect(files.fetchPdf('https://pub.example/gone.pdf', { maxBytes: 10 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(files.fetchPdf('https://pub.example/busy', { maxBytes: 10 })).rejects.toMatchObject({ code: 'busy' });
+  });
+});
+
+describe('reading web pages', () => {
+  const ARTICLE = `<!doctype html><html><head><title>Sleep news</title><script>alert(1)</script></head><body>
+    <nav><a href="/">Home</a> <a href="/about">About</a></nav>
+    <article><h1>Sleep helps memory</h1>
+      <p>${'Researchers found that a full night of sleep improves recall the next day. '.repeat(4)}</p>
+      <p>${'The effect was strongest for facts learned in the evening before bed. '.repeat(4)}</p>
+      <ul><li>First point</li><li>Second point</li></ul>
+    </article>
+    <footer>Copyright</footer></body></html>`;
+  const html = (body: string, type = 'text/html; charset=utf-8') => () => new Response(body, { headers: { 'content-type': type } });
+
+  it('gives a page’s main text, without menus, scripts or footers', async () => {
+    const files = directHttp({ fetch: respond({ 'https://news.example/': html(ARTICLE) }), resolve: publicDns });
+    const page = await files.fetchPage('https://news.example/sleep', { maxBytes: 100_000 });
+    expect(page.finalUrl).toBe('https://news.example/sleep');
+    expect(page.title).toMatch(/Sleep/);
+    expect(page.text).toContain('a full night of sleep improves recall');
+    expect(page.text).toContain('- First point');
+    expect(page.text).not.toMatch(/alert\(1\)|Copyright|About/);
+  });
+
+  it('reads a bare page without an <html> element', async () => {
+    const files = directHttp({ fetch: respond({ 'https://b.example/': html('<p>Just a paragraph.</p>') }), resolve: publicDns });
+    expect((await files.fetchPage('https://b.example/', { maxBytes: 1000 })).text).toBe('Just a paragraph.');
+  });
+
+  it('reads plain text as it is', async () => {
+    const files = directHttp({ fetch: respond({ 'https://t.example/': html('line one\r\n\r\n\r\n\r\nline two', 'text/plain') }), resolve: publicDns });
+    expect(await files.fetchPage('https://t.example/a.txt', { maxBytes: 1000 })).toMatchObject({ title: null, text: 'line one\n\nline two' });
+  });
+
+  it('says when the link is a PDF, another file, too large, or private', async () => {
+    const files = directHttp({
+      fetch: respond({
+        'https://a.example/pdf': () => new Response(PDF, { headers: { 'content-type': 'application/pdf' } }),
+        'https://a.example/untyped-pdf': () => new Response(PDF),
+        'https://a.example/zip': () => new Response('PK', { headers: { 'content-type': 'application/zip' } }),
+        'https://a.example/big': html('<p>' + 'x'.repeat(5000) + '</p>'),
+      }),
+      resolve: async (h) => (h === 'inside.example' ? ['10.0.0.9'] : ['93.184.216.34']),
+    });
+    await expect(files.fetchPage('https://a.example/pdf', { maxBytes: 100_000 })).rejects.toMatchObject({ details: { reason: 'is_pdf' } });
+    await expect(files.fetchPage('https://a.example/untyped-pdf', { maxBytes: 100_000 })).rejects.toMatchObject({ details: { reason: 'is_pdf' } });
+    await expect(files.fetchPage('https://a.example/zip', { maxBytes: 100_000 })).rejects.toMatchObject({ details: { reason: 'not_page' } });
+    await expect(files.fetchPage('https://a.example/big', { maxBytes: 1000 })).rejects.toMatchObject({ details: { reason: 'too_large' } });
+    await expect(files.fetchPage('https://inside.example/', { maxBytes: 1000 })).rejects.toMatchObject({ details: { reason: 'blocked' } });
+    await expect(files.fetchPage('https://a.example/missing', { maxBytes: 1000 })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('turns blocks into lines', () => {
+    const { document } = parseHTML('<html><body><h2>Title</h2><p>One <b>two</b></p><table><tr><td>a</td><td>b</td></tr></table>x<br>y</body></html>');
+    expect(blockText(document.body as never)).toBe('Title\n\nOne two\n\na | b |\n\nx\ny');
   });
 });

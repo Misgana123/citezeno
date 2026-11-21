@@ -15,6 +15,15 @@ type TextFile = { name: string; mime: string; text: string };
 type StoredFile = Exclude<NonNullable<ToolDisplay['file']>, TextFile>;
 const isStored = (f: NonNullable<ToolDisplay['file']>): f is StoredFile => 'id' in f;
 
+/* "who.int" from a page's address */
+function host(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
 /* "84 KB", "2.4 MB" */
 function size(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -65,7 +74,7 @@ function StepIcon({ status }: { status: LiveStep['status'] }) {
 /* How many results a step found, for rows saved before steps had a summary. */
 function count(d?: ToolDisplay): string | null {
   if (!d) return null;
-  const n = (d.papers?.length ?? 0) + (d.items?.length ?? 0) + (d.sources?.length ?? 0);
+  const n = (d.papers?.length ?? 0) + (d.items?.length ?? 0) + (d.sources?.length ?? 0) + (d.links?.length ?? 0);
   return n ? `${n} result${n === 1 ? '' : 's'}` : null;
 }
 
@@ -75,6 +84,9 @@ export function Steps({ steps, turn, chatId = null }: { steps: LiveStep[]; turn:
   const refs = Object.assign({}, ...steps.map((s) => s.display?.refs ?? {})) as Record<string, number>;
   const sources = steps.flatMap((s) => s.display?.sources ?? []);
   const files = steps.flatMap((s) => (s.display?.file ? [s.display.file] : []));
+  // the same page found by two searches (or searched, then read) is listed once
+  const seenLinks = new Set<string>();
+  const links = steps.flatMap((s) => s.display?.links ?? []).filter((l) => /^https?:\/\//i.test(l.url) && !seenLinks.has(l.url) && seenLinks.add(l.url));
   // the same paper found twice in a turn is listed once
   const seen = new Set<string>();
   const uniquePapers = papers.filter((p) => !seen.has(p.id) && seen.add(p.id));
@@ -122,6 +134,22 @@ export function Steps({ steps, turn, chatId = null }: { steps: LiveStep[]; turn:
                   <Icon name="external" /> {src.link.replace(/^https?:\/\//, '')}
                 </a>
               )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {links.length > 0 && (
+        <ul className="ch-links" aria-label="Web pages">
+          {links.map((l) => (
+            <li key={l.url}>
+              <a href={l.url} target="_blank" rel="noopener noreferrer" title={l.title}>
+                {l.title}
+              </a>
+              <span className="ch-link-host">
+                {host(l.url)}
+                {l.published ? ` · ${l.published}` : ''}
+              </span>
+              {l.snippet && <p>{l.snippet}</p>}
             </li>
           ))}
         </ul>

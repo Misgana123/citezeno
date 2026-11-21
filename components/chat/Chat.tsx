@@ -180,6 +180,8 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [files, setFiles] = useState<AttachItem[]>([]);
+  /* the Web switch in the + menu (off by default; kept per chat) */
+  const [webSearch, setWebSearch] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -262,6 +264,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
         setEntries([]);
         setTitle(null);
         setModel(startModel());
+        setWebSearch(false);
         setLoading(false);
         setTimeout(() => inputRef.current?.focus(), 0);
         return;
@@ -273,6 +276,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
         setTitle(c.title);
         setWaiting(c.waiting);
         setModel(c.model);
+        setWebSearch(c.webSearch === true);
       } catch (e) {
         setError((e as Error).message);
         setEntries([]);
@@ -368,7 +372,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
     }
     setEntries((prev) => [...prev, { kind: 'user', text: typed, ...(shown.length ? { attachments: shown } : {}) }]);
     const paperId = asking && panel.files.some((f) => f.paperId === asking) ? asking : null;
-    await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId, ...(attachments.length ? { attachments } : {}) }, onEvent, signal));
+    await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId, webSearch, ...(attachments.length ? { attachments } : {}) }, onEvent, signal));
   };
 
   const answer = async (approve: boolean) => {
@@ -405,6 +409,8 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
       onAddFiles={addFiles}
       onScreenshot={screenshot}
       onRemoveAttachment={removeFile}
+      webSearch={webSearch}
+      onWebSearch={setWebSearch}
       onSend={() => send()}
       onStop={() => abort.current?.abort()}
     />

@@ -1,5 +1,8 @@
 import type { PapersConfig } from '@/lib/papers/config';
 import type { PaperSources } from '@/lib/providers/papers/sources';
+import type { PdfTextReader } from '@/lib/providers/pdf-text/types';
+import type { WebFiles } from '@/lib/providers/web-files/types';
+import type { WebSearch } from '@/lib/providers/web-search/types';
 import type { Db } from '@/lib/shelf/db';
 import type { ShelfConfig } from '@/lib/shelf/config';
 import type { AgentFiles } from './files';
@@ -16,6 +19,10 @@ export type AgentContext = {
   shelfConfig: ShelfConfig;
   /* Hold n of the user's daily searches; unused ones are given back when the request ends. */
   reserveSearches(n: number): Promise<void>;
+  /* The open web (through the gateway): search (null when not set up), and reading pages and online PDFs. */
+  webSearch(): WebSearch | null;
+  webFiles(): WebFiles;
+  pdfText(): PdfTextReader;
   /* Files the tools make for this conversation (documents, charts…). */
   files: AgentFiles;
 };

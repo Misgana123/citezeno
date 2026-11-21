@@ -5,7 +5,7 @@ import type { MessageMeta, Pending, StepView, StoredMessage } from './types';
 
 /* Conversations and their messages. Every query is scoped to the user. */
 
-export type Conversation = { id: string; title: string; model: string; pinned: boolean; pending: Pending | null; costUsd: number; createdAt: string; updatedAt: string };
+export type Conversation = { id: string; title: string; model: string; pinned: boolean; webSearch: boolean; pending: Pending | null; costUsd: number; createdAt: string; updatedAt: string };
 /* paperId: a paper's own conversation (opened in the reader) */
 export type ConversationSummary = Pick<Conversation, 'id' | 'title' | 'model' | 'pinned' | 'updatedAt'> & { paperId?: string | null };
 
@@ -22,13 +22,14 @@ const row = (r: Record<string, unknown>): Conversation => ({
   title: r.title as string,
   model: r.model as string,
   pinned: r.pinned === true,
+  webSearch: r.webSearch === true,
   pending: (r.pending as Pending | null) ?? null,
   costUsd: Number(r.costUsd ?? 0),
   createdAt: iso(r.createdAt as Date)!,
   updatedAt: iso(r.updatedAt as Date)!,
 });
 
-const COLS = `id, title, model, pinned, pending, "costUsd", "createdAt", "updatedAt"`;
+const COLS = `id, title, model, pinned, "webSearch", pending, "costUsd", "createdAt", "updatedAt"`;
 
 export async function createConversation(q: Queryable, userId: string, title: string, model: string, paperId: string | null = null): Promise<Conversation> {
   const { rows } = await q.query(`insert into agent_conversation (id, "userId", title, model, "paperId") values ($1, $2, $3, $4, $5) returning ${COLS}`, [
@@ -64,6 +65,11 @@ export async function setPinned(q: Queryable, userId: string, id: string, pinned
 export async function deleteConversation(q: Queryable, userId: string, id: string): Promise<boolean> {
   const { rowCount } = await q.query(`delete from agent_conversation where id = $1 and "userId" = $2`, [id, userId]);
   return (rowCount ?? 0) > 0;
+}
+
+/* Web search on or off for this chat (the + menu). */
+export async function setWebSearch(q: Queryable, userId: string, id: string, on: boolean): Promise<void> {
+  await q.query(`update agent_conversation set "webSearch" = $3 where id = $1 and "userId" = $2`, [id, userId, on]);
 }
 
 export async function setModel(q: Queryable, userId: string, id: string, model: string): Promise<void> {

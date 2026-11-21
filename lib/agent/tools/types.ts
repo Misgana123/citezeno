@@ -9,6 +9,9 @@ import type { CitedSource } from './client';
    a plain description of what it does and when to use it, a validated input,
    and the same service the app's button calls. */
 
+/* A page the web search found or the assistant read, as the chat shows it. */
+export type WebLink = { title: string; url: string; snippet?: string; published?: string | null };
+
 /* What the chat shows the user next to a step (the model gets `result`). */
 export type ToolDisplay = {
   papers?: Paper[];
@@ -16,6 +19,8 @@ export type ToolDisplay = {
   /* a small text file sent with the step (an export), or a file the tool stored (a document, a chart) */
   file?: { name: string; mime: string; text: string } | AgentFileRef;
   sources?: CitedSource[];
+  /* web pages found or read */
+  links?: WebLink[];
   /* the reply's number for each paper shown here (by paper ID), as the answer cites them: [1], [2]… */
   refs?: Record<string, number>;
   /* what the step came to, in a few words, shown on its row: "6 papers", "No notices", "Saved" */

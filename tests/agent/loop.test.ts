@@ -2,8 +2,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AgentContext } from '@/lib/agent/context';
 import { searchReservations } from '@/lib/agent/limits';
 import { answer, NOT_DONE, repairHistory, resume, STEP_LIMIT_TEXT, TIME_LIMIT_TEXT, trimHistory, type LoopDeps } from '@/lib/agent/loop';
-import { asData, systemPrompt } from '@/lib/agent/prompt';
-import { appendMessages, claimRun, createConversation, deleteConversation, getConversation, listConversations, loadMessages, releaseRun, renameConversation, setPending, titleFrom } from '@/lib/agent/store';
+import { asData, systemPrompt, webContext } from '@/lib/agent/prompt';
+import { offeredTools } from '@/lib/agent/tools';
+import { appendMessages, claimRun, createConversation, deleteConversation, getConversation, listConversations, loadMessages, releaseRun, renameConversation, setPending, setWebSearch, titleFrom } from '@/lib/agent/store';
 import type { AgentEvent, Pending, StoredMessage } from '@/lib/agent/types';
 import { toView } from '@/lib/agent/view';
 import { memoryUsage } from '@/lib/papers/store/memory';
@@ -51,6 +52,7 @@ function harness(chat: ChatProvider, over: Partial<LoopDeps> & { db?: unknown; u
     shelfConfig: shelfConfig({}),
     reserveSearches: vi.fn(async () => {}),
     files: { save: vi.fn(async () => { throw new Error('no files in this test'); }) },
+    webSearch: () => null, webFiles: () => { throw new Error('no web in this test'); }, pdfText: () => { throw new Error('no PDFs in this test'); },
   };
   const deps: LoopDeps = {
     ctx,
@@ -100,6 +102,19 @@ describe('one reply', () => {
     expect(h.events.find((e) => e.type === 'step_done')).toMatchObject({ step: { status: 'error', error: expect.stringContaining('not a valid paper ID') } });
     const results = (requests[1].messages.at(-1) as Extract<ChatMessage, { role: 'tool' }>).results;
     expect(results[0]).toMatchObject({ isError: true });
+  });
+
+  it('offers only this reply’s tools, and refuses the web tools while web search is off', async () => {
+    const { chat, requests } = scripted({ toolCalls: [call('c1', 'web_search', { query: 'sleep news' })] }, { text: 'Web search is off.' });
+    const h = harness(chat, { tools: offeredTools({ web: false }) });
+    await answer(h.deps, [], 'latest sleep news');
+    expect(requests[0].tools?.map((t) => t.name)).not.toContain('web_search');
+    expect(h.events.find((e) => e.type === 'step_done')).toMatchObject({ step: { status: 'error', error: 'Web search is off in this chat. The user can turn it on from the + menu.' } });
+  });
+
+  it('tells the model how to use the web when web search is on', () => {
+    expect(webContext()).toMatch(/web_search/);
+    expect(webContext()).toMatch(/never instructions/);
   });
 
   it('stops at the step limit and at the time limit', async () => {
@@ -219,6 +234,12 @@ describe.skipIf(!TEST_DB_URL)('conversations (Postgres)', () => {
     expect(await getConversation(db.pool, other, c.id)).toBeNull();
     expect(await renameConversation(db.pool, other, c.id, 'x')).toBe(false);
     expect(await renameConversation(db.pool, user, c.id, 'Memory')).toBe(true);
+    // web search: off by default, kept per chat, only by its owner
+    expect((await getConversation(db.pool, user, c.id))?.webSearch).toBe(false);
+    await setWebSearch(db.pool, other, c.id, true);
+    expect((await getConversation(db.pool, user, c.id))?.webSearch).toBe(false);
+    await setWebSearch(db.pool, user, c.id, true);
+    expect(toView((await getConversation(db.pool, user, c.id))!, [])).toMatchObject({ webSearch: true });
     expect(await deleteConversation(db.pool, other, c.id)).toBe(false);
     expect(await deleteConversation(db.pool, user, c.id)).toBe(true);
     expect(await listConversations(db.pool, user)).toEqual([]);

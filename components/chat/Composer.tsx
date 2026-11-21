@@ -9,7 +9,8 @@ import { AttachCard } from './AttachCard';
 import { ModelIcon } from './ModelIcon';
 
 /* The message box: what to ask (and, with a file open, which paper it's about),
-   files or a screenshot added with +, which model, and Send / Stop. */
+   files or a screenshot added with +, web search switched on from +, which
+   model, and Send / Stop. */
 
 type Props = {
   text: string;
@@ -30,10 +31,15 @@ type Props = {
   onAddFiles?(files: File[]): void;
   onScreenshot?(): void;
   onRemoveAttachment?(id: string): void;
+  /* the Web switch (in the + menu, shown as a chip while on) */
+  webSearch?: boolean;
+  onWebSearch?(on: boolean): void;
 };
 
-/* The + button: upload files, or take a screenshot. */
-function AddMenu({ disabled, onAddFiles, onScreenshot }: { disabled?: boolean; onAddFiles(files: File[]): void; onScreenshot(): void }) {
+type Web = { on: boolean; onChange(on: boolean): void };
+
+/* The + button: upload files, take a screenshot, or turn web search on or off. */
+function AddMenu({ disabled, onAddFiles, onScreenshot, web }: { disabled?: boolean; onAddFiles(files: File[]): void; onScreenshot(): void; web?: Web }) {
   const [open, setOpen] = useState(false);
   const [shots, setShots] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -57,8 +63,8 @@ function AddMenu({ disabled, onAddFiles, onScreenshot }: { disabled?: boolean; o
       <button
         type="button"
         className="ch-add"
-        aria-label="Add files or a screenshot"
-        title="Add files or a screenshot"
+        aria-label="Add files, a screenshot or web search"
+        title="Add files, a screenshot or web search"
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={disabled}
@@ -88,6 +94,20 @@ function AddMenu({ disabled, onAddFiles, onScreenshot }: { disabled?: boolean; o
               }}
             >
               <Icon name="screenshot" /> Take a screenshot
+            </button>
+          )}
+          {web && (
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={web.on}
+              className="ch-add-toggle"
+              onClick={() => {
+                setOpen(false);
+                web.onChange(!web.on);
+              }}
+            >
+              <Icon name="globe" /> Web search <span className={`ch-switch${web.on ? ' is-on' : ''}`} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -161,7 +181,15 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
         disabled={p.disabled}
       />
       <div className="ch-compose-bar">
-        {p.onAddFiles && p.onScreenshot && <AddMenu disabled={p.disabled} onAddFiles={p.onAddFiles} onScreenshot={p.onScreenshot} />}
+        {p.onAddFiles && p.onScreenshot && <AddMenu disabled={p.disabled} onAddFiles={p.onAddFiles} onScreenshot={p.onScreenshot} web={p.onWebSearch ? { on: !!p.webSearch, onChange: p.onWebSearch } : undefined} />}
+        {p.webSearch && p.onWebSearch && (
+          <span className="ch-chip">
+            <Icon name="globe" /> Web
+            <button type="button" onClick={() => p.onWebSearch!(false)} aria-label="Turn off web search" title="Turn off web search">
+              <Icon name="x" />
+            </button>
+          </span>
+        )}
         <span className="ch-grow" />
         {p.models.length > 1 ? (
           <Select

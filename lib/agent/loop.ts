@@ -2,8 +2,10 @@ import type { Attachment, ChatMessage, ChatModel, ChatProvider, ToolCall, ToolRe
 import type { AgentContext } from './context';
 import { asData, systemPrompt } from './prompt';
 import { toolSpecs } from './tools';
-import { failureMessage, runTool } from './tools/run';
-import type { ToolDisplay, ToolOutput } from './tools/types';
+import type { ClientTool } from './tools/client';
+import { failureMessage, runTool, type ToolRun } from './tools/run';
+import type { AgentTool, ToolDisplay, ToolOutput } from './tools/types';
+import { WEB_TOOL_NAMES } from './tools/web';
 import type { AgentEvent, Pending, StepView, StoredMessage } from './types';
 
 /* The agent loop for one user message: ask the model, run the tools it asks
@@ -28,6 +30,8 @@ export type LoopDeps = {
   refs?: Map<string, number>;
   /* more instructions for this reply (the reader: the paper the user has open) */
   extraSystem?: string;
+  /* the tools offered for this reply (all of them when not given); others are refused */
+  tools?: readonly (AgentTool | ClientTool)[];
 };
 
 /* Number the papers and saved items a step found, in the order they first
@@ -89,7 +93,7 @@ async function runCalls(d: LoopDeps, calls: ToolCall[], from: number, results: T
   for (let i = from; i < calls.length; i++) {
     const call = calls[i];
     let started = false;
-    const run = await runTool(d.ctx, call.name, call.input, {
+    const run = d.tools && !d.tools.some((t) => t.name === call.name) ? notOffered(call) : await runTool(d.ctx, call.name, call.input, {
       confirmed: call.id === confirmed,
       onStart: (label, input) => {
         started = true;
@@ -120,11 +124,17 @@ async function runCalls(d: LoopDeps, calls: ToolCall[], from: number, results: T
   return { status: 'done', results, steps };
 }
 
+/* A call to a tool this reply doesn't offer (the web tools while web search is off). */
+function notOffered(call: ToolCall): ToolRun {
+  const message = WEB_TOOL_NAMES.has(call.name) ? 'Web search is off in this chat. The user can turn it on from the + menu.' : `The tool "${call.name}" isn't available here.`;
+  return { tool: null, input: call.input, label: call.name, outcome: { status: 'error', message, code: 'bad_request' } };
+}
+
 /* Ask the model and act, starting from `history` (which ends with the user's
    message or with tool results), for at most the turns left. */
 async function think(d: LoopDeps, history: ChatMessage[], turns: number): Promise<void> {
   const now = d.now ?? Date.now;
-  const tools = toolSpecs();
+  const tools = toolSpecs(d.tools);
   for (;;) {
     if (turns >= d.maxTurns || now() >= d.deadline) {
       const limit = turns >= d.maxTurns ? 'step_limit' : 'time_limit';

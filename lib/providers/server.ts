@@ -18,6 +18,8 @@ import type { FileStore } from './storage/types';
 import type { Env, Gate } from './types';
 import { DEFAULT_WEB_FILES, WEB_FILES_PROVIDERS } from './web-files/registry';
 import type { WebFiles } from './web-files/types';
+import { DEFAULT_WEB_SEARCH, WEB_SEARCH_PROVIDERS } from './web-search/registry';
+import type { WebSearch } from './web-search/types';
 
 /* Where features get the provider for a job. Each provider is built from
    configuration with its outside calls wired through the gateway. Importing
@@ -78,10 +80,17 @@ export function embedderFor(meter: Meter = newMeter(), env: Env = process.env): 
   return embedder(env, gateFor(meter));
 }
 
-/* Fetching open-access files from the web (WEB_FILES_PROVIDER, default "direct-http"). */
-export function webFiles(env: Env = process.env): WebFiles {
+/* Fetching open-access files and web pages (WEB_FILES_PROVIDER, default "direct-http"). */
+export function webFiles(env: Env = process.env, meter: Meter = newMeter()): WebFiles {
   const [def] = chooseProviders(WEB_FILES_PROVIDERS, choose.webFiles(env), DEFAULT_WEB_FILES, 'web files');
-  const files = def.create(env, gateFor(newMeter()));
+  const files = def.create(env, gateFor(meter));
   if (!files) throw new Error(`The web files provider "${def.name}" is not configured.`);
   return files;
+}
+
+/* Searching the open web (WEB_SEARCH_PROVIDER, default "tavily"), wired through
+   the gateway with this request's meter; null when its provider has no key. */
+export function webSearchFor(meter: Meter = newMeter(), env: Env = process.env): WebSearch | null {
+  const [def] = chooseProviders(WEB_SEARCH_PROVIDERS, choose.webSearch(env), DEFAULT_WEB_SEARCH, 'web search');
+  return def.create(env, gateFor(meter));
 }
