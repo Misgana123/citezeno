@@ -17,8 +17,11 @@ export type ToolResult = { callId: string; name: string; content: string; isErro
    provider can be sent it back unchanged (some keep hidden state in it). */
 export type NativeTurn = { provider: string; content: unknown };
 
+/* Something the user added to a message: a file's text (read in their browser), or an image (an uploaded picture or a screenshot). */
+export type Attachment = { kind: 'text'; name: string; text: string } | { kind: 'image'; name: string; mediaType: 'image/png' | 'image/jpeg' | 'image/webp'; data: string /* base64 */ };
+
 export type ChatMessage =
-  | { role: 'user'; text: string }
+  | { role: 'user'; text: string; attachments?: Attachment[] }
   | { role: 'assistant'; text: string; toolCalls: ToolCall[]; native?: NativeTurn }
   | { role: 'tool'; results: ToolResult[] };
 
@@ -66,6 +69,20 @@ export async function streamOrComplete(provider: ChatProvider, req: ChatRequest,
   const res = await provider.complete(req);
   if (res.text) onText(res.text);
   return res;
+}
+
+/* A user message as the model reads it: the typed words, then each attached
+   file's text marked as data (its closing tag can't be forged from inside),
+   and the images to send beside it. */
+export function userContent(m: Extract<ChatMessage, { role: 'user' }>): { text: string; images: Extract<Attachment, { kind: 'image' }>[] } {
+  const files = m.attachments ?? [];
+  const quote = (v: string) => v.replace(/["<>\n]/g, ' ');
+  const parts = [m.text];
+  for (const a of files) {
+    if (a.kind === 'text') parts.push(`<attachment name="${quote(a.name)}">\n${a.text.replace(/<\/attachment>/gi, '<\\/attachment>')}\n</attachment>`);
+    else parts.push(`[image attached: ${quote(a.name)}]`);
+  }
+  return { text: parts.filter(Boolean).join('\n\n') || '(no text)', images: files.filter((a): a is Extract<Attachment, { kind: 'image' }> => a.kind === 'image') };
 }
 
 export type ChatProviderDefinition = ProviderDefinition<ChatProvider>;

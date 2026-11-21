@@ -43,11 +43,53 @@
 .ch-add { display: grid; place-items: center; width: 32px; height: 32px; margin-left: -6px; border: 0; border-radius: 9px; background: transparent; color: var(--ink-2); }
 .ch-add:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); }
 .ch-add svg { width: 18px; height: 18px; }
+.ch-add:disabled { opacity: 0.45; cursor: not-allowed; }
+.ch-add[aria-expanded='true'] { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); }
+.ch-add-wrap { position: relative; }
+/* the + menu opens upward, over the thread, so it never runs off the bottom */
+.ch-add-menu { top: auto; bottom: calc(100% + 6px); left: -6px; right: auto; width: 200px; }
+
+/* files added to the message (and shown again on a sent message): square cards with a
+   picture of the file or the start of its text, and its type in the corner */
+.ch-files, .ch-user-files { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.ch-user-files { justify-self: end; justify-content: flex-end; max-width: 80%; }
+.ch-card {
+  position: relative; flex: none; width: 118px; height: 118px; overflow: hidden; border: 1px solid var(--ch-input-line); border-radius: 12px; background: var(--ch-input);
+  box-shadow: 0 1px 2px rgba(19, 33, 58, 0.05);
+}
+.ch-card-pic { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+/* a PDF's first page fills the card edge to edge, like a picture (paper stays white in dark mode) */
+.ch-card:not(.is-pic) .ch-card-pic { background: #fff; }
+.ch-card-text { display: block; height: 100%; padding: 10px 10px 0; overflow: hidden; font-size: 9.5px; line-height: 1.4; color: var(--ink-3); overflow-wrap: anywhere; }
+.ch-card-text b { display: block; margin-bottom: 4px; font-size: 11px; font-weight: 650; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-card-badge {
+  position: absolute; left: 8px; bottom: 8px; padding: 2px 7px; border: 1px solid var(--ch-input-line); border-radius: 7px; background: var(--ch-card);
+  font-size: 11px; font-weight: 550; letter-spacing: 0.02em; color: var(--ink-2); line-height: 1.35;
+}
+.ch-card-wait, .ch-card-err { display: grid; align-content: center; justify-items: center; gap: 8px; height: 100%; padding: 10px; text-align: center; font-size: 11px; line-height: 1.35; color: var(--ink-3); }
+.ch-card-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-card.is-error { border-color: color-mix(in srgb, var(--warn) 45%, var(--ch-input-line)); }
+.ch-card-err { color: var(--warn); overflow: hidden; }
+.ch-card-err svg { width: 18px; height: 18px; }
+.ch-card-spin { width: 18px; height: 18px; border: 2px solid color-mix(in srgb, var(--ink) 15%, transparent); border-top-color: var(--thread); border-radius: 50%; animation: ch-card-spin 0.8s linear infinite; }
+@keyframes ch-card-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ch-card-spin { animation-duration: 2.4s; } }
+/* × shows on hover or keyboard focus (always on touch screens) */
+.ch-card-x {
+  position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 1px solid var(--ch-input-line); border-radius: 50%;
+  background: var(--ch-input); color: var(--ink-2); opacity: 0; transition: opacity 0.12s;
+}
+.ch-card:hover .ch-card-x, .ch-card-x:focus-visible, .ch-card.is-error .ch-card-x { opacity: 1; }
+@media (hover: none) { .ch-card-x { opacity: 1; } }
+.ch-card-x:hover { color: var(--ink); background: var(--ch-card); }
+.ch-card-x svg { width: 12px; height: 12px; stroke-width: 2.2; }
 .ch-model { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; font-size: 13.5px; font-weight: 500; color: var(--ink); }
 .ch-model:hover, .ch-model.is-open { background: color-mix(in srgb, var(--ink) 6%, transparent); box-shadow: none; }
 .ch-model.cz-select:focus-visible { box-shadow: 0 0 0 2px var(--thread-soft); }
 .ch-model .cz-select-chev { width: 12px; height: 12px; color: var(--ink-3); opacity: 1; }
 .ch-model-pop { min-width: 200px !important; }
+/* the vendor's mark before a model's name (on the button and in the list); full color, not the list's amber check */
+.ch-model-icon, .cz-opt .ch-model-icon { flex: none; width: 15px; height: 15px; color: var(--ink); stroke: none; }
 .ch-model.is-one { padding: 0 10px; color: var(--ink-3); }
 .ch-send { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: var(--thread); color: var(--thread-ink); }
 .ch-send svg { width: 16px; height: 16px; stroke-width: 2.2; }

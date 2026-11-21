@@ -15,6 +15,7 @@ const PATHS: Record<string, string> = {
   swap: 'M4 8h13l-3.5-3.5M20 16H7l3.5 3.5',
   trash: 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13',
   plus: 'M12 5v14M5 12h14',
+  screenshot: 'M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
   minus: 'M5 12h14',
   doc: 'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6',
   list: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',

@@ -1,5 +1,5 @@
 import { chatPolicy, chatTransport, tokens, type ChatHttpRequest, type StreamAccumulator } from '../chat/http';
-import type { ChatMessage, ChatProvider, ChatRequest, ChatStop, ToolCall } from '../chat/types';
+import { userContent, type ChatMessage, type ChatProvider, type ChatRequest, type ChatStop, type ToolCall } from '../chat/types';
 import type { Transport } from '../gateway/types';
 import type { Env, Gate } from '../types';
 
@@ -26,7 +26,10 @@ const readUsage = (body: unknown) => {
 /* Our messages → Anthropic's. Its own earlier answers are sent back as they came. */
 export function toAnthropicMessages(messages: ChatMessage[]): { role: 'user' | 'assistant'; content: Block[] }[] {
   return messages.map((m) => {
-    if (m.role === 'user') return { role: 'user', content: [{ type: 'text', text: m.text }] };
+    if (m.role === 'user') {
+      const { text, images } = userContent(m);
+      return { role: 'user', content: [...images.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.mediaType, data: i.data } })), { type: 'text', text }] };
+    }
     if (m.role === 'tool') {
       return { role: 'user', content: m.results.map((r) => ({ type: 'tool_result', tool_use_id: r.callId, content: r.content, ...(r.isError ? { is_error: true } : {}) })) };
     }

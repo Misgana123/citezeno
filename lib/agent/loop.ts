@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatModel, ChatProvider, ToolCall, ToolResult } from '@/lib/providers/chat/types';
+import type { Attachment, ChatMessage, ChatModel, ChatProvider, ToolCall, ToolResult } from '@/lib/providers/chat/types';
 import type { AgentContext } from './context';
 import { asData, systemPrompt } from './prompt';
 import { toolSpecs } from './tools';
@@ -62,6 +62,22 @@ export function trimHistory(messages: ChatMessage[], max = HISTORY_MAX): ChatMes
   return start < messages.length ? messages.slice(start) : messages.slice(-1);
 }
 
+/* Images are sent again with every call, so only the latest few messages'
+   go; older ones are left as their names (the model already saw them). */
+export const IMAGE_MESSAGES_KEPT = 3;
+
+export function dropOldImages(messages: ChatMessage[], keep = IMAGE_MESSAGES_KEPT): ChatMessage[] {
+  let seen = 0;
+  const out = [...messages];
+  for (let i = out.length - 1; i >= 0; i--) {
+    const m = out[i];
+    if (m.role !== 'user' || !m.attachments?.some((a) => a.kind === 'image')) continue;
+    if (++seen <= keep) continue;
+    out[i] = { ...m, attachments: m.attachments.map((a) => (a.kind === 'image' ? { kind: 'text' as const, name: a.name, text: '(an image shown earlier in this chat)' } : a)) };
+  }
+  return out;
+}
+
 export const STEP_LIMIT_TEXT = 'I stopped here because this request took too many steps. Tell me how you’d like to continue.';
 export const TIME_LIMIT_TEXT = 'I stopped here because this request was taking too long. Tell me how you’d like to continue.';
 
@@ -118,7 +134,13 @@ async function think(d: LoopDeps, history: ChatMessage[], turns: number): Promis
       d.emit({ type: 'done', reason: limit });
       return;
     }
-    const res = await d.chat.complete({ model: d.model, system: systemPrompt() + (d.extraSystem ?? ''), messages: trimHistory(history), tools, maxOutputTokens: d.maxOutputTokens ?? 2048 });
+    const res = await d.chat.complete({
+      model: d.model,
+      system: systemPrompt() + (d.extraSystem ?? ''),
+      messages: dropOldImages(trimHistory(history)),
+      tools,
+      maxOutputTokens: d.maxOutputTokens ?? 2048,
+    });
     turns++;
     const assistant: ChatMessage = { role: 'assistant', text: res.text, toolCalls: res.toolCalls, native: res.native };
     await d.save([{ message: assistant, costUsd: res.costUsd }]);
@@ -140,9 +162,9 @@ async function think(d: LoopDeps, history: ChatMessage[], turns: number): Promis
 }
 
 /* A new message from the user. */
-export async function answer(d: LoopDeps, history: ChatMessage[], text: string): Promise<void> {
+export async function answer(d: LoopDeps, history: ChatMessage[], text: string, attachments: Attachment[] = []): Promise<void> {
   d.refs = new Map();
-  const user: ChatMessage = { role: 'user', text };
+  const user: ChatMessage = { role: 'user', text, ...(attachments.length ? { attachments } : {}) };
   await d.save([{ message: user }]);
   await guarded(d, () => think(d, [...history, user], 0));
 }

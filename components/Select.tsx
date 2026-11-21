@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
 
@@ -10,7 +10,8 @@ import { Icon } from './Icon';
    (arrows, Home/End, Enter/Space, Escape, type to jump). */
 
 export type SelectValue = string | number;
-export type SelectOption<V extends SelectValue = string> = { value: V; label: string; disabled?: boolean };
+/* icon: drawn before the label, in the list and on the button (a model's vendor mark) */
+export type SelectOption<V extends SelectValue = string> = { value: V; label: string; disabled?: boolean; icon?: ReactNode };
 export type SelectGroup<V extends SelectValue = string> = { label: string; options: SelectOption<V>[] };
 export type SelectItems<V extends SelectValue = string> = (SelectOption<V> | SelectGroup<V>)[];
 
@@ -166,6 +167,7 @@ export function Select<V extends SelectValue>({ value, onChange, options, placeh
         onPointerMove={() => !o.disabled && active !== i && setActive(i)}
         onClick={() => choose(i)}
       >
+        {o.icon}
         <span>{o.label}</span>
         {on && <Icon name="check" />}
       </div>
@@ -187,6 +189,7 @@ export function Select<V extends SelectValue>({ value, onChange, options, placeh
         onClick={() => (open ? close() : show())}
         onKeyDown={onButtonKey}
       >
+        {selected >= 0 && flat[selected].icon}
         <span className="cz-select-val">{shown}</span>
         <Icon name="chevron" className="cz-select-chev" />
       </button>

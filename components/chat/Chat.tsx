@@ -8,9 +8,13 @@ import type { ConversationView } from '@/lib/agent/view';
 import { confirmDialog } from '../confirm';
 import { Icon, LogoMark, type IconName } from '../Icon';
 import { InlineName } from '../shelf/InlineName';
+import type { AttachmentView } from '@/lib/agent/view';
+import { ATTACH_MAX } from '@/lib/agent/attachments';
 import { answerQuestion, deleteChat, openChat, pinChat, renameChat, sendClientResult, sendMessage } from './api';
+import { newAttachId, readAttachment, takeScreenshot, type AttachItem } from './attach';
 import { refreshChats, useChatIndex } from './chat-index';
 import { runClientTool } from './citations';
+import { AttachCard } from './AttachCard';
 import { Composer } from './Composer';
 import { FilePanel } from './file/FilePanel';
 import { FilePanelProvider, useFilePanelState } from './file/panel-state';
@@ -52,12 +56,12 @@ function setUrl(id: string | null) {
 }
 
 /* Entries as turns: each user message with everything the assistant did after it. */
-type Turn = { key: number; user: string | null; parts: Entry[] };
+type Turn = { key: number; user: string | null; files?: AttachmentView[]; parts: Entry[] };
 
 function toTurns(entries: Entry[]): Turn[] {
   const turns: Turn[] = [];
   entries.forEach((e, i) => {
-    if (e.kind === 'user') turns.push({ key: i, user: e.text, parts: [] });
+    if (e.kind === 'user') turns.push({ key: i, user: e.text, files: e.attachments, parts: [] });
     else if (turns.length) turns.at(-1)!.parts.push(e);
     else turns.push({ key: i, user: null, parts: [e] });
   });
@@ -175,6 +179,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
   const [loading, setLoading] = useState(!!initialId);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState('');
+  const [files, setFiles] = useState<AttachItem[]>([]);
   const abort = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -197,6 +202,35 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
       el.setSelectionRange(el.value.length, el.value.length);
     });
   }, []);
+
+  /* files added with +: read here, one by one, and sent with the next message */
+  const addItem = useCallback((name: string, work: Promise<{ attachment: AttachItem['attachment']; preview?: string; excerpt?: string } | null>) => {
+    const id = newAttachId();
+    setFiles((fs) => [...fs, { id, name, status: 'reading' }]);
+    work.then(
+      (r) =>
+        setFiles((fs) =>
+          r
+            ? fs.map((f) => (f.id === id ? { ...f, status: 'ready', name: r.attachment?.name ?? name, attachment: r.attachment, preview: r.preview, excerpt: r.excerpt } : f))
+            : fs.filter((f) => f.id !== id),
+        ),
+      (e: Error) => setFiles((fs) => fs.map((f) => (f.id === id ? { ...f, status: 'error', error: e.message || 'The file could not be read.' } : f))),
+    );
+  }, []);
+  const addFiles = useCallback(
+    (picked: File[]) => {
+      const room = ATTACH_MAX - files.filter((f) => f.status !== 'error').length;
+      if (picked.length > room) setError(room > 0 ? `Add at most ${ATTACH_MAX} files to a message.` : `A message can carry ${ATTACH_MAX} files at most.`);
+      for (const f of picked.slice(0, Math.max(0, room))) addItem(f.name, readAttachment(f));
+      inputRef.current?.focus();
+    },
+    [files, addItem],
+  );
+  const screenshot = useCallback(() => {
+    if (files.filter((f) => f.status !== 'error').length >= ATTACH_MAX) return setError(`A message can carry ${ATTACH_MAX} files at most.`);
+    addItem('Screenshot', takeScreenshot());
+  }, [files, addItem]);
+  const removeFile = useCallback((id: string) => setFiles((fs) => fs.filter((f) => f.id !== id)), []);
 
   const models = useMemo(() => index?.models ?? [], [index]);
   const noModels = index != null && models.length === 0;
@@ -318,8 +352,12 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
 
   const send = async (raw: string = text) => {
     const typed = raw.trim();
-    if (!typed || busy || noModels) return;
+    const ready = files.filter((f) => f.status === 'ready' && f.attachment);
+    if ((!typed && !ready.length) || busy || noModels || files.some((f) => f.status === 'reading')) return;
+    const attachments = ready.map((f) => f.attachment!);
+    const shown: AttachmentView[] = ready.map((f) => ({ kind: f.attachment!.kind, name: f.name, ...(f.preview ? { src: f.preview } : {}), ...(f.excerpt ? { excerpt: f.excerpt } : {}) }));
     setText('');
+    setFiles([]);
     setWaiting(null);
     if (!activeId && model) {
       try {
@@ -328,9 +366,9 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
         /* storage blocked */
       }
     }
-    setEntries((prev) => [...prev, { kind: 'user', text: typed }]);
+    setEntries((prev) => [...prev, { kind: 'user', text: typed, ...(shown.length ? { attachments: shown } : {}) }]);
     const paperId = asking && panel.files.some((f) => f.paperId === asking) ? asking : null;
-    await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId }, onEvent, signal));
+    await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId, ...(attachments.length ? { attachments } : {}) }, onEvent, signal));
   };
 
   const answer = async (approve: boolean) => {
@@ -363,6 +401,10 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
       disabled={noModels}
       placeholder={big ? 'Ask about papers, citations or your shelf…' : waiting ? 'Answer above, or ask something else…' : asking ? 'Ask about this paper…' : 'Reply…'}
       context={!big && askingTitle ? { label: askingTitle, onClear: () => setAsking(null) } : null}
+      attachments={files}
+      onAddFiles={addFiles}
+      onScreenshot={screenshot}
+      onRemoveAttachment={removeFile}
       onSend={() => send()}
       onStop={() => abort.current?.abort()}
     />
@@ -440,7 +482,14 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
                   );
                 return (
                   <div key={t.key} className="ch-turn">
-                    {t.user != null && <div className="ch-user">{t.user}</div>}
+                    {!!t.files?.length && (
+                      <ul className="ch-user-files" aria-label="Attached">
+                        {t.files.map((f, i) => (
+                          <AttachCard key={i} file={{ kind: f.kind, name: f.name, preview: f.src, excerpt: f.excerpt }} />
+                        ))}
+                      </ul>
+                    )}
+                    {!!t.user && <div className="ch-user">{t.user}</div>}
                     {t.parts.length > 0 && (
                       <div className="ch-ai">
                         {t.parts.map((p, i) =>

@@ -3,6 +3,7 @@
 import type { AgentEvent } from '@/lib/agent/types';
 import type { ConversationView } from '@/lib/agent/view';
 import type { ModelInfo } from '@/lib/providers/chat/catalog';
+import type { Attachment } from '@/lib/providers/chat/types';
 
 /* Browser-side calls to /api/agent. Only our own server is called. */
 
@@ -68,8 +69,11 @@ export async function streamReply(url: string, body: unknown, onEvent: (e: Agent
   }
 }
 
-export const sendMessage = (body: { conversationId: string | null; text: string; model: string | null; paperId?: string | null }, onEvent: (e: AgentEvent) => void, signal?: AbortSignal) =>
-  streamReply('/api/agent/chat', body, onEvent, signal);
+export const sendMessage = (
+  body: { conversationId: string | null; text: string; model: string | null; paperId?: string | null; attachments?: Attachment[] },
+  onEvent: (e: AgentEvent) => void,
+  signal?: AbortSignal,
+) => streamReply('/api/agent/chat', body, onEvent, signal);
 
 export const answerQuestion = (body: { conversationId: string; callId: string; approve: boolean }, onEvent: (e: AgentEvent) => void, signal?: AbortSignal) =>
   streamReply('/api/agent/chat/confirm', body, onEvent, signal);

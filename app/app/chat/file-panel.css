@@ -6,9 +6,19 @@
 .ch-split > .ch { min-width: 340px; }
 
 /* the open paper's row and button in the answer */
-/* a gray card with an amber edge, padded so its content stays in line with the other rows */
-.ch-ref-row.is-open { margin: 0 -10px; padding: 12px 12px 12px 12px; border-radius: 12px; border-bottom-color: transparent; background: var(--ch-card); box-shadow: inset 3px 0 0 var(--thread); }
+/* the open paper: a light gray card in a bezel, a clear gap and then an amber frame; the
+   card reaches out (15px, so the frame ends inside the column's 24px margin) so its content stays in line */
+.ch-ref-row.is-open {
+  --open-card: #f8f9f8;
+  margin: 14px -15px; padding: 18px 15px; border-radius: 8px; border-bottom-color: transparent; background: var(--open-card);
+  outline: 3.5px solid var(--thread); outline-offset: 5px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 5%, transparent), 0 20px 36px -26px rgba(184, 121, 10, 0.55);
+}
+[data-theme='dark'] .ch-ref-row.is-open { --open-card: #132b47; }
+.ch-ref-row:has(+ .ch-ref-row.is-open) { border-bottom-color: transparent; }
+.ch-ref-row.is-open .ch-ref-n { color: color-mix(in srgb, var(--thread) 85%, var(--ink)); }
 .rd-read-btn.is-open { --b-bg: var(--cz-white); --b-fg: var(--ink); --b-bd: var(--thread); }
+@media (max-width: 860px) { .ch-ref-row.is-open { margin: 12px -6px; padding: 16px 10px; } }
 
 /* passage links in an answer: page chips that open the PDF there */
 .ch-psg { display: inline-flex; gap: 3px; margin: 0 2px; vertical-align: 2px; }

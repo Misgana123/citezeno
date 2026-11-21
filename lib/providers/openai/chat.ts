@@ -1,5 +1,5 @@
 import { chatPolicy, chatTransport, tokens, type ChatHttpRequest, type StreamAccumulator } from '../chat/http';
-import type { ChatMessage, ChatProvider, ChatRequest, ChatStop, ToolCall } from '../chat/types';
+import { userContent, type ChatMessage, type ChatProvider, type ChatRequest, type ChatStop, type ToolCall } from '../chat/types';
 import type { Transport } from '../gateway/types';
 import type { Env, Gate } from '../types';
 
@@ -12,7 +12,8 @@ const DEFAULT_BASE = 'https://api.openai.com/v1';
 
 type WireToolCall = { id: string; type: 'function'; function: { name: string; arguments: string } };
 type WireMessage =
-  | { role: 'system' | 'user'; content: string }
+  | { role: 'system'; content: string }
+  | { role: 'user'; content: string | ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[] }
   | { role: 'assistant'; content: string | null; tool_calls?: WireToolCall[] }
   | { role: 'tool'; tool_call_id: string; content: string };
 
@@ -30,8 +31,13 @@ const readUsage = (body: unknown) => {
 export function toOpenAiMessages(system: string, messages: ChatMessage[]): WireMessage[] {
   const out: WireMessage[] = [{ role: 'system', content: system }];
   for (const m of messages) {
-    if (m.role === 'user') out.push({ role: 'user', content: m.text });
-    else if (m.role === 'tool') for (const r of m.results) out.push({ role: 'tool', tool_call_id: r.callId, content: r.isError ? `Error: ${r.content}` : r.content });
+    if (m.role === 'user') {
+      const { text, images } = userContent(m);
+      out.push({
+        role: 'user',
+        content: images.length ? [...images.map((i) => ({ type: 'image_url' as const, image_url: { url: `data:${i.mediaType};base64,${i.data}` } })), { type: 'text' as const, text }] : text,
+      });
+    } else if (m.role === 'tool') for (const r of m.results) out.push({ role: 'tool', tool_call_id: r.callId, content: r.isError ? `Error: ${r.content}` : r.content });
     else
       out.push({
         role: 'assistant',

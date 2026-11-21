@@ -4,6 +4,7 @@ import { pool } from '@/lib/db';
 import { json, sameOrigin } from '@/lib/http';
 import { papersServer } from '@/lib/papers/server';
 import { newMeter } from '@/lib/providers/gateway/meter';
+import type { Attachment } from '@/lib/providers/chat/types';
 import { chatModelsFor } from '@/lib/providers/server';
 import { allow } from '@/lib/ratelimit';
 import { shelfConfig } from '@/lib/shelf/config';
@@ -126,7 +127,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
 }
 
 /* A new message, in a new conversation or an existing one. */
-export function replyToMessage(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null; paperId?: string | null }) {
+export function replyToMessage(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null; paperId?: string | null; attachments?: Attachment[] }) {
   return streamReply(
     userId,
     req,
@@ -138,11 +139,11 @@ export function replyToMessage(req: Request, userId: string, body: { conversatio
       if (!conversation) {
         const model = chatModelsFor().pick(body.model);
         if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
-        conversation = await createConversation(pool, userId, titleFrom(reading?.title ?? body.text), model.id, reading?.id ?? null);
+        conversation = await createConversation(pool, userId, titleFrom(reading?.title ?? (body.text || body.attachments?.[0]?.name || '')), model.id, reading?.id ?? null);
       }
       // a question left unanswered: the user moved on
       if (conversation.pending) await setPending(pool, conversation.id, null);
-      return { conversation, run: (deps, history) => answer(deps, history, body.text), extraSystem: reading?.context };
+      return { conversation, run: (deps, history) => answer(deps, history, body.text, body.attachments ?? []), extraSystem: reading?.context };
     },
     body.model,
   );

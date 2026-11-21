@@ -1,5 +1,5 @@
 import { chatPolicy, chatTransport, tokens, type ChatHttpRequest, type StreamAccumulator } from '../chat/http';
-import type { ChatMessage, ChatProvider, ChatRequest, ChatStop, ToolCall } from '../chat/types';
+import { userContent, type ChatMessage, type ChatProvider, type ChatRequest, type ChatStop, type ToolCall } from '../chat/types';
 import type { Transport } from '../gateway/types';
 import type { Env, Gate } from '../types';
 import { toGeminiSchema } from './schema';
@@ -33,7 +33,10 @@ const readUsage = (body: unknown) => {
    came (they can carry thought signatures it needs for the next turn). */
 export function toGeminiContents(messages: ChatMessage[]): Content[] {
   return messages.map((m) => {
-    if (m.role === 'user') return { role: 'user', parts: [{ text: m.text }] };
+    if (m.role === 'user') {
+      const { text, images } = userContent(m);
+      return { role: 'user', parts: [...images.map((i) => ({ inlineData: { mimeType: i.mediaType, data: i.data } })), { text }] };
+    }
     if (m.role === 'tool') {
       return {
         role: 'user',

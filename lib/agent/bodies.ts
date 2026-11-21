@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ATTACH_IMAGE_MAX, ATTACH_MAX, ATTACH_TEXT_MAX, ATTACH_TOTAL_MAX } from './attachments';
 import { citedSourceSchema } from './tools/client';
 
 /* The JSON bodies the /api/agent routes accept. */
@@ -6,13 +7,29 @@ const ID = z.string().trim().min(1).max(80);
 
 export const MESSAGE_MAX = 8000;
 
-export const messageBody = z.object({
-  conversationId: ID.nullish(),
-  text: z.string().trim().min(1, 'Type a message.').max(MESSAGE_MAX, `Messages are limited to ${MESSAGE_MAX.toLocaleString('en')} characters.`),
-  model: z.string().trim().max(80).nullish(),
-  /* sent from the reader: the paper the user has open (its details become context) */
-  paperId: z.string().trim().max(300).nullish(),
-});
+/* Files added to a message, read in the browser (limits in attachments.ts). */
+const attachmentName = z.string().trim().min(1).max(200);
+export const attachmentSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('text'), name: attachmentName, text: z.string().max(ATTACH_TEXT_MAX, 'An attached file is too long.') }),
+  z.object({
+    kind: z.literal('image'),
+    name: attachmentName,
+    mediaType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+    data: z.string().min(1).max(ATTACH_IMAGE_MAX, 'An attached image is too large.').regex(/^[A-Za-z0-9+/]+=*$/, 'An attached image could not be read.'),
+  }),
+]);
+
+export const messageBody = z
+  .object({
+    conversationId: ID.nullish(),
+    text: z.string().trim().max(MESSAGE_MAX, `Messages are limited to ${MESSAGE_MAX.toLocaleString('en')} characters.`),
+    model: z.string().trim().max(80).nullish(),
+    /* sent from the reader: the paper the user has open (its details become context) */
+    paperId: z.string().trim().max(300).nullish(),
+    attachments: z.array(attachmentSchema).max(ATTACH_MAX, `Add at most ${ATTACH_MAX} files to a message.`).optional(),
+  })
+  .refine((b) => b.text || b.attachments?.length, 'Type a message.')
+  .refine((b) => (b.attachments ?? []).reduce((n, a) => n + (a.kind === 'text' ? a.text.length : a.data.length), 0) <= ATTACH_TOTAL_MAX, 'The attached files are too large together.');
 
 export const confirmBody = z.object({ conversationId: ID, callId: z.string().trim().min(1).max(200), approve: z.boolean() });
 
