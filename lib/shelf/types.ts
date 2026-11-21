@@ -16,6 +16,14 @@ export type ShelfPaper = Omit<Paper, 'provider'> & {
 export const ADDED_VIA = ['search', 'doi', 'link', 'title', 'upload', 'import', 'manual'] as const;
 export type AddedVia = (typeof ADDED_VIA)[number];
 
+/* The shelf's two collections: "uploads" holds what the user brought a PDF
+   for (matched to a known paper or kept as their own document); "library"
+   holds everything Citezeno found (search, DOI, link, title, imports, by hand).
+   An entry stays where it was added: attaching a PDF later doesn't move it. */
+export const COLLECTIONS = ['library', 'uploads'] as const;
+export type Collection = (typeof COLLECTIONS)[number];
+export const collectionOf = (addedVia: AddedVia): Collection => (addedVia === 'upload' ? 'uploads' : 'library');
+
 export const READING_STATUSES = ['to_read', 'reading', 'done'] as const;
 export type ReadingStatus = (typeof READING_STATUSES)[number];
 
@@ -31,6 +39,8 @@ export type ShelfItem = {
   folderIds: string[];
   tagIds: string[];
   pdfs: ShelfPdf[];
+  /* where the reader was left in this paper, when it has been opened */
+  reading: { page: number; pageCount: number | null } | null;
 };
 
 /* "pending": text not read yet; "none": a scanned PDF, no text to search. */

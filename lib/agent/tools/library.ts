@@ -11,7 +11,7 @@ import { listTags } from '@/lib/shelf/store/tags';
 import { READING_STATUSES } from '@/lib/shelf/types';
 import type { AgentContext } from '../context';
 import { itemBrief, paperBrief, type Groups } from './format';
-import { defineTool } from './types';
+import { defineTool, tally } from './types';
 
 /* Reading the user's shelf (My shelf): the same listing, search and filters as /shelf. */
 
@@ -68,7 +68,7 @@ export const listLibrary = defineTool({
     const [list, groups] = await Promise.all([listItems(ctx.db, ctx.userId, listQuery(f, page, perPage)), loadGroups(ctx)]);
     return {
       result: { total: list.total, page: list.page, hasMore: list.page * list.perPage < list.total, items: list.items.map((i) => itemBrief(i, groups)) },
-      display: { items: list.items },
+      display: { items: list.items, summary: tally(list.total, 'paper') },
     };
   },
 });
@@ -84,7 +84,7 @@ export const getLibraryItem = defineTool({
     if (!item) throw new ShelfError('not_found', 'That paper is not on your shelf.');
     return {
       result: { ...itemBrief(item, groups), note: item.note, details: paperBrief({ ...item.paper, provider: item.paper.provider ?? '' }, { fullAbstract: true }) },
-      display: { items: [item] },
+      display: { items: [item], summary: 'Opened' },
     };
   },
 });
@@ -103,6 +103,7 @@ export const listCollections = defineTool({
         folders: g.folders.map((f) => ({ folderId: f.id, projectId: f.projectId, name: f.name, papers: f.count })),
         tags: g.tags.map((t) => ({ tagId: t.id, name: t.name, papers: t.count })),
       },
+      display: { summary: `${tally(g.projects.length, 'project')} · ${tally(g.folders.length, 'folder')} · ${tally(g.tags.length, 'tag')}` },
     };
   },
 });
@@ -115,7 +116,7 @@ export const findDuplicates = defineTool({
   label: () => 'Looking for duplicates',
   async run(ctx) {
     const [pairs, groups] = await Promise.all([duplicatePairs(ctx.db, ctx.userId), loadGroups(ctx)]);
-    return { result: { pairs: pairs.map((p) => ({ reason: p.reason, a: itemBrief(p.a, groups), b: itemBrief(p.b, groups) })) }, display: { items: pairs.flatMap((p) => [p.a, p.b]) } };
+    return { result: { pairs: pairs.map((p) => ({ reason: p.reason, a: itemBrief(p.a, groups), b: itemBrief(p.b, groups) })) }, display: { items: pairs.flatMap((p) => [p.a, p.b]), summary: tally(pairs.length, 'pair') } };
   },
 });
 
@@ -125,7 +126,10 @@ export const listNotices = defineTool({
   input: z.object({}),
   kind: 'read',
   label: () => 'Checking retraction notices',
-  run: async (ctx) => ({ result: await unreadNotices(ctx.db, ctx.userId) }),
+  async run(ctx) {
+    const r = await unreadNotices(ctx.db, ctx.userId);
+    return { result: r, display: { summary: r.unread ? tally(r.unread, 'new notice') : 'No new notices' } };
+  },
 });
 
 export const LIBRARY_TOOLS = [listLibrary, getLibraryItem, listCollections, findDuplicates, listNotices];

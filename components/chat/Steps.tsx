@@ -6,7 +6,7 @@ import { Icon } from '../Icon';
 import { PaperRefs } from './PaperRefs';
 
 /* The steps the assistant took for one turn, as one compact checklist: what
-   each did and how it went (with its input under Details), then what the steps
+   each did and what it came to, then what the steps
    found (a numbered reference list, sources, a file to download). */
 
 export type LiveStep = Omit<StepView, 'status'> & { status: StepView['status'] | 'running' };
@@ -35,7 +35,7 @@ function StepIcon({ status }: { status: LiveStep['status'] }) {
   );
 }
 
-/* How many results a step reports, for its row. */
+/* How many results a step found, for rows saved before steps had a summary. */
 function count(d?: ToolDisplay): string | null {
   if (!d) return null;
   const n = (d.papers?.length ?? 0) + (d.items?.length ?? 0) + (d.sources?.length ?? 0);
@@ -74,12 +74,7 @@ export function Steps({ steps, turn, chatId = null }: { steps: LiveStep[]; turn:
           <li key={s.callId} className={`ch-step is-${s.status}`}>
             <StepIcon status={s.status} />
             <span className="ch-step-label">{s.status === 'declined' ? `Not done: ${s.label}` : s.label}</span>
-            {s.status === 'done' && count(s.display) && <span className="ch-step-count">{count(s.display)}</span>}
-            <details className="ch-step-input">
-              <summary>Details</summary>
-              <p className="ch-step-tool">{s.name}</p>
-              <pre>{JSON.stringify(s.input, null, 2)}</pre>
-            </details>
+            {s.status === 'done' && (s.display?.summary ?? count(s.display)) && <span className="ch-step-count">{s.display?.summary ?? count(s.display)}</span>}
             {s.status === 'error' && s.error && <p className="ch-step-error">{s.error}</p>}
           </li>
         ))}

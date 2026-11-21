@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Icon } from '../Icon';
 import { useCredits } from '../useCredits';
+import { RAIL_EVENT } from '../chat/file/panel-state';
 import { type AppSection } from './sections';
 import { openPalette, Sidebar } from './Sidebar';
 
@@ -80,6 +81,14 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [compact, setCompact] = useCompactSidebar(rail);
+  // folded for now by the page (a file open beside the assistant), not remembered
+  const [folded, setFolded] = useState(false);
+  useEffect(() => {
+    const on = (e: Event) => setFolded(!!(e as CustomEvent<boolean>).detail);
+    window.addEventListener(RAIL_EVENT, on);
+    return () => window.removeEventListener(RAIL_EVENT, on);
+  }, []);
+  const small = compact || folded;
   const [drawer, setDrawer] = useState(false);
   const path = usePathname();
   useEffect(() => setDrawer(false), [path]);
@@ -92,8 +101,8 @@ export function AppShell({
 
   return (
     <div className="at-frame">
-      <div className={`cz-app at-page${compact ? ' is-compact' : ''}${drawer ? ' is-drawer' : ''}`}>
-        <Sidebar current={current} compact={compact && !drawer} onToggle={() => (isPhone() ? setDrawer(false) : setCompact(!compact))} onNavigate={() => setDrawer(false)} />
+      <div className={`cz-app at-page${small ? ' is-compact' : ''}${drawer ? ' is-drawer' : ''}`}>
+        <Sidebar current={current} compact={small && !drawer} onToggle={() => (isPhone() ? setDrawer(false) : folded ? setFolded(false) : setCompact(!compact))} onNavigate={() => setDrawer(false)} />
         {drawer && <button type="button" className="cz-scrim" aria-label="Close the menu" onClick={() => setDrawer(false)} />}
 
         <div className="cz-main">

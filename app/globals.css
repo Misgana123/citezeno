@@ -122,6 +122,7 @@ img, svg { display: block; }
 .btn-thread { --b-bg: var(--thread); --b-fg: var(--thread-ink); box-shadow: 0 10px 24px -12px rgba(226, 160, 27, 0.8); }
 .btn-ghost { --b-bg: transparent; --b-fg: var(--ink); --b-bd: var(--rule); }
 .btn-ghost:hover { --b-bd: var(--ink-3); }
+.btn-danger { --b-bg: var(--warn); --b-fg: #fff; }
 .btn-on-blue { --b-bg: transparent; --b-fg: var(--on-prussian); --b-bd: rgba(233, 241, 246, 0.3); }
 .btn-on-blue:hover { --b-bd: var(--on-prussian); }
 .btn-sm { min-height: 34px; padding: 0 14px; font-size: 13.5px; gap: 7px; }
@@ -567,6 +568,11 @@ input[type='range']::-moz-range-thumb { width: 16px; height: 16px; border-radius
 .dialog p { margin: 0 0 20px; color: var(--ink-2); font-size: 14.5px; }
 .dialog .field + .field { margin-top: 14px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.confirm-overlay { z-index: 300; }
+.confirm-dialog { width: min(420px, 100%); padding: 24px; }
+.confirm-dialog h2 { font-size: 18px; line-height: 1.35; overflow-wrap: anywhere; }
+.confirm-dialog p { margin: 0; font-size: 14px; line-height: 1.5; }
+.confirm-dialog .dialog-actions { margin-top: 22px; }
 
 .palette { width: min(620px, 100%); background: var(--sheet); border-radius: 18px; box-shadow: var(--shadow-lg); border: 1px solid var(--rule-2); overflow: hidden; animation: popIn 0.2s var(--ease); }
 .palette-input { display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid var(--rule-2); }

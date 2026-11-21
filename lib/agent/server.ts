@@ -12,7 +12,7 @@ import { readingContext } from './prompt';
 import { searchReservations } from './limits';
 import { answer, repairHistory, resume, resumeWithClientResult, type ClientOutcome, type LoopDeps } from './loop';
 import { claimRun, createConversation, getConversation, loadMessages, releaseRun, setModel, setPending, titleFrom, appendMessages, type Conversation } from './store';
-import type { ToolDisplay } from './tools/types';
+import { tally, type ToolDisplay } from './tools/types';
 import type { AgentEvent, Pending } from './types';
 
 /* The research agent on the server: who is asking, their limits, the chosen
@@ -193,7 +193,7 @@ export function replyToClientResult(req: Request, userId: string, body: { conver
       if (!pending || pending.waiting.kind !== 'client' || pending.waiting.callId !== body.callId) throw new AgentHttpError(409, 'That step was already finished.', 'bad_request');
       const o = body.outcome;
       const outcome: ClientOutcome = o.ok
-        ? { ok: true, result: { found: o.sources?.length ?? 0, sources: o.sources ?? [], ...(o.note ? { note: o.note } : {}) }, display: { sources: o.sources ?? [] } }
+        ? { ok: true, result: { found: o.sources?.length ?? 0, sources: o.sources ?? [], ...(o.note ? { note: o.note } : {}) }, display: { sources: o.sources ?? [], summary: tally(o.sources?.length ?? 0, 'source') } }
         : { ok: false, error: o.error };
       return { conversation, run: (deps, history) => resumeWithClientResult(deps, history, pending, outcome) };
     },

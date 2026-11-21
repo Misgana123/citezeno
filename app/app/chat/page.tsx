@@ -2,8 +2,11 @@ import type { Metadata } from 'next';
 import { AppShell } from '@/components/app/AppShell';
 import { Chat } from '@/components/chat/Chat';
 import { requireSession } from '@/lib/session';
+import 'pdfjs-dist/web/pdf_viewer.css';
 import '../papers/papers.css';
+import '../read/reader.css';
 import './chat.css';
+import './file-panel.css';
 
 export const metadata: Metadata = { title: 'Assistant', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';

@@ -5,16 +5,11 @@ import type { ModelInfo } from '@/lib/providers/chat/catalog';
 import { Icon } from '../Icon';
 import { Select } from '../Select';
 
-/* The message box: what to ask, Chat or Cite (Cite asks for sources for the
-   text), which model, and Send / Stop. */
-
-export type ComposeMode = 'chat' | 'cite';
+/* The message box: what to ask (and, with a file open, which paper it's about), which model, and Send / Stop. */
 
 type Props = {
   text: string;
   onText(t: string): void;
-  mode: ComposeMode;
-  onMode(m: ComposeMode): void;
   models: ModelInfo[];
   model: string | null;
   onModel(id: string): void;
@@ -24,6 +19,8 @@ type Props = {
   onSend(): void;
   onStop(): void;
   big?: boolean;
+  /* the paper the question is about (the file open beside the chat), with a way to ask generally instead */
+  context?: { label: string; onClear(): void } | null;
 };
 
 export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer(p, ref) {
@@ -35,6 +32,16 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
         p.onSend();
       }}
     >
+      {p.context && (
+        <div className="ch-ctx">
+          <Icon name="file" />
+          <span>Asking about</span>
+          <b title={p.context.label}>{p.context.label}</b>
+          <button type="button" onClick={p.context.onClear} aria-label="Ask in general instead" title="Ask in general instead">
+            <Icon name="x" />
+          </button>
+        </div>
+      )}
       <textarea
         ref={ref}
         className="ch-input"
@@ -46,31 +53,20 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
             p.onSend();
           }
         }}
-        placeholder={p.mode === 'cite' ? 'Paste a claim or paragraph to find sources for…' : p.placeholder}
+        placeholder={p.placeholder}
         rows={p.big ? 2 : 1}
         maxLength={8000}
         aria-label="Message"
         disabled={p.disabled}
       />
       <div className="ch-compose-bar">
-        <div className="ch-seg" role="radiogroup" aria-label="What to do">
-          <button type="button" role="radio" aria-checked={p.mode === 'chat'} onClick={() => p.onMode('chat')}>
-            Chat
-          </button>
-          <button type="button" role="radio" aria-checked={p.mode === 'cite'} onClick={() => p.onMode('cite')} title="Find real sources for a claim or paragraph (1 credit per claim)">
-            Cite
-          </button>
-        </div>
+        {/* placeholder for adding things to a message (not wired up yet) */}
+        <button type="button" className="ch-add" aria-label="Add">
+          <Icon name="plus" />
+        </button>
         <span className="ch-grow" />
         {p.models.length > 1 ? (
-          <Select
-            className="ch-model"
-            menuClassName="ch-model-pop"
-            value={p.model ?? ''}
-            onChange={p.onModel}
-            aria-label="AI model"
-            options={p.models.map((m) => ({ value: m.id, label: m.label }))}
-          />
+          <Select className="ch-model" menuClassName="ch-model-pop" value={p.model ?? ''} onChange={p.onModel} aria-label="AI model" options={p.models.map((m) => ({ value: m.id, label: m.label }))} />
         ) : (
           p.models[0] && <span className="ch-model is-one">{p.models[0].label}</span>
         )}

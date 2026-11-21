@@ -13,7 +13,8 @@ export const ITEM_SELECT = `
     array(select "folderId" from shelf_item_folder where "itemId" = i.id order by "folderId") as "folderIds",
     array(select "tagId" from shelf_item_tag where "itemId" = i.id order by "tagId") as "tagIds",
     coalesce((select json_agg(json_build_object('id', f.id, 'fileName', f."fileName", 'sizeBytes', f."sizeBytes", 'pageCount', f."pageCount", 'textStatus', f."textStatus") order by f."uploadedAt")
-      from shelf_pdf f where f."itemId" = i.id and f.status = 'ready'), '[]'::json) as pdfs
+      from shelf_pdf f where f."itemId" = i.id and f.status = 'ready'), '[]'::json) as pdfs,
+    (select json_build_object('page', r.page, 'pageCount', r."pageCount") from reader_position r where r."userId" = i."userId" and r."paperId" = i."paperId") as reading
   from shelf_item i join shelf_paper p on p.id = i."paperId"`;
 
 export function toItem(r: Record<string, unknown>): ShelfItem {
@@ -28,6 +29,7 @@ export function toItem(r: Record<string, unknown>): ShelfItem {
     folderIds: (r.folderIds as string[]) ?? [],
     tagIds: (r.tagIds as string[]) ?? [],
     pdfs: ((r.pdfs as ShelfPdf[]) ?? []).map((f) => ({ ...f, sizeBytes: Number(f.sizeBytes) })),
+    reading: (r.reading as ShelfItem['reading']) ?? null,
   };
 }
 

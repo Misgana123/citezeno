@@ -8,28 +8,28 @@ import type { ShelfItem } from '@/lib/shelf/types';
 import type { AgentContext } from '../context';
 import { itemBrief, paperBrief } from './format';
 import { loadGroups } from './library';
-import { defineTool } from './types';
+import { defineTool, tally } from './types';
 
 /* Adding papers to the shelf: the same lookups and saves as "Add a paper" and
    the Save buttons in Find Papers. */
 
 const PROJECT_ID = z.string().max(80).optional().describe('Also put it in this project (an ID from list_collections).');
 
-async function saved(ctx: AgentContext, item: ShelfItem, extra: Record<string, unknown> = {}) {
+async function saved(ctx: AgentContext, item: ShelfItem, extra: Record<string, unknown> = {}, summary = 'Saved') {
   const [groups, dups] = await Promise.all([loadGroups(ctx), possibleDuplicatesOf(ctx.db, ctx.userId, item.id)]);
   return {
     result: { saved: itemBrief(item, groups), ...extra, ...(dups.length ? { possibleDuplicates: dups.map((d) => ({ itemId: d.id, title: d.paper.title, year: d.paper.year })) } : {}) },
-    display: { items: [item] },
+    display: { items: [item], summary },
   };
 }
 
 /* A paper that is already on the shelf is not an error for the agent: it says so and gives the item. */
-async function orAlreadySaved(ctx: AgentContext, save: () => Promise<{ result: unknown; display?: { items?: ShelfItem[] } }>) {
+async function orAlreadySaved(ctx: AgentContext, save: () => Promise<{ result: unknown; display?: { items?: ShelfItem[]; summary?: string } }>) {
   try {
     return await save();
   } catch (e) {
     const err = e as { code?: string; details?: { itemId?: string } };
-    if (err.code === 'duplicate' && err.details?.itemId) return { result: { alreadyOnShelf: true, itemId: err.details.itemId } };
+    if (err.code === 'duplicate' && err.details?.itemId) return { result: { alreadyOnShelf: true, itemId: err.details.itemId }, display: { summary: 'Already on your shelf' } };
     throw e;
   }
 }
@@ -43,7 +43,7 @@ export const lookupPaperTool = defineTool({
   label: (i) => `Looking up “${i.input.slice(0, 60)}”`,
   async run(ctx, { input }) {
     const r = await lookupPaper({ db: ctx.db, sources: ctx.sources(), reserveSearches: ctx.reserveSearches }, ctx.userId, input);
-    return { result: { via: r.via, papers: r.papers.map((p) => ({ ...paperBrief(p), savedItemId: r.saved[p.id] ?? null })) }, display: { papers: r.papers } };
+    return { result: { via: r.via, papers: r.papers.map((p) => ({ ...paperBrief(p), savedItemId: r.saved[p.id] ?? null })) }, display: { papers: r.papers, summary: tally(r.papers.length, 'match', 'matches') } };
   },
 });
 
@@ -66,7 +66,7 @@ export const addPaperManually = defineTool({
   input: z.object({ details: manualPaperSchema, projectId: PROJECT_ID }),
   kind: 'write',
   label: (i) => `Adding “${i.details.title.slice(0, 60)}” by hand`,
-  run: (ctx, { details, projectId }) => orAlreadySaved(ctx, async () => saved(ctx, await saveManualPaper(ctx.db, ctx.userId, details, projectId ?? null))),
+  run: (ctx, { details, projectId }) => orAlreadySaved(ctx, async () => saved(ctx, await saveManualPaper(ctx.db, ctx.userId, details, projectId ?? null), {}, 'Added')),
 });
 
 export const SAVE_TOOLS = [lookupPaperTool, savePaper, addPaperManually];

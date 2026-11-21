@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ShelfError } from '../errors';
 import { LIST_SORTS, type ListQuery } from '../store/list-query';
-import { READING_STATUSES } from '../types';
+import { COLLECTIONS, READING_STATUSES } from '../types';
 
 /* A shelf listing request from the query string, validated. */
 
@@ -11,6 +11,7 @@ const year = z.coerce.number().int().min(1000).max(3000).optional();
 
 const schema = z.object({
   q: z.string().trim().max(500, 'That search is too long.').optional(),
+  c: z.enum(COLLECTIONS).optional(),
   project: id.optional(),
   folder: id.optional(),
   tag: id.optional(),
@@ -20,6 +21,8 @@ const schema = z.object({
   oa: flag,
   retracted: flag,
   pdf: flag,
+  matched: flag,
+  wip: flag,
   sort: z.enum(LIST_SORTS).optional().default('added_desc'),
   page: z.coerce.number().int().min(1).max(10_000).optional().default(1),
   perPage: z.coerce.number().int().min(1).max(100).optional().default(25),
@@ -42,6 +45,7 @@ export function parseListRequest(params: URLSearchParams): ListRequest {
   return {
     q: v.q || undefined,
     ids: v.ids,
+    collection: v.c,
     project: v.project,
     folder: v.folder,
     tag: v.tag,
@@ -51,6 +55,8 @@ export function parseListRequest(params: URLSearchParams): ListRequest {
     openAccess: v.oa,
     retracted: v.retracted,
     hasPdf: v.pdf,
+    matched: v.matched,
+    inProgress: v.wip,
     sort: v.sort,
     page: v.page,
     perPage: v.perPage,

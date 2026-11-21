@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { deleteChat, pinChat, renameChat, type ConversationSummary } from '../chat/api';
 import { refreshChats, useChatIndex } from '../chat/chat-index';
+import { confirmDialog } from '../confirm';
 import { Icon, LogoMark } from '../Icon';
 import { readHref } from '../reader/api';
 import { InlineName } from '../shelf/InlineName';
@@ -99,8 +100,8 @@ function ChatRow({ chat, active, onDone }: { chat: ConversationSummary; active: 
             type="button"
             role="menuitem"
             className="is-danger"
-            onClick={() => {
-              if (!window.confirm('Delete this chat? This can’t be undone.')) return;
+            onClick={async () => {
+              if (!(await confirmDialog({ title: 'Delete this chat?', body: 'This can’t be undone.', confirmLabel: 'Delete chat', danger: true }))) return;
               act(async () => {
                 await deleteChat(chat.id);
                 if (active) router.push('/app/chat');

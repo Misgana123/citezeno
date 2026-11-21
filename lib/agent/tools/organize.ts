@@ -12,7 +12,7 @@ import { READING_STATUSES } from '@/lib/shelf/types';
 import type { AgentContext } from '../context';
 import { itemBrief } from './format';
 import { loadGroups } from './library';
-import { defineTool } from './types';
+import { defineTool, tally } from './types';
 
 /* Organizing the shelf: projects, folders, tags, moving papers, notes and
    reading status, deleting and merging. The same services as /shelf. Deleting,
@@ -54,7 +54,7 @@ export const createProjectTool = defineTool({
   label: (i) => `Creating project “${i.name}”`,
   run: async (ctx, { name }) => {
     const p = await createProject(ctx.db, ctx.userId, name);
-    return { result: { projectId: p.id, name: p.name } };
+    return { result: { projectId: p.id, name: p.name }, display: { summary: 'Created' } };
   },
 });
 
@@ -66,7 +66,7 @@ export const renameProjectTool = defineTool({
   label: (i) => `Renaming a project to “${i.name}”`,
   run: async (ctx, { projectId, name }) => {
     if (!(await renameProject(ctx.db, ctx.userId, projectId, name))) throw notFound('project');
-    return { result: { ok: true } };
+    return { result: { ok: true }, display: { summary: 'Renamed' } };
   },
 });
 
@@ -79,7 +79,7 @@ export const deleteProjectTool = defineTool({
   confirm: async (i, ctx) => `Delete the project “${await nameOf(ctx, 'project', i.projectId)}”? Its papers stay on your shelf.`,
   run: async (ctx, { projectId }) => {
     if (!(await deleteProject(ctx.db, ctx.userId, projectId))) throw notFound('project');
-    return { result: { ok: true } };
+    return { result: { ok: true }, display: { summary: 'Deleted' } };
   },
 });
 
@@ -91,7 +91,7 @@ export const createFolderTool = defineTool({
   label: (i) => `Creating folder “${i.name}”`,
   run: async (ctx, { projectId, name }) => {
     const f = await createFolder(ctx.db, ctx.userId, projectId, name);
-    return { result: { folderId: f.id, projectId: f.projectId, name: f.name } };
+    return { result: { folderId: f.id, projectId: f.projectId, name: f.name }, display: { summary: 'Created' } };
   },
 });
 
@@ -103,7 +103,7 @@ export const renameFolderTool = defineTool({
   label: (i) => `Renaming a folder to “${i.name}”`,
   run: async (ctx, { folderId, name }) => {
     if (!(await renameFolder(ctx.db, ctx.userId, folderId, name))) throw notFound('folder');
-    return { result: { ok: true } };
+    return { result: { ok: true }, display: { summary: 'Renamed' } };
   },
 });
 
@@ -116,7 +116,7 @@ export const deleteFolderTool = defineTool({
   confirm: async (i, ctx) => `Delete the folder “${await nameOf(ctx, 'folder', i.folderId)}”? Its papers stay in the project.`,
   run: async (ctx, { folderId }) => {
     if (!(await deleteFolder(ctx.db, ctx.userId, folderId))) throw notFound('folder');
-    return { result: { ok: true } };
+    return { result: { ok: true }, display: { summary: 'Deleted' } };
   },
 });
 
@@ -128,7 +128,7 @@ export const createTagTool = defineTool({
   label: (i) => `Creating tag “${i.name}”`,
   run: async (ctx, { name, color }) => {
     const t = await createTag(ctx.db, ctx.userId, name, color ?? null);
-    return { result: { tagId: t.id, name: t.name } };
+    return { result: { tagId: t.id, name: t.name }, display: { summary: 'Created' } };
   },
 });
 
@@ -140,7 +140,7 @@ export const updateTagTool = defineTool({
   label: () => 'Updating a tag',
   run: async (ctx, { tagId, ...patch }) => {
     if (!(await updateTag(ctx.db, ctx.userId, tagId, patch))) throw notFound('tag');
-    return { result: { ok: true } };
+    return { result: { ok: true }, display: { summary: 'Updated' } };
   },
 });
 
@@ -153,7 +153,7 @@ export const deleteTagTool = defineTool({
   confirm: async (i, ctx) => `Delete the tag “${await nameOf(ctx, 'tag', i.tagId)}”? The papers stay; only the tag goes.`,
   run: async (ctx, { tagId }) => {
     if (!(await deleteTag(ctx.db, ctx.userId, tagId))) throw notFound('tag');
-    return { result: { ok: true } };
+    return { result: { ok: true }, display: { summary: 'Deleted' } };
   },
 });
 
@@ -224,7 +224,7 @@ export const organizePapers = defineTool({
     const body = bulkBody.parse({ action: BULK_ACTION[action], ids: itemIds, ...rest });
     const r = await runBulk(ctx.db, ctx.userId, body);
     const groups = await loadGroups(ctx);
-    return { result: { changed: r.items.length, items: r.items.slice(0, 20).map((i) => itemBrief(i, groups)) }, display: { items: r.items } };
+    return { result: { changed: r.items.length, items: r.items.slice(0, 20).map((i) => itemBrief(i, groups)) }, display: { items: r.items, summary: `${tally(r.items.length, 'paper')} updated` } };
   },
 });
 
@@ -236,7 +236,7 @@ export const updateLibraryItem = defineTool({
   label: (i) => (i.note !== undefined ? 'Writing a note' : 'Setting the reading status'),
   async run(ctx, { itemId, ...changes }) {
     const item = await changeItem(ctx.db, ctx.userId, itemId, changes);
-    return { result: itemBrief(item, await loadGroups(ctx)), display: { items: [item] } };
+    return { result: itemBrief(item, await loadGroups(ctx)), display: { items: [item], summary: 'Saved' } };
   },
 });
 
@@ -249,7 +249,7 @@ export const deletePapers = defineTool({
   confirm: async (i, ctx) => `Delete ${await which(ctx, i.itemIds)} from your shelf, with their notes and PDFs? This can’t be undone.`,
   async run(ctx, { itemIds }) {
     const r = await runBulk(ctx.db, ctx.userId, { action: 'delete', ids: itemIds });
-    return { result: { deleted: r.deleted.length } };
+    return { result: { deleted: r.deleted.length }, display: { summary: `${tally(r.deleted.length, 'paper')} deleted` } };
   },
 });
 
@@ -262,8 +262,8 @@ export const resolveDuplicate = defineTool({
   confirm: async (i, ctx) => (i.action === 'merge' ? `Merge ${await which(ctx, [i.itemA])} and ${await which(ctx, [i.itemB])} into one paper?` : null),
   async run(ctx, { action, itemA, itemB }) {
     const r = await decideDuplicate(ctx.db, ctx.userId, action, itemA, itemB);
-    if ('item' in r) return { result: { kept: itemBrief(r.item, await loadGroups(ctx)), removedItemId: r.removedId }, display: { items: [r.item] } };
-    return { result: r };
+    if ('item' in r) return { result: { kept: itemBrief(r.item, await loadGroups(ctx)), removedItemId: r.removedId }, display: { items: [r.item], summary: 'Merged' } };
+    return { result: r, display: { summary: 'Kept both' } };
   },
 });
 

@@ -925,3 +925,32 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
   body:has(.cz-app) .toasts { bottom: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { .cz-app > .cz-side { transition: none; } }
+
+/* =====================================================================
+   App colors (as the assistant): inside the app the page is near-white,
+   cards and the sidebar are a soft gray, and the controls you type in or
+   pick from (inputs, menus, dialogs, selected tabs, buttons) stay white.
+   The shared tokens are redefined here, so the public site is unchanged.
+   ===================================================================== */
+.cz-app {
+  --ground: #fdfdfc; --ground-2: #e8ebea; --sheet: #f2f4f3; --card: #eceeed; --rule-2: #e5e8e7;
+  --cz-white: #ffffff; --cz-side-bg: #f2f4f3;
+}
+[data-theme='dark'] .cz-app {
+  --ground: #0f2239; --ground-2: #1b3a5b; --sheet: #15304d; --card: #1a3757; --rule-2: #1f3d5e;
+  --cz-white: #132b47; --cz-side-bg: #15304d;
+}
+/* white again: the sidebar's own surfaces (current item, menus), controls and pop-ups */
+.cz-app .cz-side,
+.cz-app :is(
+  .input, .select, .cz-select-pop, .kbd, .dialog, .palette, .btn-ghost, .icon-btn,
+  .cz-menu, .cz-acct-pop, .at-menu, .rd-menu, .rd-pop, .rd-find, .spick,
+  .seg button, .at-seg button, .fp-tabs button, .rd-tabs button, .rd-left-tabs button, .rd-scope button,
+  .sh-pop-seg button, .sh-view, .sh-coll, .dview-tabs button, .chk-filters button,
+  .sh-pill-search, .fp-form, .rd-composer, .at-tbtn, .at-to-top
+) { --sheet: var(--cz-white); }
+/* the reader: white panels around a gray desk, so the white PDF pages stand out */
+.cz-app .rd { background: var(--sheet); }
+.cz-app :is(.rd-top, .rd-left, .rd-right, .rd-bottom, .rd-sheet) { background: var(--ground); }
+/* the citation studio's big panel is the page itself, so it is white */
+.cz-app .at-panel { background: var(--ground); }

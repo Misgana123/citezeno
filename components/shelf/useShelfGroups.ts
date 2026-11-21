@@ -11,7 +11,7 @@ import { shelfFetch } from './api';
 
 export type Groups = { projects: Project[]; folders: Folder[]; tags: Tag[]; counts: ShelfCounts & { duplicates: number } };
 
-const EMPTY: Groups = { projects: [], folders: [], tags: [], counts: { all: 0, unsorted: 0, retracted: 0, duplicates: 0 } };
+const EMPTY: Groups = { projects: [], folders: [], tags: [], counts: { all: 0, library: 0, uploads: 0, unsorted: 0, retracted: 0, duplicates: 0 } };
 
 export type GroupsApi = Groups & {
   loaded: boolean;

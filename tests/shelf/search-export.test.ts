@@ -36,6 +36,7 @@ const row = (over: Partial<ShelfItem['paper']> = {}, item: Partial<ShelfItem> = 
     folderIds: [],
     tagIds: [],
     pdfs: [],
+    reading: null,
     ...item,
   },
   projects: [],

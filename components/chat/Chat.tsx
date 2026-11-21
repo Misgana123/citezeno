@@ -5,17 +5,20 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useSession } from '@/lib/auth-client';
 import type { AgentEvent } from '@/lib/agent/types';
 import type { ConversationView } from '@/lib/agent/view';
+import { confirmDialog } from '../confirm';
 import { Icon, LogoMark, type IconName } from '../Icon';
 import { InlineName } from '../shelf/InlineName';
 import { answerQuestion, deleteChat, openChat, pinChat, renameChat, sendClientResult, sendMessage } from './api';
 import { refreshChats, useChatIndex } from './chat-index';
 import { runClientTool } from './citations';
-import { Composer, type ComposeMode } from './Composer';
+import { Composer } from './Composer';
+import { FilePanel } from './file/FilePanel';
+import { FilePanelProvider, useFilePanelState } from './file/panel-state';
+import { readPaper } from './file/read-paper';
 import { applyEvent, type Entry } from './events';
 import { Markdown } from './Markdown';
 import { refAnchor } from './PaperRefs';
 import { Steps } from './Steps';
-import { ContinueReading } from '../reader/ContinueReading';
 
 /* The research assistant. A new chat opens on a greeting with a large message
    box; a conversation shows each turn (the steps it took, folded to one line;
@@ -27,9 +30,9 @@ type ClientTask = { callId: string; name: string; input: unknown; label: string 
 
 const MODEL_KEY = 'cz:chat-model';
 
-const CHIPS: { icon: IconName; label: string; prompt: string; mode?: ComposeMode }[] = [
+const CHIPS: { icon: IconName; label: string; prompt: string }[] = [
   { icon: 'search', label: 'Find papers', prompt: 'Find recent papers on ' },
-  { icon: 'quote', label: 'Cite a claim', prompt: '', mode: 'cite' },
+  { icon: 'quote', label: 'Cite a claim', prompt: 'Find citations for this text: ' },
   { icon: 'layers', label: 'Ask my shelf', prompt: 'What’s on my shelf about ' },
   { icon: 'shield', label: 'Check retractions', prompt: 'Which papers on my shelf are retracted?' },
 ];
@@ -146,7 +149,7 @@ function TitleMenu({ id, title, pinned, onRenamed }: { id: string; title: string
             className="is-danger"
             onClick={async () => {
               setOpen(false);
-              if (!window.confirm('Delete this chat? This can’t be undone.')) return;
+              if (!(await confirmDialog({ title: 'Delete this chat?', body: 'This can’t be undone.', confirmLabel: 'Delete chat', danger: true }))) return;
               await deleteChat(id);
               await refreshChats();
               router.push('/app/chat');
@@ -168,7 +171,6 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
   const [entries, setEntries] = useState<Entry[]>([]);
   const [waiting, setWaiting] = useState<Waiting | null>(null);
   const [model, setModel] = useState<string | null>(null);
-  const [mode, setMode] = useState<ComposeMode>('chat');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(!!initialId);
   const [error, setError] = useState<string | null>(null);
@@ -176,6 +178,25 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
   const abort = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const splitRef = useRef<HTMLDivElement>(null);
+
+  // files open beside the chat; questions are about the shown one until the user says otherwise
+  const panel = useFilePanelState();
+  const { closeAll } = panel;
+  const [asking, setAsking] = useState<string | null>(null);
+  useEffect(() => setAsking(panel.active), [panel.active]);
+  useEffect(() => closeAll(), [activeId, closeAll]);
+  const askingTitle = asking ? (panel.files.find((f) => f.paperId === asking)?.title ?? 'this paper') : null;
+  const askAbout = useCallback((q: string, paperId: string) => {
+    setAsking(paperId);
+    setText(q);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    });
+  }, []);
 
   const models = useMemo(() => index?.models ?? [], [index]);
   const noModels = index != null && models.length === 0;
@@ -298,9 +319,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
   const send = async (raw: string = text) => {
     const typed = raw.trim();
     if (!typed || busy || noModels) return;
-    const message = mode === 'cite' ? `Find citations for this text:\n\n${typed}` : typed;
     setText('');
-    setMode('chat');
     setWaiting(null);
     if (!activeId && model) {
       try {
@@ -309,8 +328,9 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
         /* storage blocked */
       }
     }
-    setEntries((prev) => [...prev, { kind: 'user', text: message }]);
-    await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: message, model }, onEvent, signal));
+    setEntries((prev) => [...prev, { kind: 'user', text: typed }]);
+    const paperId = asking && panel.files.some((f) => f.paperId === asking) ? asking : null;
+    await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId }, onEvent, signal));
   };
 
   const answer = async (approve: boolean) => {
@@ -336,17 +356,13 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
       big={big}
       text={text}
       onText={setText}
-      mode={mode}
-      onMode={(m) => {
-        setMode(m);
-        inputRef.current?.focus();
-      }}
       models={models}
       model={model}
       onModel={setModel}
       busy={busy}
       disabled={noModels}
-      placeholder={big ? 'Ask about papers, citations or your shelf…' : waiting ? 'Answer above, or ask something else…' : 'Reply…'}
+      placeholder={big ? 'Ask about papers, citations or your shelf…' : waiting ? 'Answer above, or ask something else…' : asking ? 'Ask about this paper…' : 'Reply…'}
+      context={!big && askingTitle ? { label: askingTitle, onClear: () => setAsking(null) } : null}
       onSend={() => send()}
       onStop={() => abort.current?.abort()}
     />
@@ -368,8 +384,6 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
                 className="ch-chip"
                 disabled={noModels}
                 onClick={() => {
-                  setMode(c.mode ?? 'chat');
-                  if (c.prompt.endsWith('?')) return send(c.prompt);
                   setText(c.prompt);
                   inputRef.current?.focus();
                 }}
@@ -383,83 +397,101 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
               <Icon name="alert" /> {error}
             </p>
           )}
-          <ContinueReading limit={3} />
         </div>
         <p className="ch-disclaimer is-home">Answers come only from real papers. Check important claims against the source.</p>
       </div>
     );
 
   return (
-    <div className="ch">
-      <header className="ch-head">
-        {activeId && title ? <TitleMenu id={activeId} title={title} pinned={pinned} onRenamed={setTitle} /> : <span className="ch-title-plain">{title ?? 'New chat'}</span>}
-      </header>
+    <FilePanelProvider value={panel}>
+      <div className="ch-split" ref={splitRef}>
+        <div className="ch">
+          <header className="ch-head">
+            {activeId && title ? <TitleMenu id={activeId} title={title} pinned={pinned} onRenamed={setTitle} /> : <span className="ch-title-plain">{title ?? 'New chat'}</span>}
+          </header>
 
-      <div className="ch-thread">
-        <div className="ch-col">
-          {loading && <p className="ch-quiet">Opening the chat…</p>}
+          <div className="ch-thread">
+            <div className="ch-col">
+              {loading && <p className="ch-quiet">Opening the chat…</p>}
 
-          {turns.map((t) => {
-            const titles = refTitles(t);
-            const cite = (n: number, key: number) =>
-              titles.has(n) ? (
-                <a key={key} className="ch-cite" href={`#${refAnchor(t.key, n)}`} title={titles.get(n)}>
-                  {n}
-                </a>
-              ) : (
-                <Fragment key={key}>[{n}]</Fragment>
-              );
-            return (
-              <div key={t.key} className="ch-turn">
-                {t.user != null && <div className="ch-user">{t.user}</div>}
-                {t.parts.length > 0 && (
-                  <div className="ch-ai">
-                    {t.parts.map((p, i) =>
-                      p.kind === 'steps' ? (
-                        <Steps key={i} steps={p.steps} turn={t.key} chatId={activeId} />
-                      ) : p.kind === 'assistant' ? (
-                        <div key={i} className="ch-answer">
-                          <Markdown text={p.text} cite={cite} />
-                        </div>
-                      ) : null,
+              {turns.map((t) => {
+                const titles = refTitles(t);
+                // [p3-2] passages come from the paper the turn read (or the one open)
+                const read = readPaper(t.parts) ?? panel.active;
+                const passage = (ids: string[], key: number) =>
+                  read ? (
+                    <span key={key} className="ch-psg">
+                      {ids.map((id) => (
+                        <button key={id} type="button" className="ch-psg-btn" title={`Show page ${id.slice(1).split('-')[0]} in the PDF`} onClick={() => panel.open(read, { passageId: id })}>
+                          p.{id.slice(1).split('-')[0]}
+                        </button>
+                      ))}
+                    </span>
+                  ) : (
+                    <Fragment key={key} />
+                  );
+                const cite = (n: number, key: number) =>
+                  titles.has(n) ? (
+                    <a key={key} className="ch-cite" href={`#${refAnchor(t.key, n)}`} title={titles.get(n)}>
+                      {n}
+                    </a>
+                  ) : (
+                    <Fragment key={key}>[{n}]</Fragment>
+                  );
+                return (
+                  <div key={t.key} className="ch-turn">
+                    {t.user != null && <div className="ch-user">{t.user}</div>}
+                    {t.parts.length > 0 && (
+                      <div className="ch-ai">
+                        {t.parts.map((p, i) =>
+                          p.kind === 'steps' ? (
+                            <Steps key={i} steps={p.steps} turn={t.key} chatId={activeId} />
+                          ) : p.kind === 'assistant' ? (
+                            <div key={i} className="ch-answer">
+                              <Markdown text={p.text} cite={cite} passage={passage} />
+                            </div>
+                          ) : null,
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
 
-          {waiting && (
-            <div className="ch-ask" role="alertdialog" aria-label="The assistant is asking first">
-              <p>{waiting.kind === 'confirm' ? waiting.question : `${waiting.label}. This uses 1 credit.`}</p>
-              <div className="ch-ask-acts">
-                <button type="button" className="ch-btn is-go" onClick={() => answer(true)} disabled={busy}>
-                  {waiting.kind === 'confirm' ? 'Yes' : 'Run it'}
-                </button>
-                <button type="button" className="ch-btn" onClick={() => answer(false)} disabled={busy}>
-                  {waiting.kind === 'confirm' ? 'No' : 'Skip'}
-                </button>
-              </div>
+              {waiting && (
+                <div className="ch-ask" role="alertdialog" aria-label="The assistant is asking first">
+                  <p>{waiting.kind === 'confirm' ? waiting.question : `${waiting.label}. This uses 1 credit.`}</p>
+                  <div className="ch-ask-acts">
+                    <button type="button" className="ch-btn is-go" onClick={() => answer(true)} disabled={busy}>
+                      {waiting.kind === 'confirm' ? 'Yes' : 'Run it'}
+                    </button>
+                    <button type="button" className="ch-btn" onClick={() => answer(false)} disabled={busy}>
+                      {waiting.kind === 'confirm' ? 'No' : 'Skip'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {working && (
+                <p className="ch-quiet ch-thinking">
+                  <LogoMark className="ch-think-logo" /> Thinking
+                </p>
+              )}
+              {error && (
+                <p className="ch-error" role="alert">
+                  <Icon name="alert" /> {error}
+                </p>
+              )}
+              <div ref={endRef} />
             </div>
-          )}
-          {working && (
-            <p className="ch-quiet ch-thinking">
-              <span className="ch-orb is-small is-pulse" aria-hidden="true" /> Thinking
-            </p>
-          )}
-          {error && (
-            <p className="ch-error" role="alert">
-              <Icon name="alert" /> {error}
-            </p>
-          )}
-          <div ref={endRef} />
-        </div>
-      </div>
+          </div>
 
-      <div className="ch-dock">
-        {noModels ? <p className="ch-quiet">The assistant isn’t set up yet: no AI model is available.</p> : composer(false)}
-        <p className="ch-disclaimer">Answers come only from real papers. Check important claims against the source.</p>
+          <div className="ch-dock">
+            {noModels ? <p className="ch-quiet">The assistant isn’t set up yet: no AI model is available.</p> : composer(false)}
+            <p className="ch-disclaimer">Answers come only from real papers. Check important claims against the source.</p>
+          </div>
+        </div>
+        <FilePanel panel={panel} split={splitRef} onAsk={askAbout} />
       </div>
-    </div>
+    </FilePanelProvider>
   );
 }

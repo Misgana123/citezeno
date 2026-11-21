@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { AppShell, PageHead } from '@/components/app/AppShell';
-import { Icon } from '@/components/Icon';
+import { AppShell } from '@/components/app/AppShell';
 import { Shelf } from '@/components/shelf/Shelf';
 import { requireSession } from '@/lib/session';
 import '../papers/papers.css';
@@ -12,6 +10,8 @@ export const dynamic = 'force-dynamic';
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
+/* My shelf: the app's menu folds to its icons, the shelf's own sidebar
+   (collections, projects, tags) beside the papers, filling the window. */
 export default async function ShelfPage({ searchParams }: Props) {
   await requireSession('/app/shelf');
   const sp = await searchParams;
@@ -20,17 +20,7 @@ export default async function ShelfPage({ searchParams }: Props) {
   const focus = typeof sp.item === 'string' ? sp.item : null;
 
   return (
-    <AppShell current="shelf" title="My shelf">
-      <PageHead
-        title="My shelf"
-        actions={
-          <Link className="btn btn-ghost btn-sm" href="/app/papers">
-            <Icon name="search" /> Find papers
-          </Link>
-        }
-      >
-        Every paper you keep, in one place. Organize them into projects, tag them, take notes and track what you have read.
-      </PageHead>
+    <AppShell current="shelf" title="My shelf" variant="panel" rail>
       <Shelf initialQuery={query.toString()} focusItem={focus} />
     </AppShell>
   );

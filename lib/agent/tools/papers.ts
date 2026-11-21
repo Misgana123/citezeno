@@ -7,7 +7,7 @@ import { runSearch, searchesFor } from '@/lib/papers/search/run';
 import type { PaperList } from '@/lib/papers/search/types';
 import type { AgentContext } from '../context';
 import { paperBrief } from './format';
-import { defineTool } from './types';
+import { defineTool, tally } from './types';
 
 /* Find Papers as tools: the same searches, limits and lists as /papers. */
 
@@ -47,7 +47,7 @@ function request(ctx: AgentContext, f: Filters & { query?: string; mode?: string
 
 const listOut = (list: PaperList) => ({
   result: { total: list.total, page: list.page, hasMore: list.hasMore, notices: list.notices, papers: list.papers.map((p) => paperBrief(p)) },
-  display: { papers: list.papers },
+  display: { papers: list.papers, summary: tally(list.total, 'paper') },
 });
 
 const PAPER_ID = z.string().min(1).max(240).describe('A paperId from an earlier result, e.g. "openalex:W2741809807".');
@@ -74,7 +74,7 @@ export const getPaperTool = defineTool({
   label: () => 'Opening a paper',
   async run(ctx, { paperId }) {
     const { paper } = await getPaper(parsePaperId(ctx.sources(), paperId));
-    return { result: { ...paperBrief(paper, { fullAbstract: true }), topics: paper.topics, references: paper.referenceIds.length }, display: { papers: [paper] } };
+    return { result: { ...paperBrief(paper, { fullAbstract: true }), topics: paper.topics, references: paper.referenceIds.length }, display: { papers: [paper], summary: 'Opened' } };
   },
 });
 

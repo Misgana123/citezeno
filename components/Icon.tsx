@@ -55,12 +55,20 @@ const PATHS: Record<string, string> = {
   undo: 'M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11',
   redo: 'm15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
   tag: 'M3.5 12.5V4.5a1 1 0 0 1 1-1h8l8 8-9 9zM8 8h.01',
+  folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+  compass: 'M12 3a9 9 0 1 0 0 18 9 9 0 1 0 0-18zM15.5 8.5l-2 5-5 2 2-5z',
+  unlock: 'M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 7.5-2',
+  file: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5',
+  sort: 'M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3',
+  dots: 'M5 12h.01M12 12h.01M19 12h.01',
   zip: 'M6 3h12v18H6zM11 3v2h2v2h-2v2h2v2h-2M10.5 14h3v3h-3z',
   pin: 'M12 17v4.5M9 3.5h6l-1 6 3.5 3.5h-11L10 9.5z',
   pencil: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
   panel: 'M4 5h16v14H4zM9.5 5v14',
   send: 'M12 19V5M6 11l6-6 6 6',
   chat: 'M20 12a7.5 7.5 0 0 1-10.9 6.7L4 20l1.4-4.6A7.5 7.5 0 1 1 20 12Z',
+  expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
+  link: 'M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7',
 };
 
 export type IconName = keyof typeof PATHS;

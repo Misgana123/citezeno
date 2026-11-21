@@ -271,7 +271,7 @@ export function Reader({
   };
 
   if (error) return <ReaderError error={error} onBack={back} onRetry={() => setReload((n) => n + 1)} />;
-  if (!data) return <ReaderSkeleton />;
+  if (!data) return <ReaderSkeleton layout={layout} tablet={tablet} phone={phone} />;
 
   const hasPdf = data.pdf.kind !== 'none';
   const panelContent = (tab: RightTab) =>
@@ -507,22 +507,75 @@ function PanelEmpty({ icon, title, text }: { icon: Parameters<typeof Icon>[0]['n
   );
 }
 
-function ReaderSkeleton() {
+/* Mirrors the loaded page (top bar, pages panel, the PDF page, side panel; the
+   bottom bar on phones) with the saved layout, so nothing jumps when it arrives. */
+function ReaderSkeleton({ layout, tablet, phone }: { layout: Layout; tablet: boolean; phone: boolean }) {
+  const ico = <span className="rd-skel rd-skel-ico" />;
+  const docked = !phone && !tablet;
   return (
-    <div className="rd" aria-busy="true" aria-label="Opening the paper">
+    <div className={`rd${phone ? ' is-phone' : tablet ? ' is-tablet' : ''}`} aria-busy="true" aria-label="Opening the paper">
       <header className="rd-top">
-        <span className="rd-skel" style={{ width: 32, height: 32, borderRadius: 10 }} />
-        <span className="rd-skel" style={{ flex: 1, maxWidth: 420, height: 16 }} />
+        {ico}
+        {!phone && ico}
+        <div className="rd-title">
+          <span className="rd-skel" style={{ width: '100%', maxWidth: 420, height: 16 }} />
+        </div>
+        <div className="rd-tools">
+          <span className="rd-skel" style={{ width: 46, height: 32, borderRadius: 9 }} />
+          <span className="rd-skel" style={{ width: 22, height: 12, margin: '0 6px 0 2px' }} />
+          {!phone && (
+            <div className="rd-zoom">
+              {ico}
+              <span className="rd-skel" style={{ width: 58, height: 30, borderRadius: 9 }} />
+              {ico}
+            </div>
+          )}
+          {ico}
+        </div>
+        {ico}
+        {!phone && ico}
       </header>
       <div className="rd-body">
+        {docked && layout.left && <LeftPanel pdf={null} page={1} tab={layout.leftTab} onTab={() => {}} />}
         <main className="rd-center">
-          <div className="rd-skel-page">
-            {Array.from({ length: 12 }, (_, i) => (
-              <span key={i} className="rd-skel" style={{ width: `${70 + ((i * 37) % 30)}%` }} />
-            ))}
+          <div className="rd-skel-scroll">
+            <div className="rd-skel-page">
+              <span className="rd-skel" style={{ width: '55%', height: 18 }} />
+              <span className="rd-skel" style={{ width: '35%', marginBottom: 10 }} />
+              {Array.from({ length: 14 }, (_, i) => (
+                <span key={i} className="rd-skel" style={{ width: `${70 + ((i * 37) % 30)}%` }} />
+              ))}
+            </div>
           </div>
         </main>
+        {docked && layout.right && (
+          <aside className="rd-right" style={{ width: layout.width }} aria-hidden="true">
+            <div className="rd-right-head">
+              <nav className="rd-tabs">
+                {RIGHT_TABS.map((t) => (
+                  <button key={t.id} type="button" tabIndex={-1} aria-selected={layout.tab === t.id} disabled>
+                    <Icon name={t.icon} /> {t.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+            <div className="rd-right-body rd-skel-lines">
+              {Array.from({ length: 6 }, (_, i) => (
+                <span key={i} className="rd-skel" style={{ width: `${60 + ((i * 29) % 40)}%` }} />
+              ))}
+            </div>
+          </aside>
+        )}
       </div>
+      {phone && (
+        <nav className="rd-bottom" aria-hidden="true">
+          {[{ id: 'read', label: 'Read', icon: 'book' as const }, ...RIGHT_TABS].map((t) => (
+            <button key={t.id} type="button" tabIndex={-1} aria-pressed={t.id === 'read'} disabled>
+              <Icon name={t.icon} /> {t.label}
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

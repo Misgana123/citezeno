@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { ReaderDeps } from '@/lib/reader/deps';
 import type { AgentContext } from '../context';
-import { defineTool } from './types';
+import { defineTool, tally } from './types';
 
 /* The reader's actions for the research assistant: the same services the
    reader's Summarize, Ask and Notes use (nothing is implemented twice). Text
@@ -25,7 +25,7 @@ export const summarizePaper = defineTool({
   async run(ctx, { paperId: id }) {
     const { summarize } = await import('@/lib/reader/ai/summary');
     const { summary } = await summarize(await deps(ctx), ctx.userId, id);
-    return { result: { paperId: summary.paperId, basedOn: summary.basedOn, ...summary.content } };
+    return { result: { paperId: summary.paperId, basedOn: summary.basedOn, ...summary.content }, display: { summary: summary.basedOn === 'full_text' ? 'From the full text' : 'From the abstract' } };
   },
 });
 
@@ -39,7 +39,10 @@ export const askPaper = defineTool({
   async run(ctx, { paperId: id, question }) {
     const { askOnce } = await import('@/lib/reader/ai/ask');
     const r = await askOnce(await deps(ctx), ctx.userId, id, question);
-    return { result: { paperId: r.paperId, title: r.title, answer: r.text, citedPassages: r.passageIds, basedOn: r.basedOn, notInPaper: r.notInPaper } };
+    return {
+      result: { paperId: r.paperId, title: r.title, answer: r.text, citedPassages: r.passageIds, basedOn: r.basedOn, notInPaper: r.notInPaper },
+      display: { summary: r.notInPaper ? 'Not in the paper' : 'Answered' },
+    };
   },
 });
 
@@ -60,6 +63,7 @@ export const listHighlights = defineTool({
         highlights: highlights.map((h) => ({ page: h.page, color: h.color, quote: h.quote.slice(0, 600), note: h.note })),
         pageNotes: notes.map((n) => ({ page: n.page, text: n.text.slice(0, 600) })),
       },
+      display: { summary: `${tally(highlights.length, 'highlight')} · ${tally(notes.length, 'note')}` },
     };
   },
 });

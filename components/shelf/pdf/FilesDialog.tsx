@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import type { PdfRow } from '@/lib/shelf/store/pdfs';
+import { confirmDialog } from '../../confirm';
 import { Icon } from '../../Icon';
 import { readHref } from '../../reader/api';
 import { toast } from '../../toast';
@@ -27,7 +28,13 @@ export function FilesDialog({ onClose, onDeleted }: { onClose: () => void; onDel
   }, [load, onClose]);
 
   const remove = async (f: Files['files'][number]) => {
-    if (!window.confirm(`Delete “${f.fileName}”?`)) return;
+    const ok = await confirmDialog({
+      title: `Delete “${f.fileName}”?`,
+      body: f.paperTitle ? `It’s removed from your storage and from “${f.paperTitle}”. The paper stays on your shelf.` : 'It’s removed from your storage.',
+      confirmLabel: 'Delete PDF',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await shelfFetch(pdfHref(f.id), { method: 'DELETE' });
       load();

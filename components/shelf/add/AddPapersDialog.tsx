@@ -24,14 +24,17 @@ export function AddPapersDialog({
   onAdded,
   onClose,
   extraTabs = [],
+  initialTab = 'find',
 }: {
+  /* the tab to open on, e.g. "pdf" after PDFs were dropped on the page */
+  initialTab?: string;
   groups: GroupsApi;
   defaultProjectId: string | null;
   onAdded: (item: ShelfItem) => void;
   onClose: () => void;
   extraTabs?: AddTab[];
 }) {
-  const [tab, setTab] = useState('find');
+  const [tab, setTab] = useState(initialTab);
   const [projectId, setProjectId] = useState<string | null>(defaultProjectId);
   const [draft, setDraft] = useState<ManualDraft>(emptyDraft());
   const box = useRef<HTMLDivElement>(null);

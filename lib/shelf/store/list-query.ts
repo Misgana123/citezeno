@@ -1,4 +1,4 @@
-import type { ReadingStatus } from '../types';
+import type { Collection, ReadingStatus } from '../types';
 
 /* Builds the WHERE / ORDER BY of a shelf listing. Every value goes in as a
    parameter; only fixed SQL fragments are concatenated. The first parameter is
@@ -13,6 +13,8 @@ export type ListQuery = {
   q?: string;
   /* only these items (for exporting a selection) */
   ids?: string[];
+  /* only the user's uploads, or only what Citezeno found (see COLLECTIONS) */
+  collection?: Collection;
   /* a project ID, or "unsorted" for items in no project */
   project?: string;
   folder?: string;
@@ -23,6 +25,10 @@ export type ListQuery = {
   openAccess?: boolean;
   retracted?: boolean;
   hasPdf?: boolean;
+  /* true: matched to a paper a provider knows; false: the user's own document or typed-in details */
+  matched?: boolean;
+  /* opened in the reader and not finished */
+  inProgress?: boolean;
   sort: ListSort;
   page: number;
   perPage: number;
@@ -68,6 +74,8 @@ export function buildListQuery(userId: string, query: ListQuery): BuiltQuery {
       or exists (select 1 from reader_page_note n where n."userId" = i."userId" and n."paperId" = i."paperId" and to_tsvector('simple', n.text) @@ ${Q}))`);
     relevance = `ts_rank(p.tsv, ${Q}) + ts_rank(i.tsv, ${Q}) + 0.5 * coalesce((select max(ts_rank(f.tsv, ${Q})) from shelf_pdf f where f."itemId" = i.id), 0) desc, i."addedAt" desc, i.id`;
   }
+  if (query.collection === 'uploads') where.push(`i."addedVia" = 'upload'`);
+  else if (query.collection === 'library') where.push(`i."addedVia" <> 'upload'`);
   if (query.ids) where.push(`i.id = any(${param(query.ids)})`);
   if (query.project === UNSORTED) {
     where.push(`not exists (select 1 from shelf_item_project ip where ip."itemId" = i.id)`);
@@ -82,6 +90,10 @@ export function buildListQuery(userId: string, query: ListQuery): BuiltQuery {
   if (query.openAccess != null) where.push(`p."isOpenAccess" = ${param(query.openAccess)}`);
   if (query.retracted != null) where.push(`p."isRetracted" = ${param(query.retracted)}`);
   if (query.hasPdf != null) where.push(`${query.hasPdf ? '' : 'not '}exists (select 1 from shelf_pdf f where f."itemId" = i.id and f.status = 'ready')`);
+
+  if (query.matched != null) where.push(`p.origin ${query.matched ? '=' : '<>'} 'provider'`);
+  if (query.inProgress)
+    where.push(`exists (select 1 from reader_position r where r."userId" = i."userId" and r."paperId" = i."paperId" and r.page > 1 and (r."pageCount" is null or r.page < r."pageCount"))`);
 
   const perPage = Math.min(100, Math.max(1, Math.floor(query.perPage)));
   const page = Math.max(1, Math.floor(query.page));

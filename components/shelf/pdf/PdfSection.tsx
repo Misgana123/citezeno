@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import type { ShelfItem } from '@/lib/shelf/types';
+import { confirmDialog } from '../../confirm';
 import { Icon } from '../../Icon';
 import { readHref } from '../../reader/api';
 import { toast } from '../../toast';
@@ -27,7 +28,13 @@ export function PdfSection({ item, onChange }: { item: ShelfItem; onChange: (ite
   };
 
   const remove = async (id: string, name: string) => {
-    if (!window.confirm(`Delete “${name}”? It is removed from your storage too.`)) return;
+    const ok = await confirmDialog({
+      title: `Delete “${name}”?`,
+      body: 'It’s removed from this paper and from your storage. The paper stays on your shelf.',
+      confirmLabel: 'Delete PDF',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await shelfFetch(pdfHref(id), { method: 'DELETE' });
       onChange({ ...item, pdfs: item.pdfs.filter((f) => f.id !== id) });

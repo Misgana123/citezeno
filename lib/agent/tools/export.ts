@@ -4,7 +4,7 @@ import { EXPORT_FILES, type ExportFormat } from '@/lib/shelf/export/types';
 import { listItems } from '@/lib/shelf/store/items';
 import type { ShelfItem } from '@/lib/shelf/types';
 import { listFilters, listQuery, loadGroups } from './library';
-import { defineTool } from './types';
+import { defineTool, tally } from './types';
 
 /* Exporting saved papers as BibTeX, RIS or CSV: the same files as the shelf's
    Export menu, offered to the user as a download in the chat. */
@@ -40,7 +40,7 @@ export const exportLibrary = defineTool({
     const name = `citezeno-${new Date().toISOString().slice(0, 10)}.${file.ext}`;
     return {
       result: { exported: kept.length, ...(total > kept.length ? { leftOut: total - kept.length } : {}), fileName: name },
-      display: { file: { name, mime: file.mime, text: writeFormat(format, toRows(kept, await loadGroups(ctx))) } },
+      display: { file: { name, mime: file.mime, text: writeFormat(format, toRows(kept, await loadGroups(ctx))) }, summary: `${tally(kept.length, 'paper')} exported` },
     };
   },
 });

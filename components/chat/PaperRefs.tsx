@@ -8,6 +8,7 @@ import { Icon } from '../Icon';
 import { authorsShort } from '../papers/format';
 import { ReadButton } from '../reader/ReadButton';
 import { SaveButton } from '../shelf/SaveButton';
+import { useFilePanel } from './file/panel-state';
 
 /* Papers a step found, as a numbered reference list: the number the answer
    cites ([2]), the title in the reading face, who / when / where, and Save.
@@ -19,11 +20,11 @@ export const refAnchor = (turn: number, n: number) => `ref-${turn}-${n}`;
 
 const link = (p: Pick<Paper, 'doi' | 'landingUrl' | 'record'>) => (p.doi ? `https://doi.org/${p.doi}` : (p.landingUrl ?? p.record?.url ?? null));
 
-function Row({ n, turn, paper, action }: { n?: number; turn: number; paper: Paper | ShelfItem['paper']; action: React.ReactNode }) {
+function Row({ n, turn, paper, action, open = false }: { n?: number; turn: number; paper: Paper | ShelfItem['paper']; action: React.ReactNode; open?: boolean }) {
   const href = link(paper);
   const meta = [authorsShort(paper.authors), paper.year, paper.source].filter(Boolean).join(' · ');
   return (
-    <li className={`ch-ref-row${paper.isRetracted ? ' is-retracted' : ''}`} id={n ? refAnchor(turn, n) : undefined}>
+    <li className={`ch-ref-row${paper.isRetracted ? ' is-retracted' : ''}${open ? ' is-open' : ''}`} id={n ? refAnchor(turn, n) : undefined}>
       <span className="ch-ref-n">{n ?? '•'}</span>
       <div className="ch-ref-body">
         {href ? (
@@ -45,16 +46,23 @@ function Row({ n, turn, paper, action }: { n?: number; turn: number; paper: Pape
 
 export function PaperRefs({ papers, items, refs, turn, chatId = null }: { papers?: Paper[]; items?: ShelfItem[]; refs?: Record<string, number>; turn: number; chatId?: string | null }) {
   const [all, setAll] = useState(false);
+  const panel = useFilePanel();
+  /* Read opens the paper beside the chat (when the page has the panel) */
+  const read = (id: string, title: string) => (panel ? { onOpen: () => panel.open(id, { title }), open: panel.active === id } : {});
   const rows = [
-    ...(papers ?? []).map((p) => ({ key: p.id, n: refs?.[p.id], node: (n?: number) => (
+    ...(papers ?? []).map((p) => ({
+      key: p.id,
+      n: refs?.[p.id],
+      node: (n?: number) => (
         <Row
           key={p.id}
           n={n}
           turn={turn}
           paper={p}
+          open={panel?.active === p.id}
           action={
             <>
-              <ReadButton paperId={p.id} hasPdf={!!p.pdfUrl} chatId={chatId} />
+              <ReadButton paperId={p.id} hasPdf={!!p.pdfUrl} chatId={chatId} {...read(p.id, p.title)} />
               <SaveButton paper={p} />
             </>
           }
@@ -70,9 +78,10 @@ export function PaperRefs({ papers, items, refs, turn, chatId = null }: { papers
           n={n}
           turn={turn}
           paper={i.paper}
+          open={panel?.active === i.paper.id}
           action={
             <>
-              <ReadButton paperId={i.paper.id} hasPdf={(i.pdfs?.length ?? 0) > 0 || !!i.paper.pdfUrl} chatId={chatId} />
+              <ReadButton paperId={i.paper.id} hasPdf={(i.pdfs?.length ?? 0) > 0 || !!i.paper.pdfUrl} chatId={chatId} {...read(i.paper.id, i.paper.title)} />
               <Link className="ch-ref-open" href={`/app/shelf?item=${encodeURIComponent(i.id)}`}>
                 <Icon name="layers" /> On your shelf
               </Link>

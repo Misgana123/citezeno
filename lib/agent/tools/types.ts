@@ -16,7 +16,14 @@ export type ToolDisplay = {
   sources?: CitedSource[];
   /* the reply's number for each paper shown here (by paper ID), as the answer cites them: [1], [2]… */
   refs?: Record<string, number>;
+  /* what the step came to, in a few words, shown on its row: "6 papers", "No notices", "Saved" */
+  summary?: string;
 };
+
+/* "No papers", "1 paper", "1,240 papers": a count for a step's row. */
+export function tally(n: number, one: string, many = `${one}s`): string {
+  return n === 0 ? `No ${many}` : `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
+}
 
 export type ToolOutput = {
   /* What the model reads: compact JSON-friendly data. */

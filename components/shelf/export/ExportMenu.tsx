@@ -10,7 +10,7 @@ import { exportEverything, exportFile } from './run-export';
 
 /* Export the papers in view (or a selection) as BibTeX, RIS or CSV, or the
    whole shelf with notes and PDFs as one ZIP. */
-export function ExportMenu({ groups, query, baseName, label = 'Export', everything = true }: { groups: Groups; query: URLSearchParams; baseName: string; label?: string; everything?: boolean }) {
+export function ExportMenu({ groups, query, baseName, label = 'Export', everything = true, compact = false }: { groups: Groups; query: URLSearchParams; baseName: string; label?: string; everything?: boolean; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -45,9 +45,15 @@ export function ExportMenu({ groups, query, baseName, label = 'Export', everythi
 
   return (
     <div className="sh-export" ref={box}>
-      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen((o) => !o)} disabled={!!busy} aria-haspopup="menu" aria-expanded={open}>
-        {busy ? <span className="spin" aria-hidden="true" /> : <Icon name="download" />} {busy ?? label}
-      </button>
+      {compact && !busy ? (
+        <button type="button" className="sh-tool-btn" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} aria-label={label} title={label}>
+          <Icon name="download" />
+        </button>
+      ) : (
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen((o) => !o)} disabled={!!busy} aria-haspopup="menu" aria-expanded={open}>
+          {busy ? <span className="spin" aria-hidden="true" /> : <Icon name="download" />} {busy ?? label}
+        </button>
+      )}
       {open && (
         <div className="umenu-pop sh-export-menu" role="menu">
           {(Object.keys(EXPORT_FILES) as ExportFormat[]).map((f) => (
