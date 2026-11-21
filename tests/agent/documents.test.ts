@@ -99,6 +99,7 @@ describe('document tools', () => {
       files: {
         save: async (f: { name: string; mime: string; bytes: Uint8Array }) => (saved.push(f), { id: 'af_new', name: `${f.name}.x`, mime: f.mime, size: f.bytes.byteLength }),
         read: async (id: string) => (files[id] ? { file: { id, name: 'chart.png', mime: 'image/png', size: files[id].byteLength }, bytes: files[id] } : null),
+        readShelfPdf: async () => null,
       },
     } satisfies AgentContext;
     return { c, saved };

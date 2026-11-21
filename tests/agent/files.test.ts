@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AGENT_FILE_MAX_BYTES, agentFileName, getAgentFile, saveAgentFile } from '@/lib/agent/files';
+import { AGENT_FILE_MAX_BYTES, agentFileName, getAgentFile, readShelfPdf, saveAgentFile } from '@/lib/agent/files';
+import { createPending } from '@/lib/shelf/store/pdfs';
 import { createConversation, deleteConversation } from '@/lib/agent/store';
 import { memoryStore } from '@/lib/providers/storage/memory';
 import { takeTrash } from '@/lib/shelf/store/pdfs';
@@ -70,5 +71,17 @@ describe.skipIf(!TEST_DB_URL)('agent files (Postgres)', () => {
     await expect(saveAgentFile({ db: t.pool, store }, { userId: owner, conversationId: 'c_missing' }, { name: 'x', mime: 'text/plain', bytes: bytes(3) })).rejects.toBeTruthy();
     expect(written).toHaveLength(1);
     expect(mem.has(written[0])).toBe(false);
+  });
+
+  it('reads a shelf PDF for its owner only, once its upload finished', async () => {
+    const store = memoryStore();
+    const owner = await t.addUser();
+    const other = await t.addUser();
+    const row = await createPending(t.pool, owner, { fileName: 'paper.pdf', sizeBytes: 5 });
+    store.put(row.storageKey, bytes(5));
+    expect(await readShelfPdf({ db: t.pool, store }, owner, row.id)).toBeNull(); // still uploading
+    await t.pool.query(`update shelf_pdf set status = 'ready' where id = $1`, [row.id]);
+    expect(await readShelfPdf({ db: t.pool, store }, owner, row.id)).toMatchObject({ fileName: 'paper.pdf' });
+    expect(await readShelfPdf({ db: t.pool, store }, other, row.id)).toBeNull();
   });
 });

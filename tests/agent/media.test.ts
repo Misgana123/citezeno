@@ -118,6 +118,7 @@ describe('chart and picture tools', () => {
       files: {
         save: async (f: { name: string; mime: string; bytes: Uint8Array }) => (saved.push(f), { id: `af_${saved.length}`, name: f.name, mime: f.mime, size: f.bytes.byteLength }),
         read: async () => null,
+        readShelfPdf: async () => null,
       },
     } satisfies AgentContext;
     return { c, saved };

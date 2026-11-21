@@ -75,7 +75,7 @@ export const listLibrary = defineTool({
 
 export const getLibraryItem = defineTool({
   name: 'get_library_item',
-  description: 'One saved paper with its full details, note, reading status, projects, folders, tags and PDFs.',
+  description: 'One saved paper with its full details, note, reading status, projects, folders, tags and PDFs (each with its pdfId, for the PDF tools).',
   input: z.object({ itemId: z.string().min(1).max(80) }),
   kind: 'read',
   label: () => 'Opening a saved paper',
@@ -83,7 +83,7 @@ export const getLibraryItem = defineTool({
     const [item, groups] = await Promise.all([getItem(ctx.db, ctx.userId, itemId), loadGroups(ctx)]);
     if (!item) throw new ShelfError('not_found', 'That paper is not on your shelf.');
     return {
-      result: { ...itemBrief(item, groups), note: item.note, details: paperBrief({ ...item.paper, provider: item.paper.provider ?? '' }, { fullAbstract: true }) },
+      result: { ...itemBrief(item, groups), note: item.note, pdfFiles: item.pdfs.map((f) => ({ pdfId: f.id, fileName: f.fileName, pages: f.pageCount })), details: paperBrief({ ...item.paper, provider: item.paper.provider ?? '' }, { fullAbstract: true }) },
       display: { items: [item], summary: 'Opened' },
     };
   },

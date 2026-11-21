@@ -104,6 +104,7 @@ describe('slide and spreadsheet tools', () => {
       files: {
         save: async (f: { name: string; mime: string; bytes: Uint8Array }) => (saved.push(f), { id: 'af_new', name: f.name, mime: f.mime, size: f.bytes.byteLength }),
         read: async (id: string) => (id === 'af_chart' ? { file: { id, name: 'c.png', mime: 'image/png', size: PNG.byteLength }, bytes: PNG } : null),
+        readShelfPdf: async () => null,
       },
     } satisfies AgentContext;
     return { c, saved };

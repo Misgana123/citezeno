@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { FileStore } from '@/lib/providers/storage/types';
 import type { Db, Queryable } from '@/lib/shelf/db';
 import { ShelfError } from '@/lib/shelf/errors';
+import { getPdfRow } from '@/lib/shelf/store/pdfs';
 
 /* Files the assistant makes (documents, charts…): kept in file storage under
    the user and conversation, listed in agent_file, and handed to their owner
@@ -24,6 +25,8 @@ export type AgentFileRow = AgentFileRef & { storageKey: string; conversationId: 
 export type AgentFiles = {
   save(f: { name: string; mime: string; bytes: Uint8Array }): Promise<AgentFileRef>;
   read(id: string): Promise<{ file: AgentFileRef; bytes: Uint8Array } | null>;
+  /* a PDF the user keeps on their shelf (by its pdfId), for the PDF tools */
+  readShelfPdf(pdfId: string): Promise<{ fileName: string; bytes: Uint8Array } | null>;
 };
 
 const EXTENSIONS: Record<string, string> = {
@@ -115,8 +118,18 @@ export async function readAgentFile(deps: { db: Db; store: FileStore | null }, u
   return bytes ? { file: fileRef(row), bytes } : null;
 }
 
+/* A shelf PDF's bytes, for its owner (only PDFs whose upload finished). */
+export async function readShelfPdf(deps: { db: Db; store: FileStore | null }, userId: string, pdfId: string): Promise<{ fileName: string; bytes: Uint8Array } | null> {
+  if (!deps.store) throw new ShelfError('unavailable', 'Reading PDFs isn’t set up yet. Please try again later.');
+  const row = await getPdfRow(deps.db, userId, pdfId);
+  if (!row || row.status !== 'ready') return null;
+  const bytes = await deps.store.read(row.storageKey, Math.max(row.sizeBytes, 1) + 1024);
+  return bytes ? { fileName: row.fileName, bytes } : null;
+}
+
 /* The file service one reply's tools use. */
 export const agentFiles = (deps: { db: Db; store: FileStore | null }, owner: { userId: string; conversationId: string }): AgentFiles => ({
   save: (f) => saveAgentFile(deps, owner, f),
   read: (id) => readAgentFile(deps, owner.userId, id),
+  readShelfPdf: (pdfId) => readShelfPdf(deps, owner.userId, pdfId),
 });
