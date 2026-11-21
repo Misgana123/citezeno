@@ -114,7 +114,8 @@ describe('chart and picture tools', () => {
       webSearch: () => null,
       webFiles: () => null as never,
       pdfText: () => null as never,
-      chatImages: async () => [{ kind: 'image' as const, name: 'photo.png', mediaType: 'image/png' as const, data: png.toString('base64') }],
+      chatAttachments: async () => [{ kind: 'image' as const, name: 'photo.png', mediaType: 'image/png' as const, data: png.toString('base64') }],
+      code: () => null,
       files: {
         save: async (f: { name: string; mime: string; bytes: Uint8Array }) => (saved.push(f), { id: `af_${saved.length}`, name: f.name, mime: f.mime, size: f.bytes.byteLength }),
         read: async () => null,

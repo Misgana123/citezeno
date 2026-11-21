@@ -44,7 +44,7 @@ function harness(chat: ChatProvider, opts: { web?: boolean; deadline?: number } 
     webSearch: () => (opts.web === false ? null : { name: 'fake', search }),
     webFiles: () => ({ name: 'fake', fetchPdf: vi.fn(), fetchPage: vi.fn(async (url: string) => ({ title: 'Read page', text: `Full text of ${url}. `.repeat(30), finalUrl: url })) }),
     pdfText: () => null as never,
-    chatImages: async () => [],
+    chatAttachments: async () => [], code: () => null,
     files: { save: vi.fn(), read: vi.fn(async () => null), readShelfPdf: vi.fn(async () => null) },
   };
   const deps: LoopDeps = {

@@ -1,8 +1,10 @@
+import { after } from 'next/server';
 import { pool } from '@/lib/db';
+import { codeSandboxFor } from '@/lib/providers/server';
 import { json } from '@/lib/http';
 import { conversationPatchBody, readBody } from '@/lib/agent/bodies';
 import { AgentHttpError, agentRoute } from '@/lib/agent/server';
-import { deleteConversation, getConversation, loadMessages, renameConversation, setPinned } from '@/lib/agent/store';
+import { deleteConversation, getConversation, getSandboxId, loadMessages, renameConversation, setPinned } from '@/lib/agent/store';
 import { toView } from '@/lib/agent/view';
 
 export const runtime = 'nodejs';
@@ -26,6 +28,9 @@ export const PATCH = agentRoute<P>(async (req, userId, { id }) => {
 });
 
 export const DELETE = agentRoute<P>(async (_req, userId, { id }) => {
+  const sandboxId = await getSandboxId(pool, userId, id);
   if (!(await deleteConversation(pool, userId, id))) throw notFound();
+  // its code sandbox, if one is still open (it would end on its own when idle)
+  if (sandboxId) after(() => codeSandboxFor()?.close(sandboxId).catch(() => {}));
   return json({ ok: true });
 });

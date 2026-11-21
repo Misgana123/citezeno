@@ -72,7 +72,7 @@ describe('PDF tools', () => {
       webSearch: () => null,
       webFiles: () => null as never,
       pdfText: () => ({ name: 'pdfjs', read: readPdfText }),
-      chatImages: async () => [],
+      chatAttachments: async () => [], code: () => null,
       files: {
         save: async (f: { name: string; mime: string; bytes: Uint8Array }) => (saved.push(f), { id: 'af_new', name: f.name, mime: f.mime, size: f.bytes.byteLength }),
         read: async (id: string) => (made[id] ? { file: { id, name: 'made.pdf', mime: 'application/pdf', size: made[id].byteLength }, bytes: made[id] } : null),

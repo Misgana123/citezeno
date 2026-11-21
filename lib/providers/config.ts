@@ -7,7 +7,8 @@ import type { Env } from './types';
      FILE_STORAGE_PROVIDER    PDF storage (default "r2"; or "cloudinary")
      PDF_TEXT_PROVIDER        reading text out of PDFs (default "basic")
      WEB_FILES_PROVIDER       fetching open-access files and web pages (default "direct-http")
-     WEB_SEARCH_PROVIDER      searching the open web for the assistant (default "tavily") */
+     WEB_SEARCH_PROVIDER      searching the open web for the assistant (default "tavily")
+     CODE_SANDBOX_PROVIDER    running the assistant's Python in a sandbox (default "e2b") */
 
 /* The names chosen for a job that are in its registry. Unknown names are
    skipped with a warning; if none are left, the defaults are used. */
@@ -28,4 +29,5 @@ export const choose = {
   pdfText: (env: Env) => env.PDF_TEXT_PROVIDER,
   webFiles: (env: Env) => env.WEB_FILES_PROVIDER,
   webSearch: (env: Env) => env.WEB_SEARCH_PROVIDER,
+  codeSandbox: (env: Env) => env.CODE_SANDBOX_PROVIDER,
 };

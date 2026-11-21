@@ -52,7 +52,7 @@ function harness(chat: ChatProvider, over: Partial<LoopDeps> & { db?: unknown; u
     shelfConfig: shelfConfig({}),
     reserveSearches: vi.fn(async () => {}),
     files: { save: vi.fn(async () => { throw new Error('no files in this test'); }), read: vi.fn(async () => null), readShelfPdf: vi.fn(async () => null) },
-    webSearch: () => null, webFiles: () => { throw new Error('no web in this test'); }, pdfText: () => { throw new Error('no PDFs in this test'); }, chatImages: async () => [],
+    webSearch: () => null, webFiles: () => { throw new Error('no web in this test'); }, pdfText: () => { throw new Error('no PDFs in this test'); }, chatAttachments: async () => [], code: () => null,
   };
   const deps: LoopDeps = {
     ctx,

@@ -100,7 +100,7 @@ describe('slide and spreadsheet tools', () => {
       webSearch: () => null,
       webFiles: () => null as never,
       pdfText: () => null as never,
-      chatImages: async () => [],
+      chatAttachments: async () => [], code: () => null,
       files: {
         save: async (f: { name: string; mime: string; bytes: Uint8Array }) => (saved.push(f), { id: 'af_new', name: f.name, mime: f.mime, size: f.bytes.byteLength }),
         read: async (id: string) => (id === 'af_chart' ? { file: { id, name: 'c.png', mime: 'image/png', size: PNG.byteLength }, bytes: PNG } : null),

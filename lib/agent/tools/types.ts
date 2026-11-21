@@ -21,6 +21,10 @@ export type ToolDisplay = {
   sources?: CitedSource[];
   /* web pages found or read */
   links?: WebLink[];
+  /* more files a step made (run_python) */
+  files?: AgentFileRef[];
+  /* code a step ran, and what it printed */
+  code?: { language: 'python'; source: string; output: string; failed?: boolean };
   /* the reply's number for each paper shown here (by paper ID), as the answer cites them: [1], [2]… */
   refs?: Record<string, number>;
   /* what the step came to, in a few words, shown on its row: "6 papers", "No notices", "Saved" */

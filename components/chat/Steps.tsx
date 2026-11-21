@@ -83,7 +83,8 @@ export function Steps({ steps, turn, chatId = null }: { steps: LiveStep[]; turn:
   const items = steps.flatMap((s) => s.display?.items ?? []);
   const refs = Object.assign({}, ...steps.map((s) => s.display?.refs ?? {})) as Record<string, number>;
   const sources = steps.flatMap((s) => s.display?.sources ?? []);
-  const files = steps.flatMap((s) => (s.display?.file ? [s.display.file] : []));
+  const files = steps.flatMap((s) => [...(s.display?.file ? [s.display.file] : []), ...(s.display?.files ?? [])]);
+  const code = steps.flatMap((s) => (s.display?.code ? [{ id: s.callId, ...s.display.code }] : []));
   // the same page found by two searches (or searched, then read) is listed once
   const seenLinks = new Set<string>();
   const links = steps.flatMap((s) => s.display?.links ?? []).filter((l) => /^https?:\/\//i.test(l.url) && !seenLinks.has(l.url) && seenLinks.add(l.url));
@@ -155,6 +156,22 @@ export function Steps({ steps, turn, chatId = null }: { steps: LiveStep[]; turn:
         </ul>
       )}
       {steps.some((s) => s.name === 'find_citations' && s.status === 'done' && s.display?.sources?.length === 0) && <p className="ch-quiet">No matching source was found.</p>}
+
+      {code.map((c) => (
+        <details key={c.id} className={`ch-code${c.failed ? ' is-failed' : ''}`}>
+          <summary>
+            <Icon name="code" /> {c.failed ? 'Python (failed)' : 'Python'}
+          </summary>
+          <pre className="ch-code-src">
+            <code>{c.source}</code>
+          </pre>
+          {c.output && (
+            <pre className="ch-code-out" aria-label="Output">
+              {c.output}
+            </pre>
+          )}
+        </details>
+      ))}
 
       {files.map((f) =>
         isStored(f) ? (

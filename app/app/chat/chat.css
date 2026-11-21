@@ -192,6 +192,14 @@ a.ch-ref-title:hover { text-decoration: underline; text-decoration-color: var(--
 a.ch-file { text-decoration: none; }
 .ch-file-size { font-weight: 500; opacity: 0.75; }
 /* a file the assistant made: a picture's preview above its download */
+/* code a step ran (run_python), folded: the source, then what it printed */
+.ch-code { border: 1px solid var(--ch-card-line); border-radius: 12px; background: var(--ch-card); overflow: hidden; }
+.ch-code summary { display: flex; align-items: center; gap: 7px; padding: 9px 12px; cursor: pointer; font-weight: 650; font-size: 13.5px; color: var(--ink-2); }
+.ch-code summary svg { width: 15px; height: 15px; }
+.ch-code.is-failed summary { color: #b42318; }
+.ch-code pre { margin: 0; padding: 10px 12px; max-height: 320px; overflow: auto; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; }
+.ch-code-src { border-top: 1px solid var(--ch-card-line); }
+.ch-code-out { border-top: 1px dashed var(--ch-card-line); white-space: pre-wrap !important; color: var(--ink-2); }
 /* web pages a step found or read: title link, address, snippet */
 .ch-links { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .ch-links li { display: grid; gap: 2px; min-width: 0; }

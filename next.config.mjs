@@ -36,7 +36,7 @@ const nextConfig = {
   // assistant reading web pages) is too, so its optional "canvas" isn't bundled,
   // and so are the assistant's document builders (pdfmake with its fonts, docx).
   // Charts (vega, resvg) and picture edits (sharp) are loaded the same way.
-  serverExternalPackages: ['pdfjs-dist', 'linkedom', 'pdfmake', 'docx', 'pptxgenjs', 'exceljs', 'pdf-lib', 'vega', 'vega-lite', '@resvg/resvg-js', 'sharp'],
+  serverExternalPackages: ['pdfjs-dist', 'linkedom', 'pdfmake', 'docx', 'pptxgenjs', 'exceljs', 'pdf-lib', 'vega', 'vega-lite', '@resvg/resvg-js', 'sharp', '@e2b/code-interpreter'],
   // the reader's PDF.js worker is read from node_modules by its route
   outputFileTracingIncludes: { '/api/reader/worker': ['./node_modules/pdfjs-dist/build/pdf.worker.min.mjs'] },
   async headers() {

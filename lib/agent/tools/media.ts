@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Attachment } from '@/lib/providers/chat/types';
 import { ShelfError } from '@/lib/shelf/errors';
 import type { AgentContext } from '../context';
 import { chartInput } from '../documents/chart';
@@ -39,7 +40,7 @@ async function source(ctx: AgentContext, s: { fileId?: string; attachment?: stri
     if (!got || !got.file.mime.startsWith('image/')) throw new ShelfError('not_found', `There is no picture with fileId "${s.fileId}" in this chat.`);
     return { name: got.file.name, bytes: got.bytes };
   }
-  const images = await ctx.chatImages();
+  const images = (await ctx.chatAttachments()).filter((a): a is Extract<Attachment, { kind: 'image' }> => a.kind === 'image');
   // the latest one with that name, if the user attached it more than once
   const hit = images.findLast((a) => a.name === s.attachment);
   if (!hit) throw new ShelfError('not_found', `No picture called "${s.attachment}" was attached to this chat.${images.length ? ` Attached pictures: ${images.map((a) => a.name).join(', ')}.` : ''}`);

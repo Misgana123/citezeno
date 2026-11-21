@@ -7,6 +7,7 @@ import type { WebSearch } from '@/lib/providers/web-search/types';
 import type { Db } from '@/lib/shelf/db';
 import type { ShelfConfig } from '@/lib/shelf/config';
 import type { AgentFiles } from './files';
+import type { CodeRunner } from './sandbox';
 
 /* Everything an agent tool may use. The agent acts as the user: the same
    user ID, the same paper sources (through the gateway), the same daily
@@ -24,8 +25,10 @@ export type AgentContext = {
   webSearch(): WebSearch | null;
   webFiles(): WebFiles;
   pdfText(): PdfTextReader;
-  /* The pictures the user attached to this chat (uploads and screenshots), oldest first. */
-  chatImages(): Promise<Extract<Attachment, { kind: 'image' }>[]>;
+  /* The files the user attached to this chat (pictures, and the text of other files), oldest first. */
+  chatAttachments(): Promise<Attachment[]>;
+  /* The chat's code sandbox (run_python), or null when it isn't set up. */
+  code(): CodeRunner | null;
   /* Files the tools make for this conversation (documents, charts…). */
   files: AgentFiles;
 };

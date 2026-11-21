@@ -26,7 +26,7 @@ const EXEMPT = new Set(['lib/sources.ts']);
 const SDK_EXEMPT: { dir: string; sdk: string }[] = [{ dir: 'components/reader/pdf/', sdk: 'pdfjs-dist' }];
 
 /* Job folders and shared files features may import; every other folder in lib/providers is an adapter. */
-const JOB_DIRS = new Set(['gateway', 'papers', 'storage', 'pdf-text', 'chat', 'embeddings', 'web-files', 'web-search']);
+const JOB_DIRS = new Set(['gateway', 'papers', 'storage', 'pdf-text', 'chat', 'embeddings', 'web-files', 'web-search', 'code-sandbox']);
 
 /* An outside service's API address: an api.* host, or the citation sources' search endpoints. */
 const VENDOR_API = /https?:\/\/(api\.[a-z0-9-]+\.[a-z.]+|[a-z0-9-]+\.googleapis\.com|[a-z.]*openlibrary\.org\/search|[a-z]+\.wikipedia\.org\/w\/api)/i;
@@ -46,6 +46,8 @@ const VENDOR_SDKS = [
   'pdf-parse',
   'pdfjs-dist',
   'unpdf',
+  '@e2b/code-interpreter',
+  'e2b',
 ];
 
 function files(path: string): string[] {

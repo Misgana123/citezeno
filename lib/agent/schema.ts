@@ -22,6 +22,8 @@ create index if not exists agent_conversation_user on agent_conversation ("userI
 alter table agent_conversation add column if not exists pinned boolean not null default false;
 -- the user turned web search on for this chat (the + menu); off by default
 alter table agent_conversation add column if not exists "webSearch" boolean not null default false;
+-- the chat's code sandbox session (run_python), while it may still be open
+alter table agent_conversation add column if not exists "sandboxId" text;
 
 -- One message of a conversation, in the vendor-neutral chat format, with what
 -- the chat page shows for it (the steps of a tool turn).

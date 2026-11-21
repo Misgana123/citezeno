@@ -5,13 +5,14 @@ import { json, sameOrigin } from '@/lib/http';
 import { papersServer } from '@/lib/papers/server';
 import { newMeter } from '@/lib/providers/gateway/meter';
 import type { Attachment } from '@/lib/providers/chat/types';
-import { chatModelsFor, fileStorage, pdfTextReader, webFiles, webSearchFor } from '@/lib/providers/server';
+import { chatModelsFor, codeSandboxFor, fileStorage, pdfTextReader, webFiles, webSearchFor } from '@/lib/providers/server';
 import { allow } from '@/lib/ratelimit';
 import { shelfConfig } from '@/lib/shelf/config';
 import type { AgentContext } from './context';
 import { agentFiles } from './files';
 import { readingContext, webContext } from './prompt';
 import { research, RESEARCH_MS } from './research';
+import { codeRunner } from './sandbox';
 import { searchReservations } from './limits';
 import { answer, repairHistory, resume, resumeWithClientResult, type ClientOutcome, type LoopDeps } from './loop';
 import { claimRun, createConversation, getConversation, loadMessages, releaseRun, setModel, setPending, setWebSearch, titleFrom, appendMessages, type Conversation } from './store';
@@ -91,7 +92,11 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     webSearch: () => (web === undefined ? (web = webSearchFor(meter)) : web),
     webFiles: () => webFiles(process.env, meter),
     pdfText: () => pdfTextReader(),
-    chatImages: async () => (await loadMessages(pool, conversation.id)).flatMap(({ message: m }) => (m.role === 'user' ? (m.attachments ?? []).filter((a) => a.kind === 'image') : [])),
+    chatAttachments: async () => (await loadMessages(pool, conversation.id)).flatMap(({ message: m }) => (m.role === 'user' ? (m.attachments ?? []) : [])),
+    code: () => {
+      const sandbox = codeSandboxFor(meter);
+      return sandbox ? codeRunner(sandbox, pool, { userId, conversationId: conversation.id }) : null;
+    },
     files: agentFiles({ db: pool, store: fileStorage() }, { userId, conversationId: conversation.id }),
   };
 

@@ -67,6 +67,16 @@ export async function deleteConversation(q: Queryable, userId: string, id: strin
   return (rowCount ?? 0) > 0;
 }
 
+/* The chat's code sandbox session (null when it has none). */
+export async function getSandboxId(q: Queryable, userId: string, id: string): Promise<string | null> {
+  const { rows } = await q.query<{ sandboxId: string | null }>(`select "sandboxId" from agent_conversation where id = $1 and "userId" = $2`, [id, userId]);
+  return rows[0]?.sandboxId ?? null;
+}
+
+export async function setSandboxId(q: Queryable, userId: string, id: string, sandboxId: string | null): Promise<void> {
+  await q.query(`update agent_conversation set "sandboxId" = $3 where id = $1 and "userId" = $2`, [id, userId, sandboxId]);
+}
+
 /* Web search on or off for this chat (the + menu). */
 export async function setWebSearch(q: Queryable, userId: string, id: string, on: boolean): Promise<void> {
   await q.query(`update agent_conversation set "webSearch" = $3 where id = $1 and "userId" = $2`, [id, userId, on]);

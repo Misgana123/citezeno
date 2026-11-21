@@ -1,5 +1,7 @@
 import 'server-only';
 import { chatModels, type ChatModels } from './chat/catalog';
+import { CODE_SANDBOX_PROVIDERS, DEFAULT_CODE_SANDBOX } from './code-sandbox/registry';
+import type { CodeSandbox } from './code-sandbox/types';
 import { chooseProviders, choose } from './config';
 import { embedder, type Embedder } from './embeddings/embedder';
 import { sendSpendAlert } from './gateway/alert';
@@ -92,5 +94,12 @@ export function webFiles(env: Env = process.env, meter: Meter = newMeter()): Web
    the gateway with this request's meter; null when its provider has no key. */
 export function webSearchFor(meter: Meter = newMeter(), env: Env = process.env): WebSearch | null {
   const [def] = chooseProviders(WEB_SEARCH_PROVIDERS, choose.webSearch(env), DEFAULT_WEB_SEARCH, 'web search');
+  return def.create(env, gateFor(meter));
+}
+
+/* The code sandbox (CODE_SANDBOX_PROVIDER, default "e2b"), wired through the
+   gateway with this request's meter; null when its provider has no key. */
+export function codeSandboxFor(meter: Meter = newMeter(), env: Env = process.env): CodeSandbox | null {
+  const [def] = chooseProviders(CODE_SANDBOX_PROVIDERS, choose.codeSandbox(env), DEFAULT_CODE_SANDBOX, 'code sandbox');
   return def.create(env, gateFor(meter));
 }
