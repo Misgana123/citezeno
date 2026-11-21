@@ -35,7 +35,8 @@ const nextConfig = {
   // node_modules as is, so its worker file is found at run time. linkedom (the
   // assistant reading web pages) is too, so its optional "canvas" isn't bundled,
   // and so are the assistant's document builders (pdfmake with its fonts, docx).
-  serverExternalPackages: ['pdfjs-dist', 'linkedom', 'pdfmake', 'docx'],
+  // Charts (vega, resvg) and picture edits (sharp) are loaded the same way.
+  serverExternalPackages: ['pdfjs-dist', 'linkedom', 'pdfmake', 'docx', 'vega', 'vega-lite', '@resvg/resvg-js', 'sharp'],
   // the reader's PDF.js worker is read from node_modules by its route
   outputFileTracingIncludes: { '/api/reader/worker': ['./node_modules/pdfjs-dist/build/pdf.worker.min.mjs'] },
   async headers() {

@@ -95,6 +95,7 @@ describe('document tools', () => {
       webSearch: () => null,
       webFiles: () => null as never,
       pdfText: () => null as never,
+      chatImages: async () => [],
       files: {
         save: async (f: { name: string; mime: string; bytes: Uint8Array }) => (saved.push(f), { id: 'af_new', name: `${f.name}.x`, mime: f.mime, size: f.bytes.byteLength }),
         read: async (id: string) => (files[id] ? { file: { id, name: 'chart.png', mime: 'image/png', size: files[id].byteLength }, bytes: files[id] } : null),

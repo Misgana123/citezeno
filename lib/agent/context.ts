@@ -1,4 +1,5 @@
 import type { PapersConfig } from '@/lib/papers/config';
+import type { Attachment } from '@/lib/providers/chat/types';
 import type { PaperSources } from '@/lib/providers/papers/sources';
 import type { PdfTextReader } from '@/lib/providers/pdf-text/types';
 import type { WebFiles } from '@/lib/providers/web-files/types';
@@ -23,6 +24,8 @@ export type AgentContext = {
   webSearch(): WebSearch | null;
   webFiles(): WebFiles;
   pdfText(): PdfTextReader;
+  /* The pictures the user attached to this chat (uploads and screenshots), oldest first. */
+  chatImages(): Promise<Extract<Attachment, { kind: 'image' }>[]>;
   /* Files the tools make for this conversation (documents, charts…). */
   files: AgentFiles;
 };

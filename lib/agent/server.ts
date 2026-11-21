@@ -90,6 +90,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     webSearch: () => (web === undefined ? (web = webSearchFor(meter)) : web),
     webFiles: () => webFiles(process.env, meter),
     pdfText: () => pdfTextReader(),
+    chatImages: async () => (await loadMessages(pool, conversation.id)).flatMap(({ message: m }) => (m.role === 'user' ? (m.attachments ?? []).filter((a) => a.kind === 'image') : [])),
     files: agentFiles({ db: pool, store: fileStorage() }, { userId, conversationId: conversation.id }),
   };
 

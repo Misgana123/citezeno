@@ -1,5 +1,6 @@
 import { fitPicture, spans, type DocBlock } from './blocks';
 import type { LoadedPicture } from './docx';
+import { robotoFonts } from './fonts';
 
 /* A PDF from the assistant's blocks (pdfmake, on the server), set in Roboto,
    which pdfmake ships: Latin, Greek and Cyrillic text. pdfmake is told never
@@ -27,9 +28,7 @@ let ready: Promise<PdfMake> | null = null;
 function pdfmake(): Promise<PdfMake> {
   return (ready ??= (async () => {
     const pm = ((await import('pdfmake')) as unknown as { default?: PdfMake }).default ?? ((await import('pdfmake')) as unknown as PdfMake);
-    const vfs =
-      ((await import('pdfmake/build/vfs_fonts')) as unknown as { default?: Record<string, string> }).default ?? ((await import('pdfmake/build/vfs_fonts')) as unknown as Record<string, string>);
-    for (const [name, b64] of Object.entries(vfs)) if (name.endsWith('.ttf')) pm.virtualfs.writeFileSync(name, Buffer.from(b64, 'base64'));
+    for (const [name, bytes] of Object.entries(await robotoFonts())) pm.virtualfs.writeFileSync(name, bytes);
     pm.setFonts({ Roboto: { normal: 'Roboto-Regular.ttf', bold: 'Roboto-Medium.ttf', italics: 'Roboto-Italic.ttf', bolditalics: 'Roboto-MediumItalic.ttf' } });
     pm.setUrlAccessPolicy(() => false);
     pm.setLocalAccessPolicy(() => false);
