@@ -11,7 +11,34 @@ import { PaperRefs } from './PaperRefs';
 
 export type LiveStep = Omit<StepView, 'status'> & { status: StepView['status'] | 'running' };
 
-function download(file: NonNullable<ToolDisplay['file']>) {
+type TextFile = { name: string; mime: string; text: string };
+type StoredFile = Exclude<NonNullable<ToolDisplay['file']>, TextFile>;
+const isStored = (f: NonNullable<ToolDisplay['file']>): f is StoredFile => 'id' in f;
+
+/* "84 KB", "2.4 MB" */
+function size(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/* A file the assistant made and stored: a picture is shown, every file can be downloaded. */
+function StoredFileCard({ file }: { file: StoredFile }) {
+  const href = `/api/agent/files/${encodeURIComponent(file.id)}`;
+  return (
+    <div className="ch-made">
+      {file.mime.startsWith('image/') && (
+        <a href={`${href}?inline=1`} target="_blank" rel="noopener noreferrer" className="ch-made-pic">
+          <img src={`${href}?inline=1`} alt={file.name} loading="lazy" />
+        </a>
+      )}
+      <a className="ch-file" href={href} download={file.name}>
+        <Icon name="download" /> Download {file.name} <span className="ch-file-size">{size(file.size)}</span>
+      </a>
+    </div>
+  );
+}
+
+function download(file: TextFile) {
   const url = URL.createObjectURL(new Blob([file.text], { type: `${file.mime};charset=utf-8` }));
   const a = Object.assign(document.createElement('a'), { href: url, download: file.name });
   document.body.append(a);
@@ -101,11 +128,15 @@ export function Steps({ steps, turn, chatId = null }: { steps: LiveStep[]; turn:
       )}
       {steps.some((s) => s.name === 'find_citations' && s.status === 'done' && s.display?.sources?.length === 0) && <p className="ch-quiet">No matching source was found.</p>}
 
-      {files.map((f) => (
-        <button key={f.name} type="button" className="ch-file" onClick={() => download(f)}>
-          <Icon name="download" /> Download {f.name}
-        </button>
-      ))}
+      {files.map((f) =>
+        isStored(f) ? (
+          <StoredFileCard key={f.id} file={f} />
+        ) : (
+          <button key={f.name} type="button" className="ch-file" onClick={() => download(f)}>
+            <Icon name="download" /> Download {f.name}
+          </button>
+        ),
+      )}
     </div>
   );
 }

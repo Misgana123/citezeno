@@ -2,6 +2,7 @@ import type { PapersConfig } from '@/lib/papers/config';
 import type { PaperSources } from '@/lib/providers/papers/sources';
 import type { Db } from '@/lib/shelf/db';
 import type { ShelfConfig } from '@/lib/shelf/config';
+import type { AgentFiles } from './files';
 
 /* Everything an agent tool may use. The agent acts as the user: the same
    user ID, the same paper sources (through the gateway), the same daily
@@ -15,4 +16,6 @@ export type AgentContext = {
   shelfConfig: ShelfConfig;
   /* Hold n of the user's daily searches; unused ones are given back when the request ends. */
   reserveSearches(n: number): Promise<void>;
+  /* Files the tools make for this conversation (documents, charts…). */
+  files: AgentFiles;
 };

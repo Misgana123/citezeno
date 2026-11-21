@@ -115,7 +115,7 @@ function harness(chat: ChatProvider) {
   const saved: StoredMessage[] = [];
   let pending: Pending | null = null;
   const deps: LoopDeps = {
-    ctx: { userId: 'u1', db: null as never, sources: () => null as never, papersConfig: { maxQueryChars: 1500, dailySearchesPerUser: 100 }, shelfConfig: shelfConfig({}), reserveSearches: async () => {} } as AgentContext,
+    ctx: { userId: 'u1', db: null as never, sources: () => null as never, papersConfig: { maxQueryChars: 1500, dailySearchesPerUser: 100 }, shelfConfig: shelfConfig({}), reserveSearches: async () => {}, files: { save: async () => { throw new Error('no files'); } } } as AgentContext,
     chat,
     model: { id: 'm', provider: 'fake', label: 'M', vendorModel: 'm', inputUsdPerM: 0, outputUsdPerM: 0 },
     emit: (e) => events.push(e),

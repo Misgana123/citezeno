@@ -5,10 +5,11 @@ import { json, sameOrigin } from '@/lib/http';
 import { papersServer } from '@/lib/papers/server';
 import { newMeter } from '@/lib/providers/gateway/meter';
 import type { Attachment } from '@/lib/providers/chat/types';
-import { chatModelsFor } from '@/lib/providers/server';
+import { chatModelsFor, fileStorage } from '@/lib/providers/server';
 import { allow } from '@/lib/ratelimit';
 import { shelfConfig } from '@/lib/shelf/config';
 import type { AgentContext } from './context';
+import { agentFiles } from './files';
 import { readingContext } from './prompt';
 import { searchReservations } from './limits';
 import { answer, repairHistory, resume, resumeWithClientResult, type ClientOutcome, type LoopDeps } from './loop';
@@ -84,6 +85,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     papersConfig: papers.config,
     shelfConfig: shelfConfig(),
     reserveSearches: searches.reserve,
+    files: agentFiles({ db: pool, store: fileStorage() }, { userId, conversationId: conversation.id }),
   };
 
   const encoder = new TextEncoder();

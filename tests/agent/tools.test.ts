@@ -36,6 +36,7 @@ function context(userId: string, db: unknown, get = openAlex()): AgentContext & 
     papersConfig: { maxQueryChars: 1500, dailySearchesPerUser: 100 },
     shelfConfig: shelfConfig({}),
     reserveSearches: vi.fn(async () => {}),
+    files: { save: vi.fn(async () => { throw new Error('no files in this test'); }) },
   };
 }
 

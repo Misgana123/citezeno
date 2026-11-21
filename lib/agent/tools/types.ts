@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import type { Paper } from '@/lib/papers/types';
 import type { ShelfItem } from '@/lib/shelf/types';
 import type { AgentContext } from '../context';
+import type { AgentFileRef } from '../files';
 import type { CitedSource } from './client';
 
 /* An agent tool is one action a user can take in the app, with a clear name,
@@ -12,7 +13,8 @@ import type { CitedSource } from './client';
 export type ToolDisplay = {
   papers?: Paper[];
   items?: ShelfItem[];
-  file?: { name: string; mime: string; text: string };
+  /* a small text file sent with the step (an export), or a file the tool stored (a document, a chart) */
+  file?: { name: string; mime: string; text: string } | AgentFileRef;
   sources?: CitedSource[];
   /* the reply's number for each paper shown here (by paper ID), as the answer cites them: [1], [2]… */
   refs?: Record<string, number>;

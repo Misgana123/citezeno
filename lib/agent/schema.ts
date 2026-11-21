@@ -33,4 +33,26 @@ create table if not exists agent_message (
   "createdAt"      timestamptz not null default now(),
   primary key ("conversationId", seq)
 );
+
+-- A file the assistant made for a conversation (a document, a chart…), kept in
+-- file storage. Deleted with its conversation or the account; the stored file
+-- then lands in the storage trash, which the background job empties.
+create table if not exists agent_file (
+  id               text        primary key,
+  "userId"         text        not null references "user"(id) on delete cascade,
+  "conversationId" text        not null references agent_conversation(id) on delete cascade,
+  "storageKey"     text        not null,
+  name             text        not null,
+  mime             text        not null,
+  "sizeBytes"      integer     not null,
+  "createdAt"      timestamptz not null default now()
+);
+create index if not exists agent_file_conversation on agent_file ("conversationId");
+create or replace function agent_file_to_trash() returns trigger language plpgsql as $$
+begin
+  insert into shelf_storage_trash (key) values (old."storageKey") on conflict do nothing;
+  return old;
+end $$;
+drop trigger if exists agent_file_trash on agent_file;
+create trigger agent_file_trash after delete on agent_file for each row execute function agent_file_to_trash();
 `;
