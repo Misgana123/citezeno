@@ -448,7 +448,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
               <button
                 key={c.label}
                 type="button"
-                className="ch-chip"
+                className="ch-suggest"
                 disabled={noModels}
                 onClick={() => {
                   setText(c.prompt);
