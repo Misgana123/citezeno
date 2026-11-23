@@ -6,7 +6,8 @@ import { nextUtcMidnight, utcDay } from '@/lib/providers/gateway/day';
 import { createLimiter, withLimiter } from '@/lib/providers/gateway/limiter';
 import { newMeter } from '@/lib/providers/gateway/meter';
 import { withPacing } from '@/lib/providers/gateway/pacer';
-import { backoffMs, withRetry } from '@/lib/providers/gateway/retry';
+import { withRate } from '@/lib/providers/gateway/rate';
+import { backoffMs, transient, withRetry } from '@/lib/providers/gateway/retry';
 import { gateway } from '@/lib/providers/gateway/stack';
 import { memoryCache, memorySlots, memorySpend } from '@/lib/providers/gateway/store/memory';
 import type { GatewayPolicy, Layer, Transport } from '@/lib/providers/gateway/types';
@@ -221,6 +222,50 @@ describe('semantic pacing', () => {
   });
 });
 
+describe('the waiting line (overall rate)', () => {
+  const RATED = { ...POLICY, rate: { perSecond: 10, maxWaitMs: 10_000 } };
+
+  it('lets a burst wait its turn instead of failing, never going over the rate', async () => {
+    const waits: number[] = [];
+    const { client, get } = fakeOpenAlex();
+    const rated = through(withRate(memorySlots(), RATED, { now: () => NOW, sleep: async (ms) => void waits.push(ms) }), client);
+    // 100 calls at the same moment, at 10 a second: every one is served within the 10 s wait limit
+    await Promise.all(Array.from({ length: 100 }, (_, i) => rated.get('/works', { search: `q${i}` })));
+    expect(get).toHaveBeenCalledTimes(100);
+    const starts = [0, ...waits].sort((a, b) => a - b);
+    expect(starts).toEqual(Array.from({ length: 100 }, (_, i) => i * 100));
+    // no one-second window holds more than 10 calls
+    for (const t of starts) expect(starts.filter((s) => s >= t && s < t + 1000).length).toBeLessThanOrEqual(10);
+  });
+
+  it('answers busy only once the wait would pass the limit', async () => {
+    const { client, get } = fakeOpenAlex();
+    const rated = through(withRate(memorySlots(), { ...RATED, rate: { perSecond: 10, maxWaitMs: 1000 } }, { now: () => NOW, sleep: async () => {} }), client);
+    const results = await Promise.allSettled(Array.from({ length: 15 }, () => rated.get('/works')));
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(11); // turns at 0, 100 … 1000 ms
+    expect(results.find((r) => r.status === 'rejected')).toMatchObject({ reason: { code: 'busy', details: { reason: 'rate_queue' } } });
+    expect(get).toHaveBeenCalledTimes(11);
+  });
+
+  it('shares one line between every server instance using the same slot store', async () => {
+    const slots = memorySlots();
+    const waits: number[] = [];
+    const opts = { now: () => NOW, sleep: async (ms: number) => void waits.push(ms) };
+    const a = through(withRate(slots, RATED, opts), fakeOpenAlex().client);
+    const b = through(withRate(slots, RATED, opts), fakeOpenAlex().client);
+    await Promise.all([a.get('/works'), b.get('/works'), a.get('/works'), b.get('/works')]);
+    expect(waits.sort((x, y) => x - y)).toEqual([100, 200, 300]);
+  });
+
+  it('leaves providers without a rate alone', async () => {
+    const sleep = vi.fn(async () => {});
+    const { client } = fakeOpenAlex();
+    const free = through(withRate(memorySlots(), { ...POLICY, rate: undefined }, { now: () => NOW, sleep }), client);
+    await Promise.all([free.get('/works'), free.get('/works')]);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+});
+
 describe('retry', () => {
   it('backs off with Retry-After, else exponentially, within limits', () => {
     expect(backoffMs(1, 1)).toBe(1000);
@@ -254,6 +299,40 @@ describe('retry', () => {
   });
 });
 
+describe('retrying hiccups', () => {
+  const timeout = () => new ProviderError('unavailable', 'timed out', { reason: 'timeout' });
+
+  it('knows a hiccup from a real failure', () => {
+    expect(transient(timeout())).toBe(true);
+    expect(transient(new ProviderError('unavailable', 'x', { reason: 'network' }))).toBe(true);
+    expect(transient(new ProviderError('unavailable', 'x', { status: 503 }))).toBe(true);
+    expect(transient(new ProviderError('unavailable', 'unreadable', { status: 200 }))).toBe(false);
+    expect(transient(new ProviderError('bad_request', 'x', { status: 400 }))).toBe(false);
+  });
+
+  it('tries once more after a hiccup when the provider allows it', async () => {
+    let n = 0;
+    const { client, get } = fakeOpenAlex(() => (++n === 1 ? timeout() : { results: [] }));
+    await expect(through(withRetry<Req>({ transientTries: 1, sleep: async () => {} }), client).get('/works')).resolves.toMatchObject({ status: 200 });
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives up after the extra try, and never retries hiccups by default', async () => {
+    const once = fakeOpenAlex(() => timeout());
+    await expect(through(withRetry<Req>({ transientTries: 1, sleep: async () => {} }), once.client).get('/works')).rejects.toMatchObject({ code: 'unavailable' });
+    expect(once.get).toHaveBeenCalledTimes(2);
+    const never = fakeOpenAlex(() => timeout());
+    await expect(through(withRetry<Req>({ sleep: async () => {} }), never.client).get('/works')).rejects.toMatchObject({ code: 'unavailable' });
+    expect(never.get).toHaveBeenCalledTimes(1);
+  });
+
+  it('OpenAlex takes its turn in a shared line and retries one hiccup', () => {
+    expect(POLICY.rate).toEqual({ perSecond: 10, maxWaitMs: 10_000 });
+    expect(POLICY.retryTransient).toBe(1);
+    expect(openAlexPolicy(openAlexConfig({ OPENALEX_RATE_PER_S: '500', PROVIDER_MAX_WAIT_MS: '3000' })).rate).toEqual({ perSecond: 100, maxWaitMs: 3000 });
+  });
+});
+
 describe('the full gateway', () => {
   function stack() {
     const { client, get } = fakeOpenAlex();
@@ -284,5 +363,16 @@ describe('the full gateway', () => {
     expect(m2).toEqual({ searches: 0, costUsd: 0, calls: 0 });
     expect(get).toHaveBeenCalledTimes(2);
     expect(await spend.spent('openalex', '2026-11-18')).toBeCloseTo(0.002);
+  });
+
+  it('a call waits its turn in the shared line before taking an in-flight place', async () => {
+    const { deps, get } = stack();
+    const waits: number[] = [];
+    // one in flight at a time, nobody may queue in-process: waiting happens in the shared line instead
+    const t = asClient(gateway({ ...deps, limiter: createLimiter({ concurrency: 1, maxQueue: 0 }), sleep: async (ms: number) => void waits.push(ms) }, newMeter()));
+    await t.get('/works', { search: 'a' });
+    await t.get('/works', { search: 'b' });
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(waits).toEqual([100]);
   });
 });

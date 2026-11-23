@@ -17,7 +17,7 @@ export type OpenAlexRequest = { path: string; params?: QueryParams };
 
 export type OpenAlexTransport = Transport<OpenAlexRequest>;
 
-type Deps = { config: Pick<OpenAlexConfig, 'apiKey' | 'baseUrl' | 'timeoutMs'>; fetch?: typeof fetch };
+type Deps = { config: Pick<OpenAlexConfig, 'apiKey' | 'baseUrl' | 'timeoutMs'> & Partial<Pick<OpenAlexConfig, 'userAgent'>>; fetch?: typeof fetch };
 
 export function buildUrl(baseUrl: string, path: string, params: QueryParams = {}) {
   const url = new URL(baseUrl + (path.startsWith('/') ? path : `/${path}`));
@@ -72,6 +72,7 @@ export function createOpenAlexTransport({ config, fetch: doFetch = fetch }: Deps
     async call<T>({ path, params = {} }: OpenAlexRequest) {
       const url = buildUrl(config.baseUrl, path, params);
       const headers: Record<string, string> = { accept: 'application/json' };
+      if (config.userAgent) headers['user-agent'] = config.userAgent;
       if (config.apiKey) headers.authorization = `Bearer ${config.apiKey}`;
 
       let res: Response;

@@ -44,4 +44,10 @@ export type GatewayPolicy<Req> = {
   maxQueue: number;
   /* Attempts in all for rate-limited (429) calls. */
   retryTries: number;
+  /* The provider's overall speed limit, shared by every server instance: calls
+     wait their turn, at most maxWaitMs, before callers get "busy". */
+  rate?: { perSecond: number; maxWaitMs: number };
+  /* Extra attempts for a call that timed out, couldn't connect or got a server
+     error (5xx). Only for calls that are safe to repeat (reads); default none. */
+  retryTransient?: number;
 };

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { papersConfig } from '@/lib/papers/config';
 import { ProviderError } from '@/lib/providers/errors';
+import { sharedProviderConfig } from '@/lib/providers/shared';
 import { buildUrl, createOpenAlexTransport, readCost, type QueryParams } from '@/lib/providers/openalex/client';
 import { openAlexConfig } from '@/lib/providers/openalex/config';
 
@@ -36,6 +37,9 @@ describe('openAlexConfig', () => {
       dailyCapUsd: 2,
       cacheSearchS: 86_400,
       cachePaperS: 604_800,
+      ratePerS: 10,
+      maxWaitMs: 10_000,
+      userAgent: 'Citezeno/1.0 (+https://citezeno.com)',
     });
   });
 
@@ -82,6 +86,15 @@ describe('OpenAlex client', () => {
     await createOpenAlexClient({ config: { ...CONFIG, apiKey: null }, fetch }).get('/works');
     const [, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
     expect((init.headers as Record<string, string>).authorization).toBeUndefined();
+  });
+
+  it('says who we are, with the contact email when one is set', async () => {
+    const fetch = respond(200, { results: [] });
+    const { userAgent } = sharedProviderConfig({ PROVIDER_CONTACT_EMAIL: 'team@example.org' });
+    await createOpenAlexClient({ config: { ...CONFIG, userAgent }, fetch }).get('/works');
+    const [, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
+    expect((init.headers as Record<string, string>)['user-agent']).toBe('Citezeno/1.0 (+https://citezeno.com; mailto:team@example.org)');
+    expect(sharedProviderConfig({ PROVIDER_CONTACT_EMAIL: 'not an email' }).userAgent).toBe('Citezeno/1.0 (+https://citezeno.com)');
   });
 
   it('reads cost from meta, then from the header', () => {

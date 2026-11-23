@@ -44,13 +44,12 @@ export function ttlFor(path: string, params: QueryParams, config: Pick<OpenAlexC
 
 /* OpenAlex allows one semantic search per second per key. */
 export const SEMANTIC_INTERVAL_MS = 1100; // with a little margin
-export const MAX_SLOT_WAIT_MS = 6000;
 
 /* Calls to OpenAlex at once, and how many may wait; past that, "busy". */
 const CONCURRENCY = 8;
 const MAX_QUEUE = 40;
 
-export function openAlexPolicy(config: OpenAlexConfig): GatewayPolicy<OpenAlexRequest> {
+export function openAlexPolicy(config: Pick<OpenAlexConfig, 'cacheSearchS' | 'cachePaperS' | 'dailyAlertUsd' | 'dailyCapUsd' | 'ratePerS' | 'maxWaitMs'>): GatewayPolicy<OpenAlexRequest> {
   return {
     provider: PROVIDER,
     label: 'OpenAlex',
@@ -60,12 +59,15 @@ export function openAlexPolicy(config: OpenAlexConfig): GatewayPolicy<OpenAlexRe
         search: isSearch(kind),
         cacheKey: cacheKey(path, params),
         cacheTtlS: ttlFor(path, params, config),
-        pace: kind === 'semantic' ? { key: 'semantic', intervalMs: SEMANTIC_INTERVAL_MS, maxWaitMs: MAX_SLOT_WAIT_MS } : undefined,
+        pace: kind === 'semantic' ? { key: 'semantic', intervalMs: SEMANTIC_INTERVAL_MS, maxWaitMs: config.maxWaitMs } : undefined,
       };
     },
     spend: { dailyAlertUsd: config.dailyAlertUsd, dailyCapUsd: config.dailyCapUsd, configHint: 'PAPERS_DAILY_ALERT_USD and PAPERS_DAILY_CAP_USD' },
     concurrency: CONCURRENCY,
     maxQueue: MAX_QUEUE,
     retryTries: 3,
+    rate: { perSecond: config.ratePerS, maxWaitMs: config.maxWaitMs },
+    // every OpenAlex call is a read, so a hiccup is worth one more try
+    retryTransient: 1,
   };
 }
