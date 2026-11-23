@@ -79,7 +79,7 @@ describe('choosing providers by configuration', () => {
   });
 
   it('registers today’s providers under each job', () => {
-    expect(Object.keys(PAPER_PROVIDERS)).toEqual(['openalex']);
+    expect(Object.keys(PAPER_PROVIDERS)).toEqual(['openalex', 'arxiv', 'pubmed', 'europepmc', 'semanticscholar', 'clinicaltrials']);
     expect(Object.keys(FILE_STORAGE_PROVIDERS)).toEqual(['r2', 'cloudinary']);
     expect(Object.keys(PDF_TEXT_PROVIDERS)).toEqual(['basic', 'pdfjs']);
     expect(primaryPaperLimits({})).toEqual({ maxQueryChars: 1500, semanticMax: 50 });
