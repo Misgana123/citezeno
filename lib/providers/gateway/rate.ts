@@ -15,7 +15,7 @@ export const RATE_KEY = 'all';
 export const intervalFor = (perSecond: number) => Math.ceil(1000 / perSecond);
 
 export const withRate =
-  <Req>(slots: SlotStore, policy: Pick<GatewayPolicy<Req>, 'provider' | 'label' | 'rate'>, opts: { now?: () => number; sleep?: Sleep } = {}): Layer<Req> =>
+  <Req>(slots: SlotStore, policy: Pick<GatewayPolicy<Req>, 'provider' | 'label' | 'rate'>, opts: { now?: () => number; sleep?: Sleep; onWait?: (ms: number) => void } = {}): Layer<Req> =>
   (inner) => {
     const rate = policy.rate;
     if (!rate || !(rate.perSecond > 0)) return inner;
@@ -26,7 +26,10 @@ export const withRate =
         if (wait == null) {
           throw new ProviderError('busy', `${policy.label} is busy: too many calls waiting.`, { provider: policy.provider, reason: 'rate_queue', retryAfterS: Math.ceil(rate.maxWaitMs / 1000) });
         }
-        if (wait > 0) await (opts.sleep ?? realSleep)(wait);
+        if (wait > 0) {
+          opts.onWait?.(wait);
+          await (opts.sleep ?? realSleep)(wait);
+        }
         return inner.call<T>(req);
       },
     };

@@ -8,6 +8,7 @@ import { withMeter, type Meter } from './meter';
 import { withPacing, type Sleep } from './pacer';
 import { withRate } from './rate';
 import { withRetry } from './retry';
+import { noStats, withCallStats, withRefusalStats, type Stats } from './stats';
 import type { CacheStore, SlotStore, SpendStore } from './store/types';
 import type { GatewayPolicy, Layer, Transport } from './types';
 
@@ -41,6 +42,8 @@ export type GatewayDeps<Req> = {
   flights?: Flights;
   /* This provider's breaker in this instance, when its policy asks for one. */
   breaker?: Breaker | null;
+  /* Counts for the admin page (default: not counted). */
+  stats?: Stats;
   alert: (a: SpendAlert) => void | Promise<void>;
   now?: () => number;
   sleep?: Sleep;
@@ -52,16 +55,21 @@ const pass: Layer<never> = (inner) => inner;
 const skip = <Req>() => pass as Layer<Req>;
 
 export function gateway<Req>(d: GatewayDeps<Req>, meter: Meter): Transport<Req> {
+  const stats = d.stats ?? noStats;
+  const count = (name: Parameters<Stats['add']>[1]) => () => stats.add(d.policy.provider, name);
+  const waited = (ms: number) => stats.add(d.policy.provider, 'waited', ms);
   return compose(
     d.transport,
-    withCache(d.cache, d.policy),
-    d.flights ? withFlight(d.flights, d.policy) : skip<Req>(),
+    withCache(d.cache, d.policy, { onHit: count('cache_hit'), onMiss: count('cache_miss'), onStale: count('cache_stale') }),
+    d.flights ? withFlight(d.flights, d.policy, count('shared')) : skip<Req>(),
     withMeter(meter, d.policy),
+    withRefusalStats(stats, d.policy),
     withBudget(d.spend, d.policy, d.alert, d.now),
     d.breaker ? withBreaker(d.breaker, d.policy) : skip<Req>(),
     withRetry({ tries: d.policy.retryTries, transientTries: d.policy.retryTransient, sleep: d.sleep }),
-    withRate(d.slots, d.policy, { now: d.now, sleep: d.sleep }),
-    withPacing(d.slots, d.policy, { now: d.now, sleep: d.sleep }),
+    withRate(d.slots, d.policy, { now: d.now, sleep: d.sleep, onWait: waited }),
+    withPacing(d.slots, d.policy, { now: d.now, sleep: d.sleep, onWait: waited }),
     withLimiter(d.limiter),
+    withCallStats(stats, d.policy, d.now),
   );
 }

@@ -140,6 +140,18 @@ create table if not exists provider_spend (
   "cappedAt"  timestamptz,
   primary key (provider, day)
 );
+-- Provider gateway (v9): what the gateway did per provider and UTC hour, for the
+-- admin page (totals only: no users, no search text). "totalMs" sums the time
+-- of counts that have one (calls, waits).
+create table if not exists provider_stats (
+  hour       text             not null,
+  provider   text             not null,
+  name       text             not null,
+  count      bigint           not null default 0,
+  "totalMs"  double precision not null default 0,
+  primary key (hour, provider, name)
+);
+
 -- carry OpenAlex's spending over from before the gateway (papers_spend is no longer written)
 insert into provider_spend (provider, day, usd, calls, searches, "alertedAt", "cappedAt")
   select 'openalex', day, usd, calls, searches, "alertedAt", "cappedAt" from papers_spend

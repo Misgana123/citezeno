@@ -2,16 +2,30 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ColumnChart } from '@/components/admin/ColumnChart';
 import { GrantCredits, HandledToggle } from '@/components/admin/AdminActions';
+import { ProviderHealth, type ProviderHealthRow } from '@/components/admin/ProviderHealth';
 import { AppShell, PageHead } from '@/components/app/AppShell';
 import { requireAdmin } from '@/lib/admin';
 import { pool } from '@/lib/db';
 import { timeAgo } from '@/lib/library';
+import { providerStatsSince } from '@/lib/providers/gateway/store/pg';
 
 export const metadata: Metadata = { title: 'Admin', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 const DAYS = 30;
+const SERVICE_HOURS = 24;
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+/* The outside services' counts for the last day, with what each spent today (UTC). */
+async function services(): Promise<ProviderHealthRow[]> {
+  const [stats, spend] = await Promise.all([
+    providerStatsSince(SERVICE_HOURS),
+    pool.query<{ provider: string; usd: number }>(`select provider, usd from provider_spend where day = to_char(now() at time zone 'utc', 'YYYY-MM-DD')`).then((r) => r.rows),
+  ]);
+  const spent = new Map(spend.map((r) => [r.provider, Number(r.usd)]));
+  const names = [...new Set([...stats.keys(), ...spent.keys()])].sort();
+  return names.map((provider) => ({ provider, counts: stats.get(provider) ?? new Map(), spentTodayUsd: spent.get(provider) ?? 0 }));
+}
 
 /* One row per day for the last 30 days (UTC), zero-filled. */
 async function daily(sql: string) {
@@ -30,7 +44,7 @@ export default async function AdminPage({ searchParams }: Props) {
   const q = typeof sp.q === 'string' ? sp.q.trim().slice(0, 100) : '';
   const inbox = sp.inbox === 'all' ? 'all' : 'open';
 
-  const [kpi, revenue, signups, spent, users, messages] = await Promise.all([
+  const [kpi, revenue, signups, spent, users, messages, serviceRows] = await Promise.all([
     pool
       .query<Record<string, string>>(
         `select
@@ -70,6 +84,7 @@ export default async function AdminPage({ searchParams }: Props) {
         [inbox],
       )
       .then((r) => r.rows),
+    services(),
   ]);
 
   const tiles: [string, string, string?][] = [
@@ -83,7 +98,7 @@ export default async function AdminPage({ searchParams }: Props) {
 
   return (
     <AppShell current="admin" title="Admin">
-      <PageHead title="Admin">Accounts, usage, revenue and the contact inbox. Revenue counts paid Polar orders before refunds.</PageHead>
+      <PageHead title="Admin">Accounts, usage, revenue, outside services and the contact inbox. Revenue counts paid Polar orders before refunds.</PageHead>
 
       <section className="adm-tiles" aria-label="Key numbers">
         {tiles.map(([v, label, sub]) => (
@@ -99,6 +114,8 @@ export default async function AdminPage({ searchParams }: Props) {
         <ColumnChart title="New accounts per day" unit="accounts" data={signups} />
         <ColumnChart title="Credits used per day" unit="credits" data={spent} />
       </section>
+
+      <ProviderHealth rows={serviceRows} hours={SERVICE_HOURS} />
 
       <section className="panel" id="users">
         <div className="adm-head">

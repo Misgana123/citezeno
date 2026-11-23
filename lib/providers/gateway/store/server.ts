@@ -1,7 +1,8 @@
 import 'server-only';
 import { redis } from '@/lib/redis';
 import { cacheWithFallback, slotsWithFallback, storeHealth } from './fallback';
-import { pgCache, pgSlots, pgSpend } from './pg';
+import { statsCollector, type Stats } from '../stats';
+import { pgCache, pgSlots, pgSpend, pgStats } from './pg';
 import { redisCache, redisSlots } from './redis';
 import type { CacheStore, SlotStore, SpendStore } from './types';
 
@@ -12,7 +13,10 @@ import type { CacheStore, SlotStore, SpendStore } from './types';
 
 export type GatewayStores = { cache: CacheStore; slots: SlotStore; spend: SpendStore };
 
-const g = globalThis as unknown as { __czGatewayStores?: { key: string; stores: GatewayStores } };
+const g = globalThis as unknown as { __czGatewayStores?: { key: string; stores: GatewayStores }; __czGatewayStats?: Stats };
+
+/* This instance's counts for the admin page, written to Postgres every few seconds. */
+export const gatewayStats = (): Stats => (g.__czGatewayStats ??= statsCollector(pgStats));
 
 export function gatewayStores(): GatewayStores {
   const client = redis();
