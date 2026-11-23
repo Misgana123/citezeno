@@ -8,17 +8,21 @@ export const runtime = 'nodejs';
 const MAX_TRACES = 200;
 const MAX_BYTES = 1_500_000;
 
-type Row = { id: string; title: string; style: string; mode: string; sources: number; snippet: string; savedAt: Date; shareToken: string | null; shareViews: number };
+type Row = {
+  id: string; title: string; style: string; mode: string; sources: number; snippet: string; savedAt: Date;
+  shareToken: string | null; shareViews: number; shareExpiresAt: Date | null; shareLocked: boolean; titleLocked: boolean;
+};
 
 /* List the signed-in user's saved traces (metadata only; open one to get its data). */
 export async function GET(req: Request) {
   const s = await auth.api.getSession({ headers: req.headers });
   if (!s) return json({ error: 'Sign in to see your library.' }, 401);
   const { rows } = await pool.query<Row>(
-    `select id, title, style, mode, sources, snippet, "savedAt", "shareToken", "shareViews" from trace where "userId" = $1 order by "savedAt" desc limit $2`,
+    `select id, title, style, mode, sources, snippet, "savedAt", "shareToken", "shareViews", "shareExpiresAt", ("sharePassword" is not null) as "shareLocked", "titleLocked"
+     from trace where "userId" = $1 order by "savedAt" desc limit $2`,
     [s.user.id, MAX_TRACES],
   );
-  return json({ items: rows.map((r) => ({ ...r, savedAt: new Date(r.savedAt).getTime() })) });
+  return json({ items: rows.map((r) => ({ ...r, savedAt: new Date(r.savedAt).getTime(), shareExpiresAt: r.shareExpiresAt ? new Date(r.shareExpiresAt).getTime() : null })) });
 }
 
 /* Save (insert or update) one trace. Body: a library entry from lib/library.ts. */

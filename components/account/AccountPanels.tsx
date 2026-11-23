@@ -190,7 +190,7 @@ export function AccountPanels({
 
         <section className="panel" id="library">
           <h2>Library</h2>
-          <p>Every trace you run while signed in is saved to your account and appears in the studio library on any device.</p>
+          <p>Every trace you run while signed in is saved to your account and appears in the Library in Citation on any device.</p>
           <div className="stats">
             <div className="stat">
               <b>{stats.traces}</b>

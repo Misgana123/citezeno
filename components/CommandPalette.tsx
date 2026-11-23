@@ -7,7 +7,7 @@ import { Icon, type IconName } from './Icon';
 import { readHref } from './reader/api';
 
 /* Search (Ctrl K): one box for the user's chats, the papers on their shelf,
-   their citation studio drafts, and actions (going somewhere, page commands).
+   their citation drafts, and actions (going somewhere, page commands).
    Tabs narrow it to one kind; with no words it shows what was used recently.
    Tab hands the words to the assistant as a new chat. */
 
@@ -140,10 +140,9 @@ export function CommandPalette() {
     const go = (href: string) => () => router.push(href);
     return [
       { id: 'new-chat', group: 'Actions', label: 'New chat', icon: 'plus', keywords: 'assistant ask agent', run: go('/app/chat') },
-      { id: 'go-citation', group: 'Actions', label: 'Citation studio', icon: 'doc', keywords: 'studio cite trace draft', run: go('/app/citation') },
+      { id: 'go-citation', group: 'Actions', label: 'Citation', icon: 'doc', keywords: 'studio cite trace draft', run: go('/app/citation') },
       { id: 'go-papers', group: 'Actions', label: 'Find papers', icon: 'book', keywords: 'search research papers articles openalex literature', run: go('/app/papers') },
       { id: 'go-shelf', group: 'Actions', label: 'My shelf', icon: 'layers', keywords: 'shelf saved papers keep reading list projects', run: go('/app/shelf') },
-      { id: 'go-library', group: 'Actions', label: 'Library', icon: 'history', keywords: 'saved traces drafts share', run: go('/app/library') },
       { id: 'go-history', group: 'Actions', label: 'History', icon: 'clock', keywords: 'activity log timeline past', run: go('/app/history') },
       { id: 'go-account', group: 'Actions', label: 'Account settings', icon: 'user', keywords: 'profile password sign in', run: go('/app/account') },
       { id: 'go-pricing', group: 'Actions', label: 'Pricing and credits', icon: 'bolt', keywords: 'buy credits plan billing', run: go('/pricing') },

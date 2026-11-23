@@ -80,10 +80,7 @@ export function UserMenu() {
             <Icon name="bolt" /> Pricing and credits
           </Link>
           <Link href="/app/citation" role="menuitem">
-            <Icon name="doc" /> Studio
-          </Link>
-          <Link href="/app/library" role="menuitem">
-            <Icon name="list" /> Library
+            <Icon name="doc" /> Citation
           </Link>
           <Link href="/app/history" role="menuitem">
             <Icon name="history" /> History

@@ -105,7 +105,7 @@ export function Nav({ onBlue = false }: { onBlue?: boolean }) {
 }
 
 const FOOT_COLS: [string, [string, string][]][] = [
-  ['Product', [['/app/citation', 'Studio'], ['/#method', 'How it works'], ['/pricing', 'Pricing']]],
+  ['Product', [['/app/citation', 'Citation'], ['/#method', 'How it works'], ['/pricing', 'Pricing']]],
   ['Generators', [['/styles/apa', 'APA'], ['/styles/mla', 'MLA'], ['/styles/chicago', 'Chicago'], ['/styles/harvard', 'Harvard'], ['/styles/ieee', 'IEEE'], ['/styles/vancouver', 'Vancouver'], ['/styles', 'All styles']]],
   ['Company', [['/contact', 'Contact'], ['/privacy', 'Privacy'], ['/terms', 'Terms']]],
 ];

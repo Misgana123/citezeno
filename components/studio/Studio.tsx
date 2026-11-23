@@ -35,7 +35,7 @@ import type { OriginalDoc } from './DocxPreview';
 import { EvictDialog } from './EvictDialog';
 import { Controls, MODES } from './Controls';
 import { Editor, type EditorApi } from './Editor';
-import { LibraryDrawer } from './LibraryDrawer';
+import { LibraryDialog } from './LibraryDialog';
 import { SidePanel, type OutlineClaim, type SideTab } from './SidePanel';
 import { Progress, type StepView } from './Progress';
 import { Results, type SourceEdits, type Tab } from './Results';
@@ -219,7 +219,12 @@ export function Studio() {
       const local = upsert(entry);
       if (!userId) return setLibrary(local);
       // the account keeps its newest ACCOUNT_MAX traces
-      setLibrary((prev) => [entry, ...prev.filter((x) => x.id !== entry.id)].sort((a, b) => b.savedAt - a.savedAt).slice(0, ACCOUNT_MAX));
+      // a title set by hand and the share link stay as they are
+      setLibrary((prev) => {
+        const was = prev.find((x) => x.id === entry.id);
+        const next: LibItem = was ? { ...was, ...entry, title: was.titleLocked ? was.title : entry.title } : entry;
+        return [next, ...prev.filter((x) => x.id !== entry.id)].sort((a, b) => b.savedAt - a.savedAt).slice(0, ACCOUNT_MAX);
+      });
       if (isNew && accountKnown.current && lib.length + 1 >= ACCOUNT_NOTICE && !nearFullTold.current) {
         nearFullTold.current = true;
         toast(`Your library holds ${Math.min(lib.length + 1, ACCOUNT_MAX)} of ${ACCOUNT_MAX} traces. Download or delete old ones to make room.`);
@@ -569,12 +574,12 @@ export function Studio() {
   /* command palette entries for this page */
   useEffect(() => {
     const cmds: Command[] = [
-      { id: 'run', group: 'Studio', label: 'Trace sources', icon: 'search', meta: 'Ctrl Enter', run: () => run() },
-      { id: 'settings', group: 'Studio', label: 'Database settings', icon: 'gear', run: () => setSettingsOpen(true) },
-      { id: 'check', group: 'Studio', label: 'Check existing citations', icon: 'shield', keywords: 'verify fake references doi bibliography retracted', run: () => runCheck() },
-      { id: 'library', group: 'Studio', label: 'Open the library of recent traces', icon: 'history', keywords: 'history recent saved', run: () => setLibOpen(true) },
+      { id: 'run', group: 'Citation', label: 'Trace sources', icon: 'search', meta: 'Ctrl Enter', run: () => run() },
+      { id: 'settings', group: 'Citation', label: 'Database settings', icon: 'gear', run: () => setSettingsOpen(true) },
+      { id: 'check', group: 'Citation', label: 'Check existing citations', icon: 'shield', keywords: 'verify fake references doi bibliography retracted', run: () => runCheck() },
+      { id: 'library', group: 'Citation', label: 'Open the library of recent traces', icon: 'history', keywords: 'history recent saved', run: () => setLibOpen(true) },
       ...Object.entries(SAMPLES).map(([k, s]) => ({
-        id: 'sample-' + k, group: 'Studio', label: `Load the sample “${s.label}”`, icon: 'doc' as const, run: () => setDraft(s.text),
+        id: 'sample-' + k, group: 'Citation', label: `Load the sample “${s.label}”`, icon: 'doc' as const, run: () => setDraft(s.text),
       })),
       ...STYLE_GROUPS.flatMap(([g, ids]) =>
         ids.map((id) => ({
@@ -644,6 +649,11 @@ export function Studio() {
     setShowProgress(false);
     setTimeout(() => resultsEl.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   };
+  /* a renamed or (un)shared trace from the library or share dialogs; renaming the open trace renames its document too */
+  const patchEntry = (id: string, p: Partial<LibItem>) => {
+    setLibrary((prev) => prev.map((x) => (x.id === id ? { ...x, ...p } : x)));
+    if (p.title && id === entryId) setDoc({ title: p.title });
+  };
   /* the share dialog: pick a design, preview the public page, then create the link */
   const openShare = () => {
     if (!result || !entryId) return toast('Trace your draft first, then share it.', true);
@@ -651,7 +661,7 @@ export function Studio() {
     setShareOpen(true);
   };
 
-  /* /studio?open=<id> (from the library page) opens that trace */
+  /* /app/citation?open=<id> (from search, history or the assistant) opens that trace */
   useEffect(() => {
     if (!userId) return;
     const id = new URLSearchParams(window.location.search).get('open');
@@ -902,10 +912,11 @@ export function Studio() {
       {drawer && <div className="at-scrim" onClick={() => setDrawer('')} aria-hidden="true" />}
 
       {libOpen && (
-        <LibraryDrawer
+        <LibraryDialog
           items={library}
           signedIn={Boolean(userId)}
           currentId={entryId}
+          owner={session?.user.name || ''}
           onOpen={openEntry}
           onDelete={(id) => {
             const local = removeEntry(id);
@@ -916,6 +927,7 @@ export function Studio() {
             if (id === entryId) setEntryId(null);
             toast('Deleted from the library');
           }}
+          onPatch={patchEntry}
           onClose={() => setLibOpen(false)}
         />
       )}
@@ -959,10 +971,13 @@ export function Studio() {
       {shareOpen && result && entryId && (
         <ShareDialog
           id={entryId}
-          title={suggestTitle(tracedDraft.current)}
+          title={library.find((x) => x.id === entryId)?.title || suggestTitle(tracedDraft.current)}
           owner={session?.user.name || ''}
           saved={toSaved(entryId, suggestTitle(tracedDraft.current), tracedDraft.current, prefs.style, prefs.mode, result)}
           onClose={() => setShareOpen(false)}
+          onChange={(st) =>
+            patchEntry(entryId, { shareToken: st?.token ?? null, shareViews: st?.views ?? 0, shareExpiresAt: st?.expiresAt ? Date.parse(st.expiresAt) : null, shareLocked: Boolean(st?.hasPassword) })
+          }
         />
       )}
 

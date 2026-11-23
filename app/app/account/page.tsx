@@ -46,7 +46,7 @@ export default async function AccountPage() {
           ) : undefined
         }
       >
-        Manage your profile, credits, sign-in methods and devices. Your traces live in the <Link href="/app/library">library</Link>.
+        Manage your profile, credits, sign-in methods and devices. Your traces live in the Library in <Link href="/app/citation">Citation</Link>.
       </PageHead>
       <AccountPanels
         user={{ id: u.id, name: u.name, email: u.email, image: u.image ?? null, emailVerified: u.emailVerified, createdAt: new Date(u.createdAt).getTime(), twoFactorEnabled: Boolean((u as { twoFactorEnabled?: boolean | null }).twoFactorEnabled) }}

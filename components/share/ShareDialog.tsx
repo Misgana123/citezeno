@@ -34,7 +34,7 @@ type Props = {
   title: string;
   /* the signed-in user's name, shown as "Shared by …" */
   owner: string;
-  /* the open trace from the studio; the library page leaves it out and the dialog fetches it */
+  /* the open trace from the studio; the library dialog leaves it out and the dialog fetches it */
   saved?: Saved;
   onClose: () => void;
   onChange?: (s: ShareState | null) => void;

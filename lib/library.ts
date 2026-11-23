@@ -26,7 +26,7 @@ const KEY = 'cz:library';
 export const LOCAL_MAX = 12;
 /* traces kept in an account (the API drops the oldest beyond this) */
 export const ACCOUNT_MAX = 200;
-/* from here on the library page and drawer say the account library is nearly full */
+/* from here on the studio's library says the account library is nearly full */
 export const ACCOUNT_NOTICE = 190;
 const MAX = LOCAL_MAX;
 

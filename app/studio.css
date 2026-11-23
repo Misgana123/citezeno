@@ -255,17 +255,19 @@
 .drawer-head .small { margin: 4px 0 0; }
 .drawer-empty { padding: 48px 32px; text-align: center; color: var(--ink-3); display: grid; justify-items: center; gap: 10px; }
 .drawer-empty svg { width: 32px; height: 32px; color: var(--thread); }
-.lib { list-style: none; margin: 0; padding: 12px; overflow: auto; display: grid; gap: 8px; }
-.lib li { position: relative; border: 1px solid var(--rule-2); border-radius: 12px; background: var(--card); transition: border-color 0.15s; }
-.lib li:hover { border-color: var(--ink-3); }
-.lib li.current { border-color: var(--thread); box-shadow: 0 0 0 3px var(--thread-soft); }
-.lib-open { display: grid; gap: 6px; width: 100%; text-align: left; border: 0; background: transparent; padding: 14px 52px 14px 16px; color: var(--ink); }
-.lib-open b { font-size: 15.5px; line-height: 1.3; }
+/* the studio's library: a wide dialog with the search bar and the trace list */
+.dialog.libd { width: min(940px, 100%); max-height: calc(100vh - 12vh - 24px); display: flex; flex-direction: column; padding: 24px 24px 20px; }
+.libd-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 16px; }
+.libd-head .small { margin: 2px 0 0; }
+.libd-list { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 2px; }
+.libd .libm-title { padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.libd .libm-list li.current { border-color: var(--thread); box-shadow: 0 0 0 3px var(--thread-soft); }
+.lib-meta .open-now { background: var(--thread-soft) !important; color: var(--thread) !important; }
+.libd .lib-empty { padding: 48px 16px; }
+.libd .drawer-note { margin: 14px 0 0; }
 .lib-meta { display: flex; flex-wrap: wrap; gap: 6px; }
 .lib-meta span { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--ground-2); color: var(--ink-2); }
 .lib-snip { font-size: 13.5px; line-height: 1.5; color: var(--ink-3); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.lib-del { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; color: var(--ink-3); }
-.lib-del:hover { color: var(--warn); }
 
 /* export */
 .xp { display: grid; gap: 28px; }

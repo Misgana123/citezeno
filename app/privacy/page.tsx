@@ -149,11 +149,11 @@ export default function PrivacyPage() {
                   </b>
                   <small>Edit your name and sign out other devices.</small>
                 </Link>
-                <Link href="/app/library">
+                <Link href="/app/citation">
                   <b>
                     Delete a saved trace <Icon name="arrow" />
                   </b>
-                  <small>From your library, at any time.</small>
+                  <small>From the Library in Citation, at any time.</small>
                 </Link>
                 <Link href="/contact?topic=Account%20help">
                   <b>
