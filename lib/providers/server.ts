@@ -4,6 +4,8 @@ import { CODE_SANDBOX_PROVIDERS, DEFAULT_CODE_SANDBOX } from './code-sandbox/reg
 import type { CodeSandbox } from './code-sandbox/types';
 import { chooseProviders, choose } from './config';
 import { embedder, type Embedder } from './embeddings/embedder';
+import { DEFAULT_ENRICHERS, ENRICH_PROVIDERS } from './enrich/registry';
+import type { PaperEnricher } from './enrich/types';
 import { sendSpendAlert } from './gateway/alert';
 import { createBreaker, type Breaker } from './gateway/breaker';
 import { newFlights, type Flights } from './gateway/flight';
@@ -56,6 +58,15 @@ export function paperSourcesFor(meter: Meter = newMeter(), env: Env = process.en
     .map((d) => d.create(env, gate))
     .filter((s): s is PaperSource => s != null);
   return paperSources(built);
+}
+
+/* The providers that fill in paper details (PAPER_ENRICHERS), in the order
+   listed; those not configured (a missing key or contact email) are left out. */
+export function paperEnrichersFor(meter: Meter = newMeter(), env: Env = process.env): PaperEnricher[] {
+  const gate = gateFor(meter);
+  return chooseProviders(ENRICH_PROVIDERS, choose.enrichers(env), DEFAULT_ENRICHERS, 'paper enricher')
+    .map((d) => d.create(env, gate))
+    .filter((e): e is PaperEnricher => e != null);
 }
 
 /* The configured file storage, or null when it isn't set up. */

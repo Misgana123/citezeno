@@ -1,0 +1,299 @@
+{
+    "status": "ok",
+    "message-type": "work-list",
+    "message-version": "1.0.0",
+    "message": {
+        "facets": {},
+        "total-results": 2,
+        "items": [
+            {
+                "license": [
+                    {
+                        "start": {
+                            "date-parts": [
+                                [
+                                    2023,
+                                    3,
+                                    9
+                                ]
+                            ],
+                            "date-time": "2023-03-09T00:00:00Z",
+                            "timestamp": 1678320000000
+                        },
+                        "content-version": "vor",
+                        "delay-in-days": 0,
+                        "URL": "https://creativecommons.org/licenses/by/4.0/"
+                    }
+                ],
+                "abstract": "<jats:p>Gene editing stands for the methods to precisely make changes to a specific nucleic acid sequence. With the recent development of the clustered regularly interspaced short palindromic repeats (CRISPR)/Cas9 system, gene editing has become efficient, convenient and programmable, leading to promising translational studies and clinical trials for both genetic and non-genetic diseases. A major concern in the applications of the CRISPR/Cas9 system is about its off-target effects, namely the deposition of unexpected, unwanted, or even adverse alterations to the genome. To date, many methods have been developed to nominate or detect the off-target sites of CRISPR/Cas9, which laid the basis for the successful upgrades of CRISPR/Cas9 derivatives with enhanced precision. In this review, we summarize these technological advancements and discuss about the current challenges in the management of off-target effects for future gene therapy.</jats:p>",
+                "DOI": "10.3389/fbioe.2023.1143157",
+                "type": "journal-article",
+                "is-referenced-by-count": 658,
+                "title": [
+                    "Off-target effects in CRISPR/Cas9 gene editing"
+                ],
+                "author": [
+                    {
+                        "given": "Congting",
+                        "family": "Guo",
+                        "sequence": "first",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Xiaoteng",
+                        "family": "Ma",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Fei",
+                        "family": "Gao",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Yuxuan",
+                        "family": "Guo",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    }
+                ],
+                "container-title": [
+                    "Frontiers in Bioengineering and Biotechnology"
+                ],
+                "link": [
+                    {
+                        "URL": "https://www.frontiersin.org/articles/10.3389/fbioe.2023.1143157/full",
+                        "content-type": "unspecified",
+                        "content-version": "vor",
+                        "intended-application": "similarity-checking"
+                    }
+                ],
+                "issued": {
+                    "date-parts": [
+                        [
+                            2023,
+                            3,
+                            9
+                        ]
+                    ]
+                }
+            },
+            {
+                "license": [
+                    {
+                        "start": {
+                            "date-parts": [
+                                [
+                                    2017,
+                                    9,
+                                    20
+                                ]
+                            ],
+                            "date-time": "2017-09-20T00:00:00Z",
+                            "timestamp": 1505865600000
+                        },
+                        "content-version": "tdm",
+                        "delay-in-days": 0,
+                        "URL": "http://www.springer.com/tdm"
+                    }
+                ],
+                "DOI": "10.1038/nature24268",
+                "type": "journal-article",
+                "is-referenced-by-count": 1160,
+                "title": [
+                    "Enhanced proofreading governs CRISPR\u2013Cas9 targeting accuracy"
+                ],
+                "author": [
+                    {
+                        "given": "Janice S.",
+                        "family": "Chen",
+                        "sequence": "first",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Yavuz S.",
+                        "family": "Dagdas",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Benjamin P.",
+                        "family": "Kleinstiver",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Moira M.",
+                        "family": "Welch",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Alexander A.",
+                        "family": "Sousa",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Lucas B.",
+                        "family": "Harrington",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Samuel H.",
+                        "family": "Sternberg",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "J. Keith",
+                        "family": "Joung",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Ahmet",
+                        "family": "Yildiz",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Jennifer A.",
+                        "family": "Doudna",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    }
+                ],
+                "container-title": [
+                    "Nature"
+                ],
+                "link": [
+                    {
+                        "URL": "http://www.nature.com/articles/nature24268.pdf",
+                        "content-type": "application/pdf",
+                        "content-version": "vor",
+                        "intended-application": "text-mining"
+                    },
+                    {
+                        "URL": "http://www.nature.com/articles/nature24268",
+                        "content-type": "text/html",
+                        "content-version": "vor",
+                        "intended-application": "text-mining"
+                    },
+                    {
+                        "URL": "http://www.nature.com/doifinder/10.1038/nature24268",
+                        "content-type": "unspecified",
+                        "content-version": "vor",
+                        "intended-application": "similarity-checking"
+                    },
+                    {
+                        "URL": "http://www.nature.com/articles/nature24268.pdf",
+                        "content-type": "application/pdf",
+                        "content-version": "vor",
+                        "intended-application": "similarity-checking"
+                    }
+                ],
+                "issued": {
+                    "date-parts": [
+                        [
+                            2017,
+                            9,
+                            20
+                        ]
+                    ]
+                }
+            }
+        ],
+        "items-per-page": 5,
+        "query": {
+            "start-index": 0,
+            "search-terms": null
+        }
+    }
+}

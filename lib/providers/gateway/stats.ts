@@ -85,7 +85,7 @@ export const withRefusalStats =
       } catch (e) {
         const reason = isProviderError(e) ? e.details.reason : undefined;
         if (reason && TURNED_AWAY.has(reason)) stats.add(policy.provider, 'turned_away');
-        else if (reason === 'daily_cap') stats.add(policy.provider, 'budget_stop');
+        else if (reason === 'daily_cap' || reason === 'daily_calls') stats.add(policy.provider, 'budget_stop');
         else if (reason === 'breaker_open') stats.add(policy.provider, 'paused_refused');
         throw e;
       }

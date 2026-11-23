@@ -1,6 +1,7 @@
 import { withBreaker, type Breaker } from './breaker';
 import { withBudget, type SpendAlert } from './budget';
 import { withCache } from './cache';
+import { withDailyCalls } from './calls';
 import { withFlight, type Flights } from './flight';
 import type { Limiter } from './limiter';
 import { withLimiter } from './limiter';
@@ -18,7 +19,7 @@ import type { GatewayPolicy, Layer, Transport } from './types';
               fails, an expired answer still kept stands in for it
      flight → the same call already on its way shares that answer
      meter  → counts what really reaches the provider for this request
-     budget → refuses past the provider's daily cap; logs cost; alerts
+     budget → refuses past the provider's daily spending (or call) cap; logs cost; alerts
      breaker → a provider that keeps failing is paused for a moment
      retry  → per-second 429s (and, if the provider allows, hiccups) are tried again
      rate   → the provider's shared waiting line: each call waits its turn
@@ -65,6 +66,7 @@ export function gateway<Req>(d: GatewayDeps<Req>, meter: Meter): Transport<Req> 
     withMeter(meter, d.policy),
     withRefusalStats(stats, d.policy),
     withBudget(d.spend, d.policy, d.alert, d.now),
+    withDailyCalls(d.spend, d.policy, d.now),
     d.breaker ? withBreaker(d.breaker, d.policy) : skip<Req>(),
     withRetry({ tries: d.policy.retryTries, transientTries: d.policy.retryTransient, sleep: d.sleep }),
     withRate(d.slots, d.policy, { now: d.now, sleep: d.sleep, onWait: waited }),

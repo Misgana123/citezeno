@@ -17,3 +17,5 @@ export const semanticScholarProvider: PaperProviderDefinition = {
     return s2Source(gate(transport, policy));
   },
 };
+
+export { semanticScholarEnricher } from './enrich';

@@ -34,6 +34,10 @@ export const pgSpend: SpendStore = {
     const { rows } = await pool.query<{ usd: number }>(`select usd from provider_spend where provider = $1 and day = $2`, [provider, day]);
     return Number(rows[0]?.usd ?? 0);
   },
+  async calls(provider, day) {
+    const { rows } = await pool.query<{ calls: number }>(`select calls from provider_spend where provider = $1 and day = $2`, [provider, day]);
+    return Number(rows[0]?.calls ?? 0);
+  },
   async add(provider, day, usd, search) {
     const { rows } = await pool.query<{ usd: number }>(
       `insert into provider_spend (provider, day, usd, calls, searches) values ($1, $2, $3, 1, $4)

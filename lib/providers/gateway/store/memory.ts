@@ -28,15 +28,20 @@ export function memoryCache(now: () => number = Date.now): CacheStore {
 
 export function memorySpend(): SpendStore {
   const days = new Map<string, number>();
+  const calls = new Map<string, number>();
   const claimed = new Set<string>();
   const k = (provider: string, day: string) => `${provider}:${day}`;
   return {
     async spent(provider, day) {
       return days.get(k(provider, day)) ?? 0;
     },
+    async calls(provider, day) {
+      return calls.get(k(provider, day)) ?? 0;
+    },
     async add(provider, day, usd) {
       const before = days.get(k(provider, day)) ?? 0;
       days.set(k(provider, day), before + usd);
+      calls.set(k(provider, day), (calls.get(k(provider, day)) ?? 0) + 1);
       return { before, after: before + usd };
     },
     async claimAlert(provider, day, kind) {

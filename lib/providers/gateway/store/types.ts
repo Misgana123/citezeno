@@ -15,6 +15,8 @@ export interface CacheStore {
 /* What each provider cost each UTC day. No queries, no users: just totals. */
 export interface SpendStore {
   spent(provider: string, day: string): Promise<number>;
+  /* Calls logged that day (paid calls, and every call of a provider with a daily call cap). */
+  calls(provider: string, day: string): Promise<number>;
   /* Add one call's cost; returns the day's total before and after. */
   add(provider: string, day: string, usd: number, search: boolean): Promise<{ before: number; after: number }>;
   /* True only for the first caller each day, so an alert goes out once. */

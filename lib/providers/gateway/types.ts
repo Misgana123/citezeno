@@ -53,6 +53,9 @@ export type GatewayPolicy<Req> = {
   /* Keep cached answers this many seconds past their time, to serve while the
      provider is busy or down (default 0: not kept). */
   staleS?: number;
+  /* For free providers that allow so many calls a day (Unpaywall: 100,000):
+     stop calling once our own cap is reached, until midnight UTC. */
+  dailyCalls?: { cap: number; configHint: string };
   /* Pause calls to a provider that keeps failing (default: never paused). */
   breaker?: { failures: number; windowMs: number; cooldownMs: number };
 };
