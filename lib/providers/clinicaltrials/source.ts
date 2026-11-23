@@ -13,6 +13,13 @@ import type { CtSearch, CtStudy } from './types';
 
 export const MAX_QUERY_CHARS = 1500;
 const BATCH = 50;
+const FEW_WORDS = 4;
+
+/* A few key words must all match; a longer passage matches any of them (best first). */
+export function searchTerm(text: string): string {
+  const words = searchWords(text, 12);
+  return words.length <= FEW_WORDS ? words.join(' ') : words.join(' OR ');
+}
 
 /* Filters → its parameters; null when they rule trials out (they are English
    registry records without citations, of no publication type we list). */
@@ -47,7 +54,7 @@ export function ctSource(transport: ScholarlyTransport): PaperSource {
 
     async search(q: KeywordQuery): Promise<PaperPage> {
       const filters = filterParams(q.filters);
-      const term = searchWords(q.text, 12).join(' ');
+      const term = searchTerm(q.text);
       if (!filters || !term) return { papers: [], total: 0, costUsd: 0 };
       const params = { 'query.term': term, ...filters, sort: q.sort === 'newest' ? 'StartDate:desc' : undefined };
       const r = await cursorPage(q.page ?? 1, (token) => studies(params, q.perPage, token));

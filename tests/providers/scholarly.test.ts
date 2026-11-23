@@ -9,7 +9,7 @@ import { arxivSource } from '@/lib/providers/arxiv/source';
 import { clinicalTrialsProvider } from '@/lib/providers/clinicaltrials';
 import { toNctId } from '@/lib/providers/clinicaltrials/ids';
 import { toPapers as ctPapers } from '@/lib/providers/clinicaltrials/mapper';
-import { ctSource, filterParams as ctFilters } from '@/lib/providers/clinicaltrials/source';
+import { ctSource, filterParams as ctFilters, searchTerm as ctTerm } from '@/lib/providers/clinicaltrials/source';
 import { toEpmcId } from '@/lib/providers/europepmc/ids';
 import { toPapers as epmcPapers } from '@/lib/providers/europepmc/mapper';
 import { searchQuery as epmcQuery, sortParam as epmcSort } from '@/lib/providers/europepmc/query';
@@ -335,6 +335,11 @@ describe('ClinicalTrials.gov', () => {
     expect(toNctId('nct06783270')).toBe('NCT06783270');
     expect(toNctId('https://clinicaltrials.gov/study/NCT06783270?tab=results')).toBe('NCT06783270');
     expect(toNctId('NCT123')).toBeNull();
+  });
+
+  it('matches all of a few words, any of a longer passage', () => {
+    expect(ctTerm('crispr sickle cell')).toBe('crispr sickle cell');
+    expect(ctTerm('crispr off-target effects in sickle cell gene therapy')).toBe('crispr OR off-target OR effects OR sickle OR cell OR gene OR therapy');
   });
 
   it('filters by start date, and rules itself out for papers it cannot have', () => {

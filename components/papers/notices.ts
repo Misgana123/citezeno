@@ -9,6 +9,8 @@ export function noticeText(n: SearchNotice, ctx: { mode: SearchMode; total: numb
       return `Only the first ${formatCount(ctx.maxQueryChars)} characters of your text were used.`;
     case 'filtered_top_results':
       return `The minimum citation count was applied to the top matches only, so some papers may be missing. Use Exact keywords to filter every match.`;
+    case 'partial_results':
+      return 'Some sources didn’t answer in time, so these results may be incomplete. Try again in a moment for the full list.';
     case 'results_capped':
       return ctx.mode === 'semantic'
         ? 'Search by meaning returns the 50 closest papers.'
