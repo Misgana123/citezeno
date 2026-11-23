@@ -219,6 +219,17 @@ Open any paper at `/app/read/<paper id>` (for example `/app/read/openalex:W26267
 - **AI**: summaries, "Ask the paper" and Explain use the chat models (`READER_MODEL`, `READER_FAST_MODEL`); embeddings use Gemini (`READER_EMBEDDING_MODEL`, `READER_EMBEDDING_DIMENSIONS`), all with the AI keys and daily cap above. Without an AI key the reader still opens, reads and highlights. Every AI call is logged in `reader_ai_log`.
 - **Running locally**: nothing extra beyond the keys above; PDF.js's worker is served by `/api/reader/worker`. For open-access PDFs stored in R2, the bucket's CORS rule must allow GET from `http://localhost:3000`.
 
+## Paper sources, the waiting line and our own copy
+
+How Find Papers, Shelf, Reader and the assistant get paper data without going over the services' limits. Code lives in `lib/providers/` (one folder per service, plus the shared `gateway/`) and `lib/papers/`; the full description is in `docs/scaling-and-rate-limits.md`. Everything below is off or unchanged until its setting is turned on.
+
+- **Paper sources**: `PAPER_PROVIDERS` lists them, primary first: `openalex` (default), `arxiv`, `pubmed`, `europepmc`, `semanticscholar` (needs `S2_API_KEY`), `clinicaltrials`. Every listed source is searched; one that is slow or down is left out after `PAPERS_EXTRA_WAIT_MS` and the user sees "results may be incomplete".
+- **Filling in details**: `PAPER_ENRICHERS` (`unpaywall`, `crossref`, `core`, `semanticscholar`) fills gaps such as free PDF links and missing abstracts. Set `PROVIDER_CONTACT_EMAIL`; Unpaywall needs it and Crossref answers faster with it.
+- **The waiting line**: every call to an outside service waits its turn under that service's shared per-second limit (for example `OPENALEX_RATE_PER_S`). It is told "busy" only past `PROVIDER_MAX_WAIT_MS`. Identical calls share one request, expired answers stand in while a service is down, and a service that keeps failing is paused for 30 seconds. The admin page shows what happened per service.
+- **Redis (optional)**: with `REDIS_URL` the cache and the waiting line live in Redis (Upstash works); without it, or while Redis is down, Postgres does the job. Locally: `redis-server` and `REDIS_URL=redis://localhost:6379`.
+- **Our own copy of papers**: `PAPERS_LOCAL_COPY=1` keeps every paper users see (table `paper_record`); `PAPERS_LOCAL_FIRST=1` searches it first. `vercel.json` calls `/api/papers/cron` every 15 minutes with `CRON_SECRET` to download about 100,000 papers (`PAPERS_SEED_*`), fill their gaps, recheck old ones and stay under `PAPERS_LOCAL_MAX_MB` (about 4 KB a paper). To run it by hand locally: `curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/papers/cron`.
+- **Tests**: the Redis tests run when `TEST_REDIS_URL` is set; the paper-copy database tests when `TEST_DATABASE_URL` is set.
+
 ## Optional settings
 
 In the studio, open **Database settings** to add a contact email (puts your requests in the faster “polite pool” at OpenAlex and Crossref) or an OpenAlex API key.
