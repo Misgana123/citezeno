@@ -32,4 +32,4 @@ export function speakingPapersErrors(s: PaperSource): PaperSource {
   };
 }
 
-export const papersFacing = (sources: PaperSources): PaperSources => paperSources(sources.all.map(speakingPapersErrors));
+export const papersFacing = (sources: PaperSources): PaperSources => paperSources(sources.all.map(speakingPapersErrors), sources.local);

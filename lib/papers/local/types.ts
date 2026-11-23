@@ -1,4 +1,5 @@
 import type { QueryResult, QueryResultRow } from 'pg';
+import type { KeywordQuery, PaperPage } from '@/lib/providers/papers/types';
 import type { Paper } from '../types';
 
 /* Our own copy of papers. It has a Postgres version (pg.ts) and an in-memory
@@ -20,6 +21,8 @@ export interface PaperCopyStore {
   byDois(dois: string[]): Promise<Map<string, StoredPaper>>;
   /* A user saw these papers (served from the copy). */
   touch(ids: string[]): Promise<void>;
+  /* Keyword search over the copy, with filters, sort and paging; `total` is every match. */
+  search(q: KeywordQuery): Promise<PaperPage>;
 }
 
 /* The row key: the DOI when there is one, so one paper from two providers is one row. */

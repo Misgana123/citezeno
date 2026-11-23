@@ -1,3 +1,6 @@
+import type { KeywordQuery } from '@/lib/providers/papers/types';
+import { matchesFilters, sortPapers } from '../search/postprocess';
+import { DEFAULT_FILTERS } from '../search/request';
 import type { Paper } from '../types';
 import { mergePaper, type Kept } from './merge';
 import { recordKey, type PaperCopyStore, type StoredPaper } from './types';
@@ -41,6 +44,21 @@ export function memoryPaperCopy(now: () => number = Date.now): MemoryPaperCopy {
           r.hits++;
         }
       }
+    },
+    /* Every word must appear (title or abstract); title matches rank first. */
+    async search(q: KeywordQuery) {
+      const words = q.text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 1);
+      const scored = [...rows.values()]
+        .map((r) => {
+          const title = r.data.title.toLowerCase();
+          const body = `${title} ${(r.data.abstract ?? '').toLowerCase()}`;
+          return { p: r.data, ok: words.length > 0 && words.every((w) => body.includes(w)), score: words.filter((w) => title.includes(w)).length };
+        })
+        .filter((x) => x.ok && matchesFilters(x.p, q.filters ?? DEFAULT_FILTERS))
+        .sort((a, b) => b.score - a.score || b.p.citedByCount - a.p.citedByCount);
+      const sorted = sortPapers(scored.map((x) => x.p), q.sort ?? 'relevance');
+      const start = ((q.page ?? 1) - 1) * q.perPage;
+      return { papers: sorted.slice(start, start + q.perPage).map((p) => structuredClone(p)), total: sorted.length, costUsd: 0 };
     },
   };
 }

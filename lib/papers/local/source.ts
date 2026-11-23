@@ -1,4 +1,4 @@
-import { paperSources, type PaperSources } from '@/lib/providers/papers/sources';
+import { paperSources, type LocalPaperSearch, type PaperSources } from '@/lib/providers/papers/sources';
 import type { PaperRef, PaperSource } from '@/lib/providers/papers/types';
 import { paperId } from '../ids';
 import type { Paper } from '../types';
@@ -14,7 +14,7 @@ import type { PaperCopyStore, StoredPaper } from './types';
    asked as before. Only the source's own records are served from it, so a
    paper's ID never changes under a feature. */
 
-export type LocalCopyOptions = { freshMs: number; now?: () => number };
+export type LocalCopyOptions = { freshMs: number; now?: () => number; searchFirst?: { minResults: number } };
 
 function quietly<T>(what: string, p: Promise<T>, fallback: T): Promise<T> {
   return p.catch((e) => {
@@ -98,5 +98,20 @@ export function rememberingSource(s: PaperSource, store: PaperCopyStore, opts: L
   };
 }
 
+/* The copy as a search in front of the sources (keyword only); what it serves counts as seen. */
+export function localSearch(store: PaperCopyStore, minResults: number): LocalPaperSearch {
+  return {
+    minResults,
+    async search(q) {
+      const page = await store.search(q);
+      if (page.total >= minResults && page.papers.length) await quietly('touch', store.touch(page.papers.map((p) => p.id)), undefined);
+      return page;
+    },
+  };
+}
+
 export const withLocalCopy = (sources: PaperSources, store: PaperCopyStore, opts: LocalCopyOptions): PaperSources =>
-  paperSources(sources.all.map((s) => rememberingSource(s, store, opts)));
+  paperSources(
+    sources.all.map((s) => rememberingSource(s, store, opts)),
+    opts.searchFirst ? localSearch(store, opts.searchFirst.minResults) : null,
+  );

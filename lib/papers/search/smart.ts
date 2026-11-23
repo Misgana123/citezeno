@@ -1,7 +1,7 @@
 import type { PaperSources } from '@/lib/providers/papers/sources';
 import type { PaperSource } from '@/lib/providers/papers/types';
 import type { Paper } from '../types';
-import { extraSources, extraWaitMs, filtered, firstError, settleAll } from './across';
+import { extraSources, extraWaitMs, filtered, firstError, fromCopy, settleAll } from './across';
 import { fuseRanked } from './fuse';
 import type { SearchFilters, SearchRequest } from './request';
 import { listFromPool, poolCapped, semanticPool, type Pool } from './semantic';
@@ -13,7 +13,8 @@ import type { PaperListResult } from './types';
    every other enabled source adds its own top keyword matches. With no meaning
    search, Smart mode is a keyword search over the same pool. When one part
    fails, the others' results are shown with a note; only when all fail does
-   the search fail. */
+   the search fail. With the copy searched first and enough matches in it, the
+   copy gives the keyword half (for every source); the meaning half stays live. */
 
 export const SMART_KEYWORD_POOL = 50;
 /* Top matches each additional source adds to the pool. */
@@ -28,10 +29,13 @@ type Part = { kind: 'keyword' | 'semantic' | 'extra'; papers: Paper[]; costUsd: 
 
 export async function smartSearch(sources: PaperSources, req: SearchRequest, deadlineMs = extraWaitMs()): Promise<PaperListResult> {
   const meaning = sources.withCapability('semantic_search');
+  const local = await fromCopy(sources, { text: req.query, filters: req.filters, perPage: SMART_KEYWORD_POOL });
   const results = await settleAll<Part>([
-    { name: 'keyword', run: async () => ({ kind: 'keyword', ...(await keywordPool(sources.primary, req.query, req.filters)) }) },
+    local
+      ? { name: 'copy', run: async (): Promise<Part> => ({ kind: 'keyword', papers: local.papers, total: local.total, costUsd: 0 }) }
+      : { name: 'keyword', run: async (): Promise<Part> => ({ kind: 'keyword', ...(await keywordPool(sources.primary, req.query, req.filters)) }) },
     ...(meaning ? [{ name: 'semantic', run: async (): Promise<Part> => ({ kind: 'semantic', ...(await semanticPool(meaning, req.query, req.filters)) }) }] : []),
-    ...extraSources(sources).map((s) => ({ name: s.name, deadlineMs, run: async (): Promise<Part> => ({ kind: 'extra', ...(await keywordPool(s, req.query, req.filters, SMART_EXTRA_POOL)) }) })),
+    ...(local ? [] : extraSources(sources)).map((s) => ({ name: s.name, deadlineMs, run: async (): Promise<Part> => ({ kind: 'extra', ...(await keywordPool(s, req.query, req.filters, SMART_EXTRA_POOL)) }) })),
   ]);
   const ok = results.filter((r) => r.ok).map((r) => (r as { value: Part }).value);
   if (!ok.length) throw firstError(results);
@@ -46,6 +50,6 @@ export async function smartSearch(sources: PaperSources, req: SearchRequest, dea
   return {
     list,
     costUsd: ok.reduce((n, p) => n + p.costUsd, 0),
-    searches: (keyword ? 1 : 0) + (semantic ? 1 : 0),
+    searches: (keyword && !local ? 1 : 0) + (semantic ? 1 : 0),
   };
 }

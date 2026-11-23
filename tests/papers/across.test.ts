@@ -6,6 +6,8 @@ import { runSearch } from '@/lib/papers/search/run';
 import { smartSearch } from '@/lib/papers/search/smart';
 import type { Paper } from '@/lib/papers/types';
 import { ProviderError } from '@/lib/providers/errors';
+import { memoryPaperCopy } from '@/lib/papers/local/memory';
+import { localSearch } from '@/lib/papers/local/source';
 import { paperSources } from '@/lib/providers/papers/sources';
 import type { PaperSource } from '@/lib/providers/papers/types';
 import { paper } from '../shelf/fixtures';
@@ -121,5 +123,46 @@ describe('Smart mode when part of it fails', () => {
     const arxiv = source('arxiv', [ax('A1')]);
     await runSearch(paperSources([source('openalex', [paper('W1')]), arxiv]), parse('q=genes&mode=keyword'));
     expect(arxiv.search).toHaveBeenCalled();
+  });
+});
+
+describe('searching our own copy first', () => {
+  async function copyWith(n: number) {
+    const store = memoryPaperCopy();
+    await store.save(Array.from({ length: n }, (_, i) => paper(`C${i}`, { title: `Gene editing study ${i}`, citedByCount: i })), { detail: false, origin: 'live' });
+    return store;
+  }
+
+  it('a copy with enough matches answers keyword search alone, free', async () => {
+    const oa = source('openalex', [paper('W1')]);
+    const arxiv = source('arxiv', [ax('A1')]);
+    const r = await keywordAcross(paperSources([oa, arxiv], localSearch(await copyWith(60), 50)), parse('q=gene editing&mode=keyword&page=2&sort=cited'));
+    expect(oa.search).not.toHaveBeenCalled();
+    expect(arxiv.search).not.toHaveBeenCalled();
+    expect(r.list).toMatchObject({ total: 60, page: 2, hasMore: true, mode: 'keyword' });
+    expect(r.list.papers[0].id).toBe('openalex:C34'); // cited order, second page
+    expect(r.searches).toBe(0);
+  });
+
+  it('too few matches, or a failing copy: the sources answer as before', async () => {
+    const oa = source('openalex', [paper('W1')]);
+    await keywordAcross(paperSources([oa], localSearch(await copyWith(10), 50)), parse('q=gene editing&mode=keyword'));
+    expect(oa.search).toHaveBeenCalledTimes(1);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const broken = { minResults: 1, search: async () => Promise.reject(new Error('db down')) };
+    const r = await keywordAcross(paperSources([oa], broken), parse('q=gene editing&mode=keyword'));
+    expect(r.list.papers.map((p) => p.id)).toEqual(['openalex:W1']);
+    warn.mockRestore();
+  });
+
+  it('in Smart mode the copy gives the keyword half; the meaning search stays live', async () => {
+    const oa = source('openalex', [paper('W1')], { semantic: [paper('S1')] });
+    const pubmed = source('pubmed', [paper('P1', { id: 'pubmed:P1', provider: 'pubmed' })]);
+    const r = await smartSearch(paperSources([oa, pubmed], localSearch(await copyWith(60), 50)), parse('q=gene editing'));
+    expect(oa.search).not.toHaveBeenCalled();
+    expect(pubmed.search).not.toHaveBeenCalled();
+    expect(r.list.papers.map((p) => p.id)).toContain('openalex:S1');
+    expect(r.list.papers.some((p) => p.id.startsWith('openalex:C'))).toBe(true);
+    expect(r.searches).toBe(1); // only the meaning search
   });
 });

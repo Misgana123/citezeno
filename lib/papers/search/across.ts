@@ -1,8 +1,9 @@
 import type { PaperSources } from '@/lib/providers/papers/sources';
-import type { PaperPage, PaperSource } from '@/lib/providers/papers/types';
+import type { KeywordQuery, PaperPage, PaperSource } from '@/lib/providers/papers/types';
 import type { Paper } from '../types';
 import { fuseRanked } from './fuse';
 import { keywordSearch, KEYWORD_PER_PAGE } from './keyword';
+import { pageResult } from './page';
 import { matchesFilters, sortPapers } from './postprocess';
 import type { SearchRequest } from './request';
 import type { PaperListResult, SearchNotice } from './types';
@@ -70,8 +71,25 @@ export const firstError = <T>(results: Settled<T>[]) => (results.find((r) => !r.
    (some sources can't apply every filter themselves). */
 export const filtered = (papers: Paper[], req: SearchRequest) => papers.filter((p) => matchesFilters(p, req.filters));
 
-/* Keyword search across sources: page N is every source's page N, merged. */
+/* The copy's answer when it has enough matches (PAPERS_LOCAL_FIRST), else null.
+   It holds papers from every source, so it stands in for all of them. A copy
+   that fails is skipped: the sources answer as usual. */
+export async function fromCopy(sources: PaperSources, q: KeywordQuery): Promise<PaperPage | null> {
+  if (!sources.local) return null;
+  try {
+    const page = await sources.local.search(q);
+    return page.total >= sources.local.minResults ? page : null;
+  } catch (e) {
+    console.warn('[citezeno] papers: searching the local copy failed', (e as Error)?.message ?? e);
+    return null;
+  }
+}
+
+/* Keyword search across sources: page N is every source's page N, merged.
+   With the copy searched first, a copy with enough matches answers alone. */
 export async function keywordAcross(sources: PaperSources, req: SearchRequest, deadlineMs = extraWaitMs()): Promise<PaperListResult> {
+  const local = await fromCopy(sources, { text: req.query, filters: req.filters, sort: req.sort, page: req.page, perPage: KEYWORD_PER_PAGE });
+  if (local) return pageResult(local, req, { mode: 'keyword', searches: 0, perPage: KEYWORD_PER_PAGE, searched: true });
   const extras = extraSources(sources);
   if (!extras.length) return keywordSearch(sources.primary, req);
 

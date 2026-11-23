@@ -120,6 +120,32 @@ describe.skipIf(!TEST_DB_URL)('postgres', () => {
     }
   });
 
+  it('searches the copy: every word, filters, sorts, pages, and counts past the end', async () => {
+    const { store, close } = await pgStore();
+    try {
+      await store.save(
+        [
+          paper('W1', { title: 'CRISPR off-target effects in mice', year: 2018, citedByCount: 5 }),
+          paper('W2', { title: 'Off-target CRISPR editing in human cells', year: 2022, citedByCount: 50, language: 'en' }),
+          paper('W3', { title: 'CRISPR screens', abstract: 'Nothing about targets.', year: 2021, citedByCount: 500 }),
+          paper('W4', { title: 'Off-target CRISPR effects, retracted', isRetracted: true }),
+        ],
+        { detail: false, origin: 'live' },
+      );
+      const all = await store.search({ text: 'crispr off-target', perPage: 10, filters: { yearFrom: null, yearTo: null, openAccess: false, types: [], language: null, hasAbstract: false, hideRetracted: true, minCitations: null } });
+      expect(all.papers.map((p) => p.id).sort()).toEqual(['openalex:W1', 'openalex:W2']);
+      expect(all.total).toBe(2);
+      const newest = await store.search({ text: 'crispr', sort: 'newest', perPage: 2 });
+      expect(newest.papers.map((p) => p.id)).toEqual(['openalex:W2', 'openalex:W3']);
+      const fromYear = await store.search({ text: 'crispr', perPage: 10, filters: { yearFrom: 2020, yearTo: null, openAccess: false, types: [], language: null, hasAbstract: false, hideRetracted: false, minCitations: 40 } });
+      expect(fromYear.papers.map((p) => p.id).sort()).toEqual(['openalex:W2', 'openalex:W3']);
+      const past = await store.search({ text: 'crispr', perPage: 2, page: 5 });
+      expect(past).toEqual({ papers: [], total: 4, costUsd: 0 });
+    } finally {
+      await close();
+    }
+  });
+
   it('saves from many requests at once without deadlocks, counting each sighting', async () => {
     const { pool, store, close } = await pgStore();
     try {
@@ -193,7 +219,7 @@ describe('remembering source', () => {
     const fail = async () => {
       throw new Error('db down');
     };
-    const broken: PaperCopyStore = { save: fail, byIds: fail, byDois: fail, touch: fail };
+    const broken: PaperCopyStore = { save: fail, byIds: fail, byDois: fail, touch: fail, search: fail };
     const src = fakeSource();
     const s = rememberingSource(src, broken, opts());
     await expect(s.search({ text: 'x', perPage: 25 })).resolves.toMatchObject({ total: 2 });
@@ -210,8 +236,9 @@ describe('remembering source', () => {
     expect(store.rows.size).toBe(0);
   });
 
-  it('is off unless turned on', () => {
-    expect(localCopyConfig({})).toEqual({ enabled: false, freshDays: 7 });
-    expect(localCopyConfig({ PAPERS_LOCAL_COPY: '1', PAPERS_LOCAL_FRESH_DAYS: '3' })).toEqual({ enabled: true, freshDays: 3 });
+  it('is off unless turned on; searching it first needs the copy too', () => {
+    expect(localCopyConfig({})).toEqual({ enabled: false, freshDays: 7, searchFirst: false, minResults: 50 });
+    expect(localCopyConfig({ PAPERS_LOCAL_FIRST: '1' }).searchFirst).toBe(false);
+    expect(localCopyConfig({ PAPERS_LOCAL_COPY: '1', PAPERS_LOCAL_FRESH_DAYS: '3', PAPERS_LOCAL_FIRST: 'true', PAPERS_LOCAL_MIN_RESULTS: '20' })).toEqual({ enabled: true, freshDays: 3, searchFirst: true, minResults: 20 });
   });
 });

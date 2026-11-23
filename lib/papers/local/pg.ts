@@ -1,3 +1,4 @@
+import type { KeywordQuery } from '@/lib/providers/papers/types';
 import type { Paper } from '../types';
 import { recordKey, type PaperCopyStore, type Queryable, type StoredPaper } from './types';
 
@@ -26,6 +27,29 @@ on conflict (key) do update set
   hits = p.hits + 1`;
 
 type Row = { ids: string[]; data: Paper; detail: boolean; fetchedAt: Date };
+
+/* Keyword search: every word must match (title words count more), with the
+   user's filters; relevance gives well-cited papers a small lift. */
+const SEARCH = (order: string) => `
+with q as (select websearch_to_tsquery('english', $1) as q)
+select data, count(*) over() as total
+from paper_record, q
+where search @@ q.q
+  and ($2::int is null or year >= $2) and ($3::int is null or year <= $3)
+  and (not $4 or "isOpenAccess")
+  and (cardinality($5::text[]) = 0 or type = any($5::text[]))
+  and ($6::text is null or language = $6)
+  and (not $7 or "hasAbstract")
+  and (not $8 or not "isRetracted")
+  and ($9::int is null or "citedByCount" >= $9)
+order by ${order}
+limit $10 offset $11`;
+
+const ORDER = {
+  relevance: `ts_rank_cd(search, q.q) * (1 + ln(1 + "citedByCount") / 10) desc, key`,
+  newest: `year desc nulls last, data->>'publicationDate' desc nulls last, key`,
+  cited: `"citedByCount" desc, key`,
+};
 
 const toStored = (r: Row): StoredPaper => ({ paper: r.data, detail: r.detail, fetchedAt: new Date(r.fetchedAt).getTime() });
 
@@ -56,6 +80,29 @@ export function pgPaperCopy(db: Queryable): PaperCopyStore {
     async touch(ids) {
       if (!ids.length) return;
       await db.query(`update paper_record set "seenAt" = now(), hits = hits + 1 where ids && $1::text[]`, [ids]);
+    },
+    async search(q: KeywordQuery) {
+      const f = q.filters;
+      const { rows } = await db.query<{ data: Paper; total: string }>(SEARCH(ORDER[q.sort ?? 'relevance']), [
+        q.text,
+        f?.yearFrom ?? null,
+        f?.yearTo ?? null,
+        f?.openAccess ?? false,
+        f?.types ?? [],
+        f?.language ?? null,
+        f?.hasAbstract ?? false,
+        f?.hideRetracted ?? false,
+        f?.minCitations ?? null,
+        q.perPage,
+        ((q.page ?? 1) - 1) * q.perPage,
+      ]);
+      let total = Number(rows[0]?.total ?? 0);
+      if (!rows.length && (q.page ?? 1) > 1) {
+        // past the last page: the count still says how many matched
+        const c = await db.query<{ data: Paper; total: string }>(SEARCH(ORDER.cited), [q.text, f?.yearFrom ?? null, f?.yearTo ?? null, f?.openAccess ?? false, f?.types ?? [], f?.language ?? null, f?.hasAbstract ?? false, f?.hideRetracted ?? false, f?.minCitations ?? null, 1, 0]);
+        total = Number(c.rows[0]?.total ?? 0);
+      }
+      return { papers: rows.map((r) => r.data), total, costUsd: 0 };
     },
   };
 }

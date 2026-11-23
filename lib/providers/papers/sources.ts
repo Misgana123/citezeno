@@ -1,5 +1,10 @@
 import { splitPaperId } from '@/lib/papers/ids';
-import { supports, type PaperCapability, type PaperSource } from './types';
+import { supports, type KeywordQuery, type PaperCapability, type PaperPage, type PaperSource } from './types';
+
+/* A searchable copy of papers in front of the sources (Find Papers keeps one):
+   keyword search over what it holds. Its answer is used only when it found at
+   least `minResults` matches; otherwise the sources are searched as usual. */
+export type LocalPaperSearch = { search(q: KeywordQuery): Promise<PaperPage>; readonly minResults: number };
 
 /* The paper sources a request may use, primary first. Features ask for the
    job ("the paper source", "a source that can search by meaning"), never for a
@@ -11,13 +16,16 @@ export type PaperSources = {
   named(name: string): PaperSource | null;
   /* The first source (primary first) that offers a capability. */
   withCapability(capability: PaperCapability): PaperSource | null;
+  /* The copy to search first, when that is turned on. */
+  readonly local: LocalPaperSearch | null;
 };
 
-export function paperSources(list: PaperSource[]): PaperSources {
+export function paperSources(list: PaperSource[], local: LocalPaperSearch | null = null): PaperSources {
   if (!list.length) throw new Error('No paper provider is enabled.');
   return {
     primary: list[0],
     all: list,
+    local,
     named: (name) => list.find((s) => s.name === name) ?? null,
     withCapability: (capability) => list.find((s) => supports(s, capability)) ?? null,
   };

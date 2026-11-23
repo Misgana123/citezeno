@@ -14,7 +14,8 @@ import type { UsageStore } from './store/types';
 /* The server's shared Find Papers pieces. Importing this file from a client
    component fails the build ("server-only"). Paper data comes from the
    provider registry, through the gateway; this never names a vendor. With
-   PAPERS_LOCAL_COPY on, our own copy of papers sits in front of the sources. */
+   PAPERS_LOCAL_COPY on, our own copy of papers sits in front of the sources
+   (and, with PAPERS_LOCAL_FIRST, is searched first). */
 
 export type PapersServer = { config: PapersConfig; usage: UsageStore; sources(meter: Meter): PaperSources };
 
@@ -25,7 +26,9 @@ export function papersServer(): PapersServer {
   const local = localCopyConfig();
   const sources = (meter: Meter) => {
     const live = paperSourcesFor(meter);
-    return papersFacing(local.enabled ? withLocalCopy(live, pgPaperCopy(pool), { freshMs: local.freshDays * DAY_MS }) : live);
+    if (!local.enabled) return papersFacing(live);
+    const searchFirst = local.searchFirst ? { minResults: local.minResults } : undefined;
+    return papersFacing(withLocalCopy(live, pgPaperCopy(pool), { freshMs: local.freshDays * DAY_MS, searchFirst }));
   };
   return { config, usage: pgUsage, sources };
 }
