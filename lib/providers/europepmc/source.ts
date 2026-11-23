@@ -1,7 +1,7 @@
 import type { Paper } from '@/lib/papers/types';
 import { cursorPage } from '../papers/cursor';
 import type { ScholarlyTransport } from '../papers/http';
-import type { KeywordQuery, PaperPage, PaperRef, PaperSource } from '../papers/types';
+import type { BrowseQuery, KeywordQuery, PaperPage, PaperRef, PaperSource } from '../papers/types';
 import { splitEpmcId, toEpmcId } from './ids';
 import { PROVIDER, toPapers } from './mapper';
 import { searchQuery, sortParam } from './query';
@@ -46,6 +46,13 @@ export function epmcSource(transport: ScholarlyTransport): PaperSource {
       const sort = sortParam(q.sort);
       const r = await cursorPage(q.page ?? 1, (cursor) => search(query, { pageSize: q.perPage, cursor, sort }));
       return { papers: r.items, total: r.total, costUsd: 0 };
+    },
+
+    /* PubMed records with abstracts, by cursor. */
+    async browse(q: BrowseQuery) {
+      const query = `SRC:MED AND HAS_ABSTRACT:y NOT PUB_TYPE:"retracted publication"${q.sinceYear ? ` AND PUB_YEAR:[${q.sinceYear} TO 3000]` : ''}`;
+      const r = await search(query, { pageSize: Math.min(q.perPage, 1000), cursor: q.cursor, sort: q.order === 'cited' ? 'CITED desc' : 'P_PDATE_D desc' });
+      return { papers: r.items, next: r.items.length ? r.next : null, costUsd: 0 };
     },
 
     async getPaper(ref) {

@@ -2,11 +2,15 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ColumnChart } from '@/components/admin/ColumnChart';
 import { GrantCredits, HandledToggle } from '@/components/admin/AdminActions';
+import { PaperCopy, type PaperCopyStats } from '@/components/admin/PaperCopy';
 import { ProviderHealth, type ProviderHealthRow } from '@/components/admin/ProviderHealth';
 import { AppShell, PageHead } from '@/components/app/AppShell';
 import { requireAdmin } from '@/lib/admin';
 import { pool } from '@/lib/db';
 import { timeAgo } from '@/lib/library';
+import { localCopyConfig } from '@/lib/papers/local/config';
+import { copySize } from '@/lib/papers/local/maintain';
+import { allSyncStates } from '@/lib/papers/local/sync';
 import { providerStatsSince } from '@/lib/providers/gateway/store/pg';
 
 export const metadata: Metadata = { title: 'Admin', robots: { index: false, follow: false } };
@@ -27,6 +31,25 @@ async function services(): Promise<ProviderHealthRow[]> {
   return names.map((provider) => ({ provider, counts: stats.get(provider) ?? new Map(), spentTodayUsd: spent.get(provider) ?? 0 }));
 }
 
+/* Our own copy of papers: its size against its limits, and each download's progress. */
+async function paperCopy(): Promise<PaperCopyStats> {
+  const c = localCopyConfig();
+  const [size, states] = await Promise.all([copySize(pool), allSyncStates(pool)]);
+  const state = new Map(states.map((s) => [s.source, s]));
+  return {
+    enabled: c.enabled,
+    searchFirst: c.searchFirst,
+    rows: size.rows,
+    liveBytes: size.liveBytes,
+    maxRows: c.maxRows,
+    maxBytes: c.maxBytes,
+    downloads: c.seeds.map((p) => {
+      const s = state.get(p.source);
+      return { source: p.source, target: p.target, fetched: s?.fetched ?? 0, done: !!s?.doneAt, ranAt: s?.ranAt ? new Date(s.ranAt).getTime() : null, lastError: s?.lastError ?? null };
+    }),
+  };
+}
+
 /* One row per day for the last 30 days (UTC), zero-filled. */
 async function daily(sql: string) {
   const { rows } = await pool.query<{ day: string; value: string }>(
@@ -44,7 +67,7 @@ export default async function AdminPage({ searchParams }: Props) {
   const q = typeof sp.q === 'string' ? sp.q.trim().slice(0, 100) : '';
   const inbox = sp.inbox === 'all' ? 'all' : 'open';
 
-  const [kpi, revenue, signups, spent, users, messages, serviceRows] = await Promise.all([
+  const [kpi, revenue, signups, spent, users, messages, serviceRows, copyStats] = await Promise.all([
     pool
       .query<Record<string, string>>(
         `select
@@ -85,6 +108,7 @@ export default async function AdminPage({ searchParams }: Props) {
       )
       .then((r) => r.rows),
     services(),
+    paperCopy(),
   ]);
 
   const tiles: [string, string, string?][] = [
@@ -116,6 +140,7 @@ export default async function AdminPage({ searchParams }: Props) {
       </section>
 
       <ProviderHealth rows={serviceRows} hours={SERVICE_HOURS} />
+      <PaperCopy stats={copyStats} />
 
       <section className="panel" id="users">
         <div className="adm-head">

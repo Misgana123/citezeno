@@ -15,13 +15,13 @@ export function memoryPaperCopy(now: () => number = Date.now): MemoryPaperCopy {
   const stored = (r: Kept): StoredPaper => ({ paper: structuredClone(r.data), detail: r.detail, fetchedAt: r.fetchedAt });
   return {
     rows,
-    async save(papers: Paper[], { detail, origin }) {
+    async save(papers: Paper[], { detail, origin, seen = true }) {
       for (const p of papers) {
         const key = recordKey(p);
         const old = rows.get(key);
         const t = now();
         if (!old) rows.set(key, { data: structuredClone(p), detail, ids: [p.id], fetchedAt: t, seenAt: t, hits: 1, origin });
-        else rows.set(key, { ...old, ...mergePaper(old, structuredClone(p), detail, t), seenAt: t, hits: old.hits + 1 });
+        else rows.set(key, { ...old, ...mergePaper(old, structuredClone(p), detail, t), seenAt: seen ? t : old.seenAt, hits: seen ? old.hits + 1 : old.hits });
       }
     },
     async byIds(ids) {

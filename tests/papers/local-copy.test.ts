@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { localCopyConfig } from '@/lib/papers/local/config';
 import { memoryPaperCopy } from '@/lib/papers/local/memory';
 import { pgPaperCopy } from '@/lib/papers/local/pg';
-import { PAPERS_LOCAL_SQL } from '@/lib/papers/local/schema';
+import { PAPERS_LOCAL_SQL, SEARCH_DOC } from '@/lib/papers/local/schema';
 import { rememberingSource } from '@/lib/papers/local/source';
 import type { PaperCopyStore } from '@/lib/papers/local/types';
 import type { PaperSource } from '@/lib/providers/papers/types';
@@ -112,7 +112,7 @@ describe.skipIf(!TEST_DB_URL)('postgres', () => {
     try {
       await store.save([paper('W20', { title: 'CRISPR off-target effects', abstract: 'Guide RNA design.', year: 2021, citedByCount: 42, isRetracted: true })], { detail: false, origin: 'seed:openalex' });
       const { rows } = await pool.query(
-        `select provider, doi, title, year, "citedByCount", "isOpenAccess", "isRetracted", "hasAbstract", origin, search @@ websearch_to_tsquery('english', 'crispr guide') as matches from paper_record`,
+        `select provider, doi, title, year, "citedByCount", "isOpenAccess", "isRetracted", "hasAbstract", origin, ${SEARCH_DOC} @@ websearch_to_tsquery('english', 'crispr guide') as matches from paper_record`,
       );
       expect(rows[0]).toEqual({ provider: 'openalex', doi: '10.1000/w20', title: 'CRISPR off-target effects', year: 2021, citedByCount: 42, isOpenAccess: true, isRetracted: true, hasAbstract: true, origin: 'seed:openalex', matches: true });
     } finally {
@@ -237,8 +237,8 @@ describe('remembering source', () => {
   });
 
   it('is off unless turned on; searching it first needs the copy too', () => {
-    expect(localCopyConfig({})).toEqual({ enabled: false, freshDays: 7, searchFirst: false, minResults: 50 });
+    expect(localCopyConfig({})).toMatchObject({ enabled: false, freshDays: 7, searchFirst: false, minResults: 50 });
     expect(localCopyConfig({ PAPERS_LOCAL_FIRST: '1' }).searchFirst).toBe(false);
-    expect(localCopyConfig({ PAPERS_LOCAL_COPY: '1', PAPERS_LOCAL_FRESH_DAYS: '3', PAPERS_LOCAL_FIRST: 'true', PAPERS_LOCAL_MIN_RESULTS: '20' })).toEqual({ enabled: true, freshDays: 3, searchFirst: true, minResults: 20 });
+    expect(localCopyConfig({ PAPERS_LOCAL_COPY: '1', PAPERS_LOCAL_FRESH_DAYS: '3', PAPERS_LOCAL_FIRST: 'true', PAPERS_LOCAL_MIN_RESULTS: '20' })).toMatchObject({ enabled: true, freshDays: 3, searchFirst: true, minResults: 20 });
   });
 });

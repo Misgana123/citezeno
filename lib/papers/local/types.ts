@@ -13,8 +13,9 @@ export type StoredPaper = { paper: Paper; detail: boolean; fetchedAt: number };
 
 export interface PaperCopyStore {
   /* Keep these papers (merging with what we have) and note that a user saw them.
-     `detail`: they came with full details. `origin`: 'live' or 'seed:<source>'. */
-  save(papers: Paper[], opts: { detail: boolean; origin: string }): Promise<void>;
+     `detail`: they came with full details. `origin`: 'live' or 'seed:<source>'.
+     `seen: false` (background downloads) leaves "last seen" and hits alone. */
+  save(papers: Paper[], opts: { detail: boolean; origin: string; seen?: boolean }): Promise<void>;
   /* Papers we have under these Citezeno IDs, keyed by the ID asked for. */
   byIds(ids: string[]): Promise<Map<string, StoredPaper>>;
   /* Papers we have with these DOIs (lowercase), keyed by DOI. */

@@ -74,6 +74,8 @@ export function scholarlyTransport(s: HttpSettings): ScholarlyTransport {
       }
       const text = await res.text().catch(() => '');
       if (!res.ok) throw httpError(s, res.status, text, res.headers);
+      // some services (arXiv) now and then answer 200 with nothing: a hiccup, never cached
+      if (!text.trim()) throw new ProviderError('unavailable', `${s.label} sent an empty answer.`, { provider: s.provider, status: res.status, reason: 'empty_answer' });
       if (s.format === 'xml') return { body: text as T, costUsd: 0, status: res.status };
       try {
         const parsed = JSON.parse(text);

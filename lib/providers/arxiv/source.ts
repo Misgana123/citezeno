@@ -1,5 +1,5 @@
 import type { Paper } from '@/lib/papers/types';
-import type { KeywordQuery, PaperPage, PaperRef, PaperSource } from '../papers/types';
+import type { BrowseQuery, KeywordQuery, PaperPage, PaperRef, PaperSource } from '../papers/types';
 import type { ScholarlyTransport } from '../papers/http';
 import { toArxivId } from './ids';
 import { fromFeed, PROVIDER } from './mapper';
@@ -10,6 +10,9 @@ import { searchQuery, sortParams } from './query';
    references or citation counts. */
 
 export const BATCH = 50;
+/* arXiv serves at most 2,000 results a call and 30,000 into one listing. */
+export const BROWSE_MAX_PER_PAGE = 200;
+export const BROWSE_MAX_DEPTH = 30_000;
 export const MAX_QUERY_CHARS = 1500;
 
 export function arxivSource(transport: ScholarlyTransport): PaperSource {
@@ -37,6 +40,16 @@ export function arxivSource(transport: ScholarlyTransport): PaperSource {
       if (!query) return { papers: [], total: 0, costUsd: 0 };
       const { papers, total } = await feed({ search_query: query, start: ((q.page ?? 1) - 1) * q.perPage, max_results: q.perPage, ...sortParams(q.sort) });
       return { papers, total, costUsd: 0 };
+    },
+
+    /* The newest papers (arXiv has no citation counts, so "cited" lists newest too), by offset. */
+    async browse(q: BrowseQuery) {
+      const start = Number(q.cursor ?? 0) || 0;
+      const perPage = Math.min(q.perPage, BROWSE_MAX_PER_PAGE, BROWSE_MAX_DEPTH - start);
+      if (perPage <= 0) return { papers: [], next: null, costUsd: 0 };
+      const { papers } = await feed({ search_query: `submittedDate:[${q.sinceYear ?? 1991}01010000 TO 999912312359]`, start, max_results: perPage, sortBy: 'submittedDate', sortOrder: 'descending' });
+      const next = papers.length >= perPage && start + perPage < BROWSE_MAX_DEPTH ? String(start + perPage) : null;
+      return { papers, next, costUsd: 0 };
     },
 
     async getPaper(ref) {

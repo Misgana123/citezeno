@@ -38,6 +38,7 @@ export type OpenAlexMeta = {
   count?: number | null;
   page?: number | null;
   per_page?: number | null;
+  next_cursor?: string | null;
   cost_usd?: number | null;
 };
 

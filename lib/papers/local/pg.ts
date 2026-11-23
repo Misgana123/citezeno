@@ -1,5 +1,6 @@
 import type { KeywordQuery } from '@/lib/providers/papers/types';
 import type { Paper } from '../types';
+import { SEARCH_DOC } from './schema';
 import { recordKey, type PaperCopyStore, type Queryable, type StoredPaper } from './types';
 
 /* The Postgres paper copy (table paper_record, see schema.ts). Each save is one
@@ -23,8 +24,8 @@ on conflict (key) do update set
   end,
   detail = case when p.provider is distinct from excluded.data->>'provider' then p.detail else p.detail or excluded.detail end,
   "fetchedAt" = case when p.provider is distinct from excluded.data->>'provider' then p."fetchedAt" else now() end,
-  "seenAt" = now(),
-  hits = p.hits + 1`;
+  "seenAt" = case when $3 then now() else p."seenAt" end,
+  hits = case when $3 then p.hits + 1 else p.hits end`;
 
 type Row = { ids: string[]; data: Paper; detail: boolean; fetchedAt: Date };
 
@@ -34,7 +35,7 @@ const SEARCH = (order: string) => `
 with q as (select websearch_to_tsquery('english', $1) as q)
 select data, count(*) over() as total
 from paper_record, q
-where search @@ q.q
+where ${SEARCH_DOC} @@ q.q
   and ($2::int is null or year >= $2) and ($3::int is null or year <= $3)
   and (not $4 or "isOpenAccess")
   and (cardinality($5::text[]) = 0 or type = any($5::text[]))
@@ -46,7 +47,7 @@ order by ${order}
 limit $10 offset $11`;
 
 const ORDER = {
-  relevance: `ts_rank_cd(search, q.q) * (1 + ln(1 + "citedByCount") / 10) desc, key`,
+  relevance: `ts_rank_cd(${SEARCH_DOC}, q.q) * (1 + ln(1 + "citedByCount") / 10) desc, key`,
   newest: `year desc nulls last, data->>'publicationDate' desc nulls last, key`,
   cited: `"citedByCount" desc, key`,
 };
@@ -55,12 +56,12 @@ const toStored = (r: Row): StoredPaper => ({ paper: r.data, detail: r.detail, fe
 
 export function pgPaperCopy(db: Queryable): PaperCopyStore {
   return {
-    async save(papers, { detail, origin }) {
+    async save(papers, { detail, origin, seen = true }) {
       // one row per key (a batch may repeat a paper), in key order so concurrent saves can't deadlock
       const byKey = new Map(papers.map((p) => [recordKey(p), p]));
       const rows = [...byKey.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([key, p]) => ({ key, id: p.id, data: p, detail }));
       if (!rows.length) return;
-      await db.query(UPSERT, [JSON.stringify(rows), origin]);
+      await db.query(UPSERT, [JSON.stringify(rows), origin, seen]);
     },
     async byIds(ids) {
       const out = new Map<string, StoredPaper>();

@@ -29,6 +29,7 @@ export function speakingPapersErrors(s: PaperSource): PaperSource {
     ...(s.citedBy ? { citedBy: wrap(s.citedBy.bind(s)) } : {}),
     ...(s.similar ? { similar: wrap(s.similar.bind(s)) } : {}),
     ...(s.getPapers ? { getPapers: wrap(s.getPapers.bind(s)) } : {}),
+    ...(s.browse ? { browse: wrap(s.browse.bind(s)) } : {}),
   };
 }
 

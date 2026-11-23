@@ -32,6 +32,12 @@ export type ListQuery = { filters: PaperFilters; sort: PaperSort; page: number; 
 /* Pooled results: the provider's top matches, which the app filters, sorts and pages itself. */
 export type PoolQuery = { text: string; filters: PaperFilters; limit: number };
 
+/* Walking a slice of a provider's records page by page, to keep a copy: the
+   most cited or the newest, from a year on (when given), with abstracts.
+   `cursor` is null for the first page; the answer's `next` is null after the last. */
+export type BrowseQuery = { cursor: string | null; perPage: number; order: 'cited' | 'newest'; sinceYear?: number | null };
+export type BrowsePage = { papers: Paper[]; next: string | null; costUsd: number };
+
 /* One page of results; `total` is all matches the provider found. */
 export type PaperPage = { papers: Paper[]; total: number; costUsd: number };
 export type PaperPool = { papers: Paper[]; costUsd: number };
@@ -64,9 +70,11 @@ export interface PaperSource {
   similar?(id: string, q: Omit<PoolQuery, 'text'>): Promise<PaperPool>;
   /* Many papers in few calls; `found` is keyed by the value asked for (DOIs lowercased). */
   getPapers?(kind: 'id' | 'doi', values: string[]): Promise<{ found: Map<string, Paper>; costUsd: number }>;
+  /* Walk its records page by page (for keeping a copy of papers). */
+  browse?(q: BrowseQuery): Promise<BrowsePage>;
 }
 
-export type PaperCapability = 'semantic_search' | 'references' | 'cited_by' | 'similar' | 'batch_lookup';
+export type PaperCapability = 'semantic_search' | 'references' | 'cited_by' | 'similar' | 'batch_lookup' | 'browse';
 
 const METHOD: Record<PaperCapability, keyof PaperSource> = {
   semantic_search: 'semanticSearch',
@@ -74,6 +82,7 @@ const METHOD: Record<PaperCapability, keyof PaperSource> = {
   cited_by: 'citedBy',
   similar: 'similar',
   batch_lookup: 'getPapers',
+  browse: 'browse',
 };
 
 /* Whether a source offers an optional capability. */

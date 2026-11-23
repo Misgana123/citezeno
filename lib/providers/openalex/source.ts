@@ -2,7 +2,7 @@ import { splitPaperId } from '@/lib/papers/ids';
 import { capText } from '@/lib/papers/search/query-length';
 import type { Paper } from '@/lib/papers/types';
 import { isProviderError } from '../errors';
-import type { KeywordQuery, ListQuery, PaperPage, PaperRef, PaperSource, PoolQuery } from '../papers/types';
+import type { BrowseQuery, KeywordQuery, ListQuery, PaperPage, PaperRef, PaperSource, PoolQuery } from '../papers/types';
 import type { OpenAlexTransport, QueryParams } from './client';
 import { PROVIDER } from './client';
 import { QUERY_CHARS_LIMIT, type OpenAlexConfig } from './config';
@@ -19,6 +19,8 @@ import type { OpenAlexList, OpenAlexWork } from './types';
 export const SEMANTIC_MAX = 50;
 /* IDs or DOIs per list call (filter=doi:a|b|…): far cheaper than one call each. */
 export const BATCH = 50;
+/* Most results one list call returns. */
+export const MAX_PER_PAGE = 200;
 
 const pathFor = (ref: PaperRef) =>
   ref.kind === 'id' ? `/works/${ref.id}` : ref.kind === 'doi' ? `/works/doi:${ref.doi}` : `/works/${ref.kind}:${ref.id}`;
@@ -80,6 +82,17 @@ export function openAlexSource(transport: OpenAlexTransport, config: Pick<OpenAl
         },
       });
       return { papers: toPapers(body.results), costUsd };
+    },
+
+    /* Articles, reviews and preprints with abstracts, by cursor (no depth limit). */
+    async browse(q: BrowseQuery) {
+      const filter = ['has_abstract:true', 'type:article|review|preprint', 'is_retracted:false', q.sinceYear ? `publication_year:>${q.sinceYear - 1}` : null].filter(Boolean).join(',');
+      const { body, costUsd } = await transport.call<OpenAlexList>({
+        path: '/works',
+        params: { filter, sort: q.order === 'cited' ? 'cited_by_count:desc' : 'publication_date:desc', per_page: Math.min(q.perPage, MAX_PER_PAGE), cursor: q.cursor ?? '*', select: selectParam(CARD_FIELDS) },
+      });
+      const papers = toPapers(body.results);
+      return { papers, next: papers.length ? (body.meta?.next_cursor ?? null) : null, costUsd };
     },
 
     references: (id, q) => related(`cited_by:${id}`, q),

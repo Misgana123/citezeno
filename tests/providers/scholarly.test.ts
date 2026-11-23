@@ -71,6 +71,8 @@ describe('shared scholarly pieces', () => {
     expect(init.headers).toMatchObject({ 'user-agent': 'UA', 'x-api-key': 'h', accept: 'application/json' });
     const xml = scholarlyTransport({ provider: 'x', label: 'X', baseUrl: 'https://x.org', timeoutMs: 1000, userAgent: 'UA', format: 'xml', fetch: vi.fn(async () => new Response('<a/>')) });
     await expect(xml.call({ path: '/' })).resolves.toMatchObject({ body: '<a/>' });
+    const empty = scholarlyTransport({ provider: 'x', label: 'X', baseUrl: 'https://x.org', timeoutMs: 1000, userAgent: 'UA', format: 'xml', fetch: vi.fn(async () => new Response('')) });
+    await expect(empty.call({ path: '/' })).rejects.toMatchObject({ code: 'unavailable', details: { reason: 'empty_answer' } }); // never cached, retried once
     const broken = scholarlyTransport({ provider: 'x', label: 'X', baseUrl: 'https://x.org', timeoutMs: 1000, userAgent: 'UA', format: 'json', fetch: vi.fn(async () => new Response('<html>')) });
     await expect(broken.call({ path: '/' })).rejects.toMatchObject({ code: 'unavailable' });
     const down = scholarlyTransport({ provider: 'x', label: 'X', baseUrl: 'https://x.org', timeoutMs: 1000, userAgent: 'UA', format: 'json', fetch: vi.fn(async () => Promise.reject(Object.assign(new Error('t'), { name: 'TimeoutError' }))) });

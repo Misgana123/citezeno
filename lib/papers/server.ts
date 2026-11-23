@@ -2,9 +2,11 @@ import 'server-only';
 import type { Meter } from '@/lib/providers/gateway/meter';
 import type { PaperSources } from '@/lib/providers/papers/sources';
 import { pool } from '@/lib/db';
-import { paperSourcesFor } from '@/lib/providers/server';
+import { newMeter } from '@/lib/providers/gateway/meter';
+import { paperEnrichersFor, paperSourcesFor } from '@/lib/providers/server';
 import { papersConfig, type PapersConfig } from './config';
 import { localCopyConfig } from './local/config';
+import type { CopyJobDeps } from './local/jobs/runner';
 import { pgPaperCopy } from './local/pg';
 import { withLocalCopy } from './local/source';
 import { papersFacing } from './source';
@@ -31,4 +33,17 @@ export function papersServer(): PapersServer {
     return papersFacing(withLocalCopy(live, pgPaperCopy(pool), { freshMs: local.freshDays * DAY_MS, searchFirst }));
   };
   return { config, usage: pgUsage, sources };
+}
+
+/* What the background jobs that fill our copy of papers need: the live sources
+   (not through the copy: the jobs save what they fetch themselves) and the
+   fill-in services. */
+export function copyJobDeps(): CopyJobDeps {
+  return {
+    db: pool,
+    copy: pgPaperCopy(pool),
+    sources: () => papersFacing(paperSourcesFor(newMeter())),
+    enrichers: () => paperEnrichersFor(newMeter()),
+    config: localCopyConfig(),
+  };
 }

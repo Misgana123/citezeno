@@ -9,11 +9,14 @@ import type { Paper } from './types';
 
 export type EnrichResult = { papers: Paper[]; changed: Set<string>; byEnricher: Record<string, number> };
 
-export async function enrichPapers(papers: Paper[], enrichers: PaperEnricher[]): Promise<EnrichResult> {
+/* With a deadline, enrichers not started by then are skipped (what was found so far is kept). */
+export async function enrichPapers(papers: Paper[], enrichers: PaperEnricher[], opts: { deadline?: number; now?: () => number } = {}): Promise<EnrichResult> {
+  const now = opts.now ?? Date.now;
   const current = new Map(papers.map((p) => [p.id, p]));
   const changed = new Set<string>();
   const byEnricher: Record<string, number> = {};
   for (const e of enrichers) {
+    if (opts.deadline != null && now() >= opts.deadline) break;
     const wanting = [...current.values()].filter((p) => p.doi && e.fills.some((f) => missing(p, f)));
     if (!wanting.length) continue;
     let found: Map<string, Partial<Paper>>;

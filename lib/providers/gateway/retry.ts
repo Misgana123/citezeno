@@ -18,9 +18,11 @@ export function backoffMs(attempt: number, retryAfterS?: number) {
 
 const rateLimited = (e: unknown): e is ProviderError => isProviderError(e) && e.code === 'busy' && e.details.status === 429;
 
-/* A hiccup worth one more try: the provider timed out, couldn't be reached, or answered 5xx. */
+/* A hiccup worth one more try: the provider timed out, couldn't be reached,
+   answered 5xx, or answered with nothing at all. */
+const HICCUPS = new Set(['timeout', 'network', 'empty_answer']);
 export const transient = (e: unknown): e is ProviderError =>
-  isProviderError(e) && e.code === 'unavailable' && ((e.details.status ?? 0) >= 500 || e.details.reason === 'timeout' || e.details.reason === 'network');
+  isProviderError(e) && e.code === 'unavailable' && ((e.details.status ?? 0) >= 500 || HICCUPS.has(e.details.reason ?? ''));
 
 export const withRetry =
   <Req>(opts: { tries?: number; transientTries?: number; sleep?: Sleep } = {}): Layer<Req> =>
