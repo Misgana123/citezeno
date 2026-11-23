@@ -1,10 +1,15 @@
 /* Storage the gateway layers need. Each has a Postgres version (pg.ts) and an
    in-memory version (memory.ts) for tests and local runs. */
 
-/* Cached provider responses. Keys already carry the provider's name. */
+/* Cached provider responses. Keys already carry the provider's name. An entry
+   is fresh for ttlS seconds, then kept staleS more as a stand-in for when the
+   provider is down or busy. */
 export interface CacheStore {
+  /* A fresh entry, or null. */
   get(key: string): Promise<unknown | null>;
-  set(key: string, value: unknown, ttlS: number): Promise<void>;
+  /* An entry that is fresh or still kept as stale, or null. */
+  getStale(key: string): Promise<unknown | null>;
+  set(key: string, value: unknown, ttlS: number, staleS?: number): Promise<void>;
 }
 
 /* What each provider cost each UTC day. No queries, no users: just totals. */

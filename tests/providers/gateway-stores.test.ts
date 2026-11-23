@@ -14,6 +14,9 @@ const broken = (): CacheStore & SlotStore => ({
   get: vi.fn(async () => {
     throw new Error('redis down');
   }),
+  getStale: vi.fn(async () => {
+    throw new Error('redis down');
+  }),
   set: vi.fn(async () => {
     throw new Error('redis down');
   }),
@@ -91,6 +94,18 @@ describe.skipIf(!REDIS_URL)('redis stores', () => {
     await cache.set('openalex:x', { results: [1, 2], meta: { count: 2 } }, 60);
     expect(await cache.get('openalex:x')).toEqual({ results: [1, 2], meta: { count: 2 } });
     expect(await client.ttl(`${prefix}cache:openalex:x`)).toBeGreaterThan(50);
+  });
+
+  it('keeps an expired entry as stale until its stale time is over', async () => {
+    let now = Date.now();
+    const cache = redisCache(client, prefix, () => now);
+    await cache.set('openalex:s', { v: 1 }, 60, 3600);
+    now += 61_000;
+    expect(await cache.get('openalex:s')).toBeNull();
+    expect(await cache.getStale('openalex:s')).toEqual({ v: 1 });
+    expect(await client.ttl(`${prefix}cache:openalex:s`)).toBeGreaterThan(3600);
+    await client.set(`${prefix}cache:openalex:raw`, JSON.stringify({ not: 'ours' }));
+    expect(await cache.getStale('openalex:raw')).toBeNull();
   });
 
   it('hands out slots one interval apart and refuses past the wait limit', async () => {

@@ -7,19 +7,24 @@ import type { CacheStore, SlotStore, SpendStore } from './types';
    provider; keys now start with the provider's name) and provider_spend.
    Shared by every server instance. */
 
+/* "staleUntil" (null on rows from before it existed) is when an expired entry is finally dropped. */
 export const pgCache: CacheStore = {
   async get(key) {
     const { rows } = await pool.query<{ value: unknown }>(`select value from papers_cache where key = $1 and "expiresAt" > now()`, [key]);
     return rows[0]?.value ?? null;
   },
-  async set(key, value, ttlS) {
+  async getStale(key) {
+    const { rows } = await pool.query<{ value: unknown }>(`select value from papers_cache where key = $1 and coalesce("staleUntil", "expiresAt") > now()`, [key]);
+    return rows[0]?.value ?? null;
+  },
+  async set(key, value, ttlS, staleS = 0) {
     await pool.query(
-      `insert into papers_cache (key, value, "expiresAt") values ($1, $2, now() + make_interval(secs => $3))
-       on conflict (key) do update set value = excluded.value, "expiresAt" = excluded."expiresAt"`,
-      [key, JSON.stringify(value), ttlS],
+      `insert into papers_cache (key, value, "expiresAt", "staleUntil") values ($1, $2, now() + make_interval(secs => $3), now() + make_interval(secs => $3 + $4))
+       on conflict (key) do update set value = excluded.value, "expiresAt" = excluded."expiresAt", "staleUntil" = excluded."staleUntil"`,
+      [key, JSON.stringify(value), ttlS, Math.max(0, staleS)],
     );
-    // now and then, clear out expired entries
-    if (Math.random() < 0.02) await pool.query(`delete from papers_cache where "expiresAt" < now()`);
+    // now and then, clear out entries no longer kept
+    if (Math.random() < 0.02) await pool.query(`delete from papers_cache where coalesce("staleUntil", "expiresAt") < now()`);
   },
 };
 

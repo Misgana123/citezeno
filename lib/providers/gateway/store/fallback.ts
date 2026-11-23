@@ -32,7 +32,8 @@ async function firstWorking<T>(health: StoreHealth, fast: () => Promise<T>, back
 
 export const cacheWithFallback = (fast: CacheStore, backup: CacheStore, health: StoreHealth): CacheStore => ({
   get: (key) => firstWorking(health, () => fast.get(key), () => backup.get(key)),
-  set: (key, value, ttlS) => firstWorking(health, () => fast.set(key, value, ttlS), () => backup.set(key, value, ttlS)),
+  getStale: (key) => firstWorking(health, () => fast.getStale(key), () => backup.getStale(key)),
+  set: (key, value, ttlS, staleS) => firstWorking(health, () => fast.set(key, value, ttlS, staleS), () => backup.set(key, value, ttlS, staleS)),
 });
 
 export const slotsWithFallback = (fast: SlotStore, backup: SlotStore, health: StoreHealth): SlotStore => ({

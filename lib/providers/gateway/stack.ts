@@ -1,5 +1,7 @@
+import { withBreaker, type Breaker } from './breaker';
 import { withBudget, type SpendAlert } from './budget';
 import { withCache } from './cache';
+import { withFlight, type Flights } from './flight';
 import type { Limiter } from './limiter';
 import { withLimiter } from './limiter';
 import { withMeter, type Meter } from './meter';
@@ -11,9 +13,12 @@ import type { GatewayPolicy, Layer, Transport } from './types';
 
 /* The gateway: every call to an outside provider goes through, in order:
 
-     cache  → a hit returns at once (free, not counted)
+     cache  → a hit returns at once (free, not counted); when the provider
+              fails, an expired answer still kept stands in for it
+     flight → the same call already on its way shares that answer
      meter  → counts what really reaches the provider for this request
      budget → refuses past the provider's daily cap; logs cost; alerts
+     breaker → a provider that keeps failing is paused for a moment
      retry  → per-second 429s (and, if the provider allows, hiccups) are tried again
      rate   → the provider's shared waiting line: each call waits its turn
      pace   → calls with a shared per-kind slot (OpenAlex semantic) wait for it
@@ -32,6 +37,10 @@ export type GatewayDeps<Req> = {
   spend: SpendStore;
   slots: SlotStore;
   limiter: Limiter;
+  /* Calls on their way, shared by every request in this instance. */
+  flights?: Flights;
+  /* This provider's breaker in this instance, when its policy asks for one. */
+  breaker?: Breaker | null;
   alert: (a: SpendAlert) => void | Promise<void>;
   now?: () => number;
   sleep?: Sleep;
@@ -39,12 +48,17 @@ export type GatewayDeps<Req> = {
 
 export const compose = <Req>(base: Transport<Req>, ...layers: Layer<Req>[]): Transport<Req> => layers.reduceRight((t, layer) => layer(t), base);
 
+const pass: Layer<never> = (inner) => inner;
+const skip = <Req>() => pass as Layer<Req>;
+
 export function gateway<Req>(d: GatewayDeps<Req>, meter: Meter): Transport<Req> {
   return compose(
     d.transport,
     withCache(d.cache, d.policy),
+    d.flights ? withFlight(d.flights, d.policy) : skip<Req>(),
     withMeter(meter, d.policy),
     withBudget(d.spend, d.policy, d.alert, d.now),
+    d.breaker ? withBreaker(d.breaker, d.policy) : skip<Req>(),
     withRetry({ tries: d.policy.retryTries, transientTries: d.policy.retryTransient, sleep: d.sleep }),
     withRate(d.slots, d.policy, { now: d.now, sleep: d.sleep }),
     withPacing(d.slots, d.policy, { now: d.now, sleep: d.sleep }),

@@ -7,14 +7,28 @@ import type { CacheStore, SlotStore } from './types';
 
 export const REDIS_PREFIX = 'cz:';
 
-export function redisCache(client: Redis, prefix = REDIS_PREFIX): CacheStore {
+/* Each entry is stored as {"f": fresh-until (ms), "v": value} and expires from
+   Redis once its stale time is over too. */
+type Entry = { f: number; v: unknown };
+
+export function redisCache(client: Redis, prefix = REDIS_PREFIX, now: () => number = Date.now): CacheStore {
+  const read = async (key: string): Promise<Entry | null> => {
+    const raw = await client.get(`${prefix}cache:${key}`);
+    if (raw == null) return null;
+    const e = JSON.parse(raw) as Partial<Entry> | null;
+    return e && typeof e.f === 'number' ? (e as Entry) : null; // anything else isn't ours: a miss
+  };
   return {
     async get(key) {
-      const raw = await client.get(`${prefix}cache:${key}`);
-      return raw == null ? null : JSON.parse(raw);
+      const e = await read(key);
+      return e && e.f > now() ? e.v : null;
     },
-    async set(key, value, ttlS) {
-      await client.set(`${prefix}cache:${key}`, JSON.stringify(value), 'EX', Math.max(1, Math.floor(ttlS)));
+    async getStale(key) {
+      return (await read(key))?.v ?? null;
+    },
+    async set(key, value, ttlS, staleS = 0) {
+      const entry: Entry = { f: now() + ttlS * 1000, v: value };
+      await client.set(`${prefix}cache:${key}`, JSON.stringify(entry), 'EX', Math.max(1, Math.floor(ttlS + Math.max(0, staleS))));
     },
   };
 }

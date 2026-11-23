@@ -10,6 +10,7 @@
      PAPERS_DAILY_CAP_USD        stop calling OpenAlex once spending passes this (default 2)
      PAPERS_CACHE_SEARCH_S       search cache time (default 1 day)
      PAPERS_CACHE_PAPER_S        single paper / related list cache time (default 7 days)
+     PAPERS_CACHE_STALE_S        how long expired answers are kept to show while OpenAlex is down (default 3 days)
 
    The contact email and how long a call may wait its turn are shared by every
    provider (lib/providers/shared.ts). */
@@ -31,6 +32,7 @@ export type OpenAlexConfig = {
   dailyCapUsd: number;
   cacheSearchS: number;
   cachePaperS: number;
+  cacheStaleS: number;
   ratePerS: number;
   maxWaitMs: number;
   userAgent: string;
@@ -39,6 +41,11 @@ export type OpenAlexConfig = {
 function positive(v: string | undefined, fallback: number) {
   const n = Number(v);
   return v != null && v.trim() !== '' && Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function nonNegative(v: string | undefined, fallback: number) {
+  const n = Number(v);
+  return v != null && v.trim() !== '' && Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
 export function openAlexConfig(env: Env = process.env): OpenAlexConfig {
@@ -52,6 +59,7 @@ export function openAlexConfig(env: Env = process.env): OpenAlexConfig {
     dailyCapUsd: positive(env.PAPERS_DAILY_CAP_USD, 2),
     cacheSearchS: Math.floor(positive(env.PAPERS_CACHE_SEARCH_S, 86_400)),
     cachePaperS: Math.floor(positive(env.PAPERS_CACHE_PAPER_S, 7 * 86_400)),
+    cacheStaleS: Math.floor(nonNegative(env.PAPERS_CACHE_STALE_S, 3 * 86_400)),
     ratePerS: Math.min(100, positive(env.OPENALEX_RATE_PER_S, 10)),
     maxWaitMs: shared.maxWaitMs,
     userAgent: shared.userAgent,

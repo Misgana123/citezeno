@@ -102,7 +102,8 @@ describe('cache', () => {
   });
 
   it('keeps searching when the cache store fails', async () => {
-    const broken = { get: async () => Promise.reject(new Error('db down')), set: async () => Promise.reject(new Error('db down')) };
+    const down = async () => Promise.reject(new Error('db down'));
+    const broken = { get: down, getStale: down, set: down };
     const { client } = fakeOpenAlex();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     await expect(through(withCache(broken, POLICY), client).get('/works', { search: 'x' })).resolves.toMatchObject({ status: 200 });

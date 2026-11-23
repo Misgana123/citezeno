@@ -37,6 +37,7 @@ describe('openAlexConfig', () => {
       dailyCapUsd: 2,
       cacheSearchS: 86_400,
       cachePaperS: 604_800,
+      cacheStaleS: 259_200,
       ratePerS: 10,
       maxWaitMs: 10_000,
       userAgent: 'Citezeno/1.0 (+https://citezeno.com)',

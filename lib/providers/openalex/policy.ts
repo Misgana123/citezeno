@@ -45,11 +45,14 @@ export function ttlFor(path: string, params: QueryParams, config: Pick<OpenAlexC
 /* OpenAlex allows one semantic search per second per key. */
 export const SEMANTIC_INTERVAL_MS = 1100; // with a little margin
 
+/* Five failures within 30 s pause OpenAlex calls for 30 s (per server instance). */
+export const BREAKER = { failures: 5, windowMs: 30_000, cooldownMs: 30_000 };
+
 /* Calls to OpenAlex at once, and how many may wait; past that, "busy". */
 const CONCURRENCY = 8;
 const MAX_QUEUE = 40;
 
-export function openAlexPolicy(config: Pick<OpenAlexConfig, 'cacheSearchS' | 'cachePaperS' | 'dailyAlertUsd' | 'dailyCapUsd' | 'ratePerS' | 'maxWaitMs'>): GatewayPolicy<OpenAlexRequest> {
+export function openAlexPolicy(config: Pick<OpenAlexConfig, 'cacheSearchS' | 'cachePaperS' | 'cacheStaleS' | 'dailyAlertUsd' | 'dailyCapUsd' | 'ratePerS' | 'maxWaitMs'>): GatewayPolicy<OpenAlexRequest> {
   return {
     provider: PROVIDER,
     label: 'OpenAlex',
@@ -69,5 +72,7 @@ export function openAlexPolicy(config: Pick<OpenAlexConfig, 'cacheSearchS' | 'ca
     rate: { perSecond: config.ratePerS, maxWaitMs: config.maxWaitMs },
     // every OpenAlex call is a read, so a hiccup is worth one more try
     retryTransient: 1,
+    staleS: config.cacheStaleS,
+    breaker: BREAKER,
   };
 }

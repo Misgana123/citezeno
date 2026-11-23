@@ -50,4 +50,9 @@ export type GatewayPolicy<Req> = {
   /* Extra attempts for a call that timed out, couldn't connect or got a server
      error (5xx). Only for calls that are safe to repeat (reads); default none. */
   retryTransient?: number;
+  /* Keep cached answers this many seconds past their time, to serve while the
+     provider is busy or down (default 0: not kept). */
+  staleS?: number;
+  /* Pause calls to a provider that keeps failing (default: never paused). */
+  breaker?: { failures: number; windowMs: number; cooldownMs: number };
 };

@@ -4,19 +4,24 @@ import type { CacheStore, SlotStore, SpendStore } from './types';
    They hold for one server process only. */
 
 export function memoryCache(now: () => number = Date.now): CacheStore {
-  const items = new Map<string, { value: unknown; expires: number }>();
+  const items = new Map<string, { value: unknown; expires: number; staleUntil: number }>();
+  const kept = (key: string) => {
+    const hit = items.get(key);
+    if (hit && hit.staleUntil <= now()) items.delete(key);
+    return hit && hit.staleUntil > now() ? hit : null;
+  };
   return {
     async get(key) {
-      const hit = items.get(key);
-      if (!hit) return null;
-      if (hit.expires <= now()) {
-        items.delete(key);
-        return null;
-      }
-      return structuredClone(hit.value);
+      const hit = kept(key);
+      return hit && hit.expires > now() ? structuredClone(hit.value) : null;
     },
-    async set(key, value, ttlS) {
-      items.set(key, { value: structuredClone(value), expires: now() + ttlS * 1000 });
+    async getStale(key) {
+      const hit = kept(key);
+      return hit ? structuredClone(hit.value) : null;
+    },
+    async set(key, value, ttlS, staleS = 0) {
+      const expires = now() + ttlS * 1000;
+      items.set(key, { value: structuredClone(value), expires, staleUntil: expires + Math.max(0, staleS) * 1000 });
     },
   };
 }

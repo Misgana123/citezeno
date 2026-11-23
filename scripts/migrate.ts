@@ -100,6 +100,8 @@ create table if not exists papers_cache (
   "expiresAt" timestamptz not null
 );
 create index if not exists papers_cache_expires on papers_cache ("expiresAt");
+-- gateway (v9): expired entries are kept a while longer, to stand in while a provider is down
+alter table papers_cache add column if not exists "staleUntil" timestamptz;
 
 -- Find Papers: OpenAlex spending per UTC day (totals only: no queries, no users).
 create table if not exists papers_spend (

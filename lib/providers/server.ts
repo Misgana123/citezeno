@@ -5,6 +5,8 @@ import type { CodeSandbox } from './code-sandbox/types';
 import { chooseProviders, choose } from './config';
 import { embedder, type Embedder } from './embeddings/embedder';
 import { sendSpendAlert } from './gateway/alert';
+import { createBreaker, type Breaker } from './gateway/breaker';
+import { newFlights, type Flights } from './gateway/flight';
 import { createLimiter, type Limiter } from './gateway/limiter';
 import { newMeter, type Meter } from './gateway/meter';
 import { gateway } from './gateway/stack';
@@ -28,17 +30,21 @@ import type { WebSearch } from './web-search/types';
    this from a client component fails the build ("server-only"), which keeps
    keys out of the browser. */
 
-/* One in-process queue per provider, shared by every request. Parked on
-   globalThis so dev reloads reuse them. */
-const g = globalThis as unknown as { __czLimiters?: Map<string, Limiter> };
+/* One in-process queue and breaker per provider, and the calls on their way,
+   shared by every request. Parked on globalThis so dev reloads reuse them. */
+const g = globalThis as unknown as { __czLimiters?: Map<string, Limiter>; __czBreakers?: Map<string, Breaker>; __czFlights?: Flights };
 const limiters = (g.__czLimiters ??= new Map());
+const breakers = (g.__czBreakers ??= new Map());
+const flights = (g.__czFlights ??= newFlights());
 
 /* The gate for one request: the gateway's layers, with this request's meter. */
 export function gateFor(meter: Meter): Gate {
   return (transport, policy) => {
     let limiter = limiters.get(policy.provider);
     if (!limiter) limiters.set(policy.provider, (limiter = createLimiter({ concurrency: policy.concurrency, maxQueue: policy.maxQueue, label: policy.label })));
-    return gateway({ transport, policy, ...gatewayStores(), limiter, alert: sendSpendAlert }, meter);
+    let breaker = breakers.get(policy.provider) ?? null;
+    if (!breaker && policy.breaker) breakers.set(policy.provider, (breaker = createBreaker(policy.breaker)));
+    return gateway({ transport, policy, ...gatewayStores(), limiter, flights, breaker, alert: sendSpendAlert }, meter);
   };
 }
 
