@@ -1,5 +1,6 @@
 import { rebuildAbstract } from './abstract';
 import { doiUrl, paperId, toDoi, toOrcid } from '@/lib/papers/ids';
+import { toSubject } from '@/lib/papers/subjects';
 import type { OpenAlexWork } from './types';
 import type { Paper } from '@/lib/papers/types';
 import { PROVIDER } from './client';
@@ -54,6 +55,7 @@ export function toPaper(work: OpenAlexWork): Paper | null {
     landingUrl: text(primary?.landing_page_url) ?? (doi ? doiUrl(doi) : null),
     isRetracted: work.is_retracted === true,
     topics: uniqueNames([...(work.topics ?? []), ...(work.keywords ?? [])]),
+    subject: toSubject(work.primary_topic?.field?.display_name),
     referenceIds: (work.referenced_works ?? [])
       .map(toWorkId)
       .filter((id): id is string => id != null)

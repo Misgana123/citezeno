@@ -1,3 +1,4 @@
+import type { ExploreFacets } from '@/lib/papers/explore/types';
 import type { PaperList } from '@/lib/papers/search/types';
 import type { Paper } from '@/lib/papers/types';
 
@@ -40,6 +41,12 @@ export function listUrl(kind: ListKind, params: URLSearchParams, paperId?: strin
   return qs ? `${path}?${qs}` : path;
 }
 
-export const fetchPaperList = (url: string, signal?: AbortSignal) => getJson<PaperList>(url, signal);
+export const fetchPaperList = <L = PaperList>(url: string, signal?: AbortSignal) => getJson<L>(url, signal);
 
 export const fetchPaper = (id: string, signal?: AbortSignal) => getJson<Paper>(`/api/papers/${encodeURIComponent(id)}`, signal);
+
+/* The Explore feed's filter counts (null while the feed comes from the live listing). */
+export const fetchExploreFacets = (params: URLSearchParams, signal?: AbortSignal) =>
+  getJson<{ facets: ExploreFacets | null }>(`/api/papers/explore/facets${params.toString() ? `?${params}` : ''}`, signal).then((r) => r.facets);
+
+export const exploreUrl = (params: URLSearchParams) => `/api/papers/explore${params.toString() ? `?${params}` : ''}`;

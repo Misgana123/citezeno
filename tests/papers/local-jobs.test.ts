@@ -111,7 +111,7 @@ describe.skipIf(!TEST_DB_URL)('copy jobs (postgres)', () => {
     expect(oa.browsed.map((q) => q.cursor)).toEqual([null, '200', '400']);
     expect(oa.browsed[0]).toMatchObject({ order: 'cited', perPage: 200 });
     const { rows } = await pool.query(`select count(*)::int as n, min(origin) as origin, max(hits) as hits from paper_record`);
-    expect(rows[0]).toEqual({ n: 450, origin: 'seed:openalex', hits: 1 });
+    expect(rows[0]).toEqual({ n: 450, origin: 'seed:openalex', hits: 0 }); // downloaded, not yet seen by anyone
   });
 
   it('stops at its target; a "newest" download tops up every few hours, a "most cited" one does not', async () => {

@@ -8,7 +8,7 @@ import type { Paper } from '../types';
    - The owner's newer record replaces ours, except that a result card never
      wipes the full details (topics, references) we already have.
    - Another provider's copy of the same paper (same DOI) only fills gaps:
-     a missing abstract or PDF link. */
+     a missing abstract, PDF link or subject. */
 
 export type Kept = { data: Paper; detail: boolean; ids: string[]; fetchedAt: number };
 
@@ -18,6 +18,7 @@ export function mergePaper(old: Kept, incoming: Paper, detail: boolean, now: num
     const data = { ...old.data };
     if (!data.abstract && incoming.abstract) data.abstract = incoming.abstract;
     if (!data.pdfUrl && incoming.pdfUrl) data.pdfUrl = incoming.pdfUrl;
+    if (!data.subject && incoming.subject) data.subject = incoming.subject;
     return { ...old, data, ids };
   }
   if (detail || !old.detail) return { data: incoming, detail: old.detail || detail, ids, fetchedAt: now };

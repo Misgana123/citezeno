@@ -14,7 +14,7 @@ import { AccountMenu } from './AccountMenu';
 import { APP_SECTIONS, type AppSection } from './sections';
 
 /* The app's one sidebar: New chat and Search, the tools (Citation,
-   Find papers, My shelf, History), the user's pinned and recent
+   Explore, My shelf, History), the user's pinned and recent
    chats, and their account. `compact`: icons only. */
 
 const RECENT = 12;

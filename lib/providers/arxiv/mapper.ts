@@ -2,6 +2,7 @@ import { paperId, toDoi } from '@/lib/papers/ids';
 import type { Paper } from '@/lib/papers/types';
 import { all, clean, dateParts, first, parseXml, plain, textOf } from '../papers/parse';
 import { absUrl, arxivDoi, toArxivId } from './ids';
+import { arxivSubject } from './subject';
 
 export const PROVIDER = 'arxiv';
 
@@ -12,6 +13,9 @@ export function toPaper(entry: Element): Paper | null {
   const { year, date } = dateParts(textOf(entry, 'published'));
   const journalDoi = toDoi(textOf(entry, 'arxiv:doi'));
   const pdf = all(entry, 'link').find((l) => l.getAttribute('title') === 'pdf')?.getAttribute('href');
+  const categories = all(entry, 'category')
+    .map((c) => clean(c.getAttribute('term')))
+    .filter((t): t is string => !!t);
   return {
     id: paperId(PROVIDER, id),
     provider: PROVIDER,
@@ -34,9 +38,8 @@ export function toPaper(entry: Element): Paper | null {
     license: null,
     landingUrl: absUrl(id),
     isRetracted: false,
-    topics: all(entry, 'category')
-      .map((c) => clean(c.getAttribute('term')))
-      .filter((t): t is string => !!t),
+    topics: categories,
+    subject: arxivSubject(categories),
     referenceIds: [],
   };
 }

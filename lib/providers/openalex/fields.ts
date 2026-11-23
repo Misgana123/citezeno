@@ -16,6 +16,7 @@ export const CARD_FIELDS = [
   'primary_location',
   'best_oa_location',
   'open_access',
+  'primary_topic',
 ] as const;
 
 /* Everything the preview panel needs, including the reference list. */

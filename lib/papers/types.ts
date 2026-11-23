@@ -27,5 +27,7 @@ export type Paper = {
   landingUrl: string | null;
   isRetracted: boolean;
   topics: string[];
+  /* broad subject, one of lib/papers/subjects.ts ("Medicine", "Computer Science"…), when known */
+  subject?: string | null;
   referenceIds: string[]; // Citezeno IDs of the papers it cites
 };

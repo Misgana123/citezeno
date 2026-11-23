@@ -13,16 +13,18 @@ import './save-button.css';
 
 /* Save a Find Papers result to the shelf in one click (it goes to Unsorted),
    or pick a project from the arrow menu. Once saved, it shows "Saved" and
-   links to the paper on the shelf, everywhere the paper appears. */
-export function SaveButton({ paper, menuAlign = 'right' }: { paper: Paper; menuAlign?: 'left' | 'right' }) {
+   links to the paper on the shelf, everywhere the paper appears. `compact`
+   shows icons only (the Explore gallery's cards). */
+export function SaveButton({ paper, menuAlign = 'right', compact = false }: { paper: Paper; menuAlign?: 'left' | 'right'; compact?: boolean }) {
   const itemId = useSavedItem(paper.id);
   const [busy, setBusy] = useState(false);
   const [menu, setMenu] = useState(false);
 
   if (itemId) {
     return (
-      <a className="btn btn-ghost btn-sm sv-saved" href={shelfItemHref(itemId)} title="Open it on your shelf">
-        <Icon name="check" /> Saved
+      <a className={`btn btn-ghost btn-sm sv-saved${compact ? ' sv-compact' : ''}`} href={shelfItemHref(itemId)} title="Saved. Open it on your shelf" aria-label={compact ? 'Saved. Open it on your shelf' : undefined}>
+        <Icon name="check" />
+        {!compact && ' Saved'}
       </a>
     );
   }
@@ -49,9 +51,17 @@ export function SaveButton({ paper, menuAlign = 'right' }: { paper: Paper; menuA
   };
 
   return (
-    <span className="sv-save">
-      <button type="button" className="btn btn-ghost btn-sm sv-main" onClick={() => save()} disabled={busy || itemId === undefined} aria-label={`Save “${paper.title}” to your shelf`}>
-        {busy ? <span className="spin" aria-hidden="true" /> : <Icon name="plus" />} Save
+    <span className={`sv-save${compact ? ' sv-compact' : ''}`}>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm sv-main"
+        onClick={() => save()}
+        disabled={busy || itemId === undefined}
+        aria-label={`Save “${paper.title}” to your shelf`}
+        title={compact ? 'Save to your shelf' : undefined}
+      >
+        {busy ? <span className="spin" aria-hidden="true" /> : <Icon name="plus" />}
+        {!compact && ' Save'}
       </button>
       <button
         type="button"

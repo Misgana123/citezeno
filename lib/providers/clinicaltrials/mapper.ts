@@ -41,6 +41,7 @@ export function toPaper(s: CtStudy): Paper | null {
     landingUrl: studyUrl(nct),
     isRetracted: false,
     topics: [...new Set([...(p.conditionsModule?.conditions ?? []), ...(p.conditionsModule?.keywords ?? [])].map(clean).filter((t): t is string => !!t))],
+    subject: 'Medicine', // every record here is biomedical
     referenceIds: [],
   };
 }

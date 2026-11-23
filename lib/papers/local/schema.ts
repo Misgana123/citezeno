@@ -42,6 +42,14 @@ create index if not exists paper_record_cited on paper_record ("citedByCount" de
 alter table paper_record add column if not exists "filledAt" timestamptz;
 create index if not exists paper_record_fetched on paper_record ("fetchedAt");
 
+-- v13 (Explore): the broad subject, whether a free PDF link is known, and the
+-- indexes the Explore feed sorts and counts by
+alter table paper_record add column if not exists subject text generated always as (data->>'subject') stored;
+alter table paper_record add column if not exists "hasPdf" boolean generated always as (coalesce(data->>'pdfUrl', '') <> '') stored;
+create index if not exists paper_record_subject on paper_record (subject);
+create index if not exists paper_record_trending on paper_record ("seenAt" desc, hits desc);
+create index if not exists paper_record_newest on paper_record (year desc nulls last);
+
 -- How far the background download has got with each source: its cursor, how
 -- many papers it has brought in, and when it last ran. One row per source.
 create table if not exists paper_sync (

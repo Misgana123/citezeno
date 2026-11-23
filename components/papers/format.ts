@@ -49,3 +49,22 @@ export const formatCount = (n: number) => n.toLocaleString('en-US');
 export const citationLabel = (n: number) => `${formatCount(n)} citation${n === 1 ? '' : 's'}`;
 
 export const doiHref = (doi: string) => `https://doi.org/${doi}`;
+
+/* 148210 → "148k", 4120 → "4.1k", 389 → "389" (for cards and counts). */
+export function compactCount(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 10_000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  if (n < 1_000_000) return `${Math.round(n / 1000)}k`;
+  return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+}
+
+/* Paper sources by their registry name, as people know them. */
+export const SOURCE_LABELS: Record<string, string> = {
+  openalex: 'OpenAlex',
+  arxiv: 'arXiv',
+  pubmed: 'PubMed',
+  europepmc: 'Europe PMC',
+  semanticscholar: 'Semantic Scholar',
+  clinicaltrials: 'ClinicalTrials.gov',
+};
+export const sourceLabel = (name: string) => SOURCE_LABELS[name] ?? name;

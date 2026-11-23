@@ -141,7 +141,7 @@ export function CommandPalette() {
     return [
       { id: 'new-chat', group: 'Actions', label: 'New chat', icon: 'plus', keywords: 'assistant ask agent', run: go('/app/chat') },
       { id: 'go-citation', group: 'Actions', label: 'Citation', icon: 'doc', keywords: 'studio cite trace draft', run: go('/app/citation') },
-      { id: 'go-papers', group: 'Actions', label: 'Find papers', icon: 'book', keywords: 'search research papers articles openalex literature', run: go('/app/papers') },
+      { id: 'go-papers', group: 'Actions', label: 'Explore papers', icon: 'compass', keywords: 'find search browse explore research papers articles openalex literature', run: go('/app/papers') },
       { id: 'go-shelf', group: 'Actions', label: 'My shelf', icon: 'layers', keywords: 'shelf saved papers keep reading list projects', run: go('/app/shelf') },
       { id: 'go-history', group: 'Actions', label: 'History', icon: 'clock', keywords: 'activity log timeline past', run: go('/app/history') },
       { id: 'go-account', group: 'Actions', label: 'Account settings', icon: 'user', keywords: 'profile password sign in', run: go('/app/account') },

@@ -53,6 +53,17 @@ function fakeTransport(answer: (req: ScholarlyRequest) => unknown) {
 }
 
 describe('shared scholarly pieces', () => {
+  it('maps every source’s categories to our broad subjects', async () => {
+    const { arxivSubject } = await import('@/lib/providers/arxiv/subject');
+    const { s2Subject } = await import('@/lib/providers/semanticscholar/subject');
+    expect(arxivSubject(['cs.LG', 'stat.ML'])).toBe('Computer Science');
+    expect(arxivSubject(['hep-th'])).toBe('Physics and Astronomy');
+    expect(arxivSubject(['q-fin.ST'])).toBe('Economics, Econometrics and Finance');
+    expect(arxivSubject([])).toBeNull();
+    expect(s2Subject(['Sociology', 'Medicine'])).toBe('Social Sciences');
+    expect(s2Subject(['Unknown'])).toBeNull();
+  });
+
   it('maps HTTP failures to provider errors', () => {
     const s = { provider: 'x', label: 'X' };
     expect(httpError(s, 429, 'slow', new Headers({ 'retry-after': '2' }))).toMatchObject({ code: 'busy', details: { status: 429, retryAfterS: 2 } });
@@ -159,6 +170,7 @@ describe('arXiv', () => {
       isOpenAccess: true,
       pdfUrl: 'https://arxiv.org/pdf/2202.07171v1',
       topics: ['q-bio.GN'],
+      subject: 'Biochemistry, Genetics and Molecular Biology',
       record: { label: 'arXiv', url: 'https://arxiv.org/abs/2202.07171' },
     });
     expect(papers[0].title).toMatch(/^Investigating the genomic background of CRISPR-Cas genomes/);
@@ -209,6 +221,7 @@ describe('PubMed', () => {
       isOpenAccess: true,
       isRetracted: false,
       record: { label: 'PubMed', url: 'https://pubmed.ncbi.nlm.nih.gov/36970624/' },
+      subject: 'Medicine',
     });
     expect(p.abstract).toMatch(/^Gene editing stands for/);
     expect(p.referenceIds.length).toBeGreaterThan(0);
@@ -313,6 +326,7 @@ describe('Semantic Scholar', () => {
       pdfUrl: 'https://x.org/p.pdf',
       license: 'cc-by',
       topics: ['Biology'],
+      subject: 'Biochemistry, Genetics and Molecular Biology',
     });
     expect(s2Filters(F({ yearFrom: 2020, openAccess: true, minCitations: 5, types: ['review', 'article'] }))).toEqual({ year: '2020-', openAccessPdf: '', minCitationCount: 5, publicationTypes: 'Review,JournalArticle' });
     expect(s2Filters(F({ types: ['preprint'] }))).toBeNull();

@@ -20,7 +20,7 @@ export function memoryPaperCopy(now: () => number = Date.now): MemoryPaperCopy {
         const key = recordKey(p);
         const old = rows.get(key);
         const t = now();
-        if (!old) rows.set(key, { data: structuredClone(p), detail, ids: [p.id], fetchedAt: t, seenAt: t, hits: 1, origin });
+        if (!old) rows.set(key, { data: structuredClone(p), detail, ids: [p.id], fetchedAt: t, seenAt: seen ? t : -Infinity, hits: seen ? 1 : 0, origin });
         else rows.set(key, { ...old, ...mergePaper(old, structuredClone(p), detail, t), seenAt: seen ? t : old.seenAt, hits: seen ? old.hits + 1 : old.hits });
       }
     },

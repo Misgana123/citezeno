@@ -2,6 +2,7 @@ import { doiUrl, paperId, toDoi } from '@/lib/papers/ids';
 import type { Paper } from '@/lib/papers/types';
 import { clean, dateParts, plain } from '../papers/parse';
 import { s2Url, toS2Id } from './ids';
+import { s2Subject } from './subject';
 import type { S2Paper } from './types';
 
 export const PROVIDER = 'semanticscholar';
@@ -45,6 +46,7 @@ export function toPaper(p: S2Paper | null | undefined): Paper | null {
     landingUrl: doi ? doiUrl(doi) : s2Url(id),
     isRetracted: false,
     topics: (p.fieldsOfStudy ?? []).map(clean).filter((t): t is string => !!t),
+    subject: s2Subject(p.fieldsOfStudy),
     referenceIds: [],
   };
 }

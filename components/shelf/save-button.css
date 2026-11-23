@@ -8,6 +8,7 @@
 .sv-save .btn:hover { transform: none; }
 .sv-saved { --b-bd: color-mix(in srgb, var(--thread) 55%, transparent); --b-bg: var(--thread-soft); }
 .sv-saved svg { color: var(--thread); stroke-width: 2.4; }
+.sv-compact .sv-main, a.sv-compact { padding: 0 9px; }
 
 .sv-menu.is-left { left: 0; right: auto; }
 .sv-menu { width: 250px; max-height: 330px; overflow-y: auto; }

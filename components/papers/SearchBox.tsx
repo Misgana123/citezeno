@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Icon } from '../Icon';
 import { formatCount } from './format';
 
@@ -12,12 +12,19 @@ export function SearchBox({
   onSubmit,
   maxChars,
   busy,
+  extra,
+  placeholder = 'A topic, a question, or paste a paragraph such as an abstract',
+  className = 'fp-search',
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
   maxChars: number;
   busy: boolean;
+  /* shown between the text and the Search button (Explore puts the mode switch there) */
+  extra?: ReactNode;
+  placeholder?: string;
+  className?: string;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const over = value.trim().length > maxChars;
@@ -38,7 +45,7 @@ export function SearchBox({
 
   return (
     <form
-      className="fp-search"
+      className={className}
       role="search"
       onSubmit={(e) => {
         e.preventDefault();
@@ -55,7 +62,7 @@ export function SearchBox({
         rows={1}
         value={value}
         maxLength={10_000}
-        placeholder="A topic, a question, or paste a paragraph such as an abstract"
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -64,6 +71,7 @@ export function SearchBox({
           }
         }}
       />
+      {extra}
       <button className="btn btn-thread fp-search-go" type="submit" disabled={busy || !value.trim()}>
         {busy ? <span className="spin" aria-hidden="true" /> : <Icon name="arrow" />}
         <span>Search</span>

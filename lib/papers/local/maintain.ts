@@ -27,11 +27,18 @@ export async function saveFilled(db: Queryable, asked: string[], filled: { key: 
   if (asked.length) await db.query(`update paper_record set "filledAt" = now() where key = any($1::text[])`, [asked]);
 }
 
-/* Kept papers not fetched from their provider for `days`, oldest first. */
+/* When papers started carrying a subject: papers fetched before then are
+   rechecked once (first in line) to get theirs. */
+export const SUBJECTS_SINCE = '2026-11-24T00:00:00Z';
+
+/* Kept papers not fetched from their provider for `days` (or fetched before
+   subjects existed and still without one), oldest first. */
 export async function dueForRefresh(db: Queryable, days: number, limit: number): Promise<{ key: string; paper: Paper }[]> {
   const { rows } = await db.query<{ key: string; data: Paper }>(
-    `select key, data from paper_record where "fetchedAt" < now() - make_interval(days => $1) order by "fetchedAt", key limit $2`,
-    [days, limit],
+    `select key, data from paper_record
+     where "fetchedAt" < now() - make_interval(days => $1) or (subject is null and "fetchedAt" < $3::timestamptz)
+     order by (subject is null and "fetchedAt" < $3::timestamptz) desc, "fetchedAt", key limit $2`,
+    [days, limit, SUBJECTS_SINCE],
   );
   return rows.map((r) => ({ key: r.key, paper: r.data }));
 }

@@ -101,8 +101,14 @@ describe('toPaper', () => {
       landingUrl: 'https://doi.org/10.7717/peerj.4375',
       isRetracted: false,
       topics: ['Open Access', 'Scholarly Publishing', 'Citation advantage'],
+      subject: null,
       referenceIds: ['openalex:W1', 'openalex:W22'],
     });
+  });
+
+  it('takes the broad subject from the primary topic’s field, when it is one of ours', () => {
+    expect(toPaper({ id: 'W9', primary_topic: { field: { display_name: 'Computer Science' } } })?.subject).toBe('Computer Science');
+    expect(toPaper({ id: 'W9', primary_topic: { field: { display_name: 'Not a field' } } })?.subject).toBeNull();
   });
 
   it('fills safe defaults for a sparse record', () => {

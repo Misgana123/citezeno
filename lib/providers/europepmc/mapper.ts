@@ -49,6 +49,7 @@ export function toPaper(r: EpmcResult): Paper | null {
     landingUrl: doi ? doiUrl(doi) : epmcUrl(id),
     isRetracted: types.some((t) => t.toLowerCase() === 'retracted publication'),
     topics: [...new Set([...(r.keywordList?.keyword ?? []), ...(r.meshHeadingList?.meshHeading ?? []).map((m) => m.descriptorName)].map(clean).filter((t): t is string => !!t))],
+    subject: 'Medicine', // every record here is biomedical
     referenceIds: [],
   };
 }

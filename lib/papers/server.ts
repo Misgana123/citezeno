@@ -7,6 +7,7 @@ import { paperEnrichersFor, paperSourcesFor } from '@/lib/providers/server';
 import { papersConfig, type PapersConfig } from './config';
 import { localCopyConfig } from './local/config';
 import type { CopyJobDeps } from './local/jobs/runner';
+import type { ExploreDeps } from './explore/feed';
 import { pgPaperCopy } from './local/pg';
 import { withLocalCopy } from './local/source';
 import { papersFacing } from './source';
@@ -46,4 +47,9 @@ export function copyJobDeps(): CopyJobDeps {
     enrichers: () => paperEnrichersFor(newMeter()),
     config: localCopyConfig(),
   };
+}
+
+/* What the Explore feed needs: our copy of papers, and the request's sources for the fallback. */
+export function exploreDeps(sources: () => PaperSources): ExploreDeps {
+  return { db: pool, copyEnabled: localCopyConfig().enabled, sources };
 }

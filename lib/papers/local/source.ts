@@ -95,6 +95,8 @@ export function rememberingSource(s: PaperSource, store: PaperCopyStore, opts: L
     ...(s.citedBy ? { citedBy: cards(s.citedBy.bind(s)) } : {}),
     ...(s.similar ? { similar: cards(s.similar.bind(s)) } : {}),
     ...(getPapers ? { getPapers } : {}),
+    // browsing a provider's listing (Explore's fallback) isn't a user seeing papers: passed straight on
+    ...(s.browse ? { browse: s.browse.bind(s) } : {}),
   };
 }
 

@@ -7,7 +7,7 @@ export type AppSection = 'chat' | 'citation' | 'papers' | 'shelf' | 'history' | 
 export const APP_SECTIONS: { id: Exclude<AppSection, null | 'account' | 'admin'>; href: string; icon: IconName; label: string; short: string }[] = [
   { id: 'chat', href: '/app/chat', icon: 'sparkle', label: 'Assistant', short: 'Chat' },
   { id: 'citation', href: '/app/citation', icon: 'doc', label: 'Citation', short: 'Cite' },
-  { id: 'papers', href: '/app/papers', icon: 'book', label: 'Find papers', short: 'Papers' },
+  { id: 'papers', href: '/app/papers', icon: 'compass', label: 'Explore', short: 'Explore' },
   { id: 'shelf', href: '/app/shelf', icon: 'layers', label: 'My shelf', short: 'Shelf' },
   { id: 'history', href: '/app/history', icon: 'clock', label: 'History', short: 'History' },
 ];

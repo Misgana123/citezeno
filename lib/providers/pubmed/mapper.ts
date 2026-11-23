@@ -84,6 +84,7 @@ export function toPaper(pa: Element): Paper | null {
     landingUrl: doi ? doiUrl(doi) : pubmedUrl(pmid),
     isRetracted: types.some((t) => t.toLowerCase() === 'retracted publication'),
     topics: [...new Set([...all(citation, 'DescriptorName'), ...all(citation, 'Keyword')].map((n) => clean(n.textContent)).filter((t): t is string => !!t))],
+    subject: 'Medicine', // every record here is biomedical
     referenceIds: [
       ...new Set(
         all(first(pa, 'ReferenceList'), 'ArticleId')

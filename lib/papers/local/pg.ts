@@ -5,20 +5,21 @@ import { recordKey, type PaperCopyStore, type Queryable, type StoredPaper } from
 
 /* The Postgres paper copy (table paper_record, see schema.ts). Each save is one
    statement for the whole batch; merging follows merge.ts:
-     - another provider's copy only fills a missing abstract or PDF link;
+     - another provider's copy only fills a missing abstract, PDF link or subject;
      - the owner's newer record replaces ours, but a result card never wipes
        full details (it updates everything except topics and references). */
 
 const UPSERT = `
-insert into paper_record as p (key, ids, data, detail, origin)
-select r.key, array[r.id], r.data, r.detail, $2
+insert into paper_record as p (key, ids, data, detail, origin, hits, "seenAt")
+select r.key, array[r.id], r.data, r.detail, $2, case when $3 then 1 else 0 end, case when $3 then now() else '-infinity'::timestamptz end
 from jsonb_to_recordset($1::jsonb) as r(key text, id text, data jsonb, detail boolean)
 on conflict (key) do update set
   ids = case when excluded.ids[1] = any(p.ids) then p.ids else p.ids || excluded.ids end,
   data = case
     when p.provider is distinct from excluded.data->>'provider' then p.data || jsonb_strip_nulls(jsonb_build_object(
       'abstract', case when coalesce(p.data->>'abstract', '') = '' then excluded.data->'abstract' end,
-      'pdfUrl',   case when coalesce(p.data->>'pdfUrl', '') = '' then excluded.data->'pdfUrl' end))
+      'pdfUrl',   case when coalesce(p.data->>'pdfUrl', '') = '' then excluded.data->'pdfUrl' end,
+      'subject',  case when coalesce(p.data->>'subject', '') = '' then excluded.data->'subject' end))
     when excluded.detail or not p.detail then excluded.data
     else p.data || (excluded.data - 'topics' - 'referenceIds')
   end,

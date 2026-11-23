@@ -408,7 +408,7 @@ function EmptyView({ collection, everything, onShowAll, onAdd }: { collection: S
       <h2 className="h3">Your library is empty</h2>
       <p>Save papers from Find Papers and they stay here until you remove them.</p>
       <a className="btn btn-thread btn-sm" href="/app/papers">
-        <Icon name="search" /> Find papers
+        <Icon name="compass" /> Explore papers
       </a>
     </div>
   ) : (

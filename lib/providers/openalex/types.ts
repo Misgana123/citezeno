@@ -29,6 +29,7 @@ export type OpenAlexWork = {
   best_oa_location?: OpenAlexLocation;
   open_access?: { is_oa?: boolean | null; oa_url?: string | null } | null;
   topics?: { display_name?: string | null }[] | null;
+  primary_topic?: { field?: { display_name?: string | null } | null } | null;
   keywords?: { display_name?: string | null }[] | null;
   referenced_works?: string[] | null;
   relevance_score?: number | null;
