@@ -13,7 +13,8 @@ import { describe, expect, it } from 'vitest';
      - lib/sources.ts: the citation feature's browser-side searches (OpenAlex,
        Crossref, Open Library, Wikipedia), which stay as they are for now.
      - infrastructure that isn't a provider job: auth (Better Auth), billing
-       (Polar), email (Resend), the database (pg). Their SDKs aren't listed below.
+       (Polar), email (Resend), the database (pg), Redis (ioredis). Their SDKs
+       aren't listed below.
      - the reader's PDF renderer (components/reader/pdf/): PDF.js draws pages in
        the browser and makes no outside call; reading text out of PDFs on the
        server still goes through the PDF text job. */

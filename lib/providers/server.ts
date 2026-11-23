@@ -8,7 +8,7 @@ import { sendSpendAlert } from './gateway/alert';
 import { createLimiter, type Limiter } from './gateway/limiter';
 import { newMeter, type Meter } from './gateway/meter';
 import { gateway } from './gateway/stack';
-import { pgCache, pgSlots, pgSpend } from './gateway/store/pg';
+import { gatewayStores } from './gateway/store/server';
 import { DEFAULT_PAPER_PROVIDERS, PAPER_PROVIDERS } from './papers/registry';
 import { paperSources, type PaperSources } from './papers/sources';
 import type { PaperSource } from './papers/types';
@@ -38,7 +38,7 @@ export function gateFor(meter: Meter): Gate {
   return (transport, policy) => {
     let limiter = limiters.get(policy.provider);
     if (!limiter) limiters.set(policy.provider, (limiter = createLimiter({ concurrency: policy.concurrency, maxQueue: policy.maxQueue, label: policy.label })));
-    return gateway({ transport, policy, cache: pgCache, spend: pgSpend, slots: pgSlots, limiter, alert: sendSpendAlert }, meter);
+    return gateway({ transport, policy, ...gatewayStores(), limiter, alert: sendSpendAlert }, meter);
   };
 }
 
