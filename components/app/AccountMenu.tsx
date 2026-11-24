@@ -10,7 +10,7 @@ import { useCredits } from '../useCredits';
 import { initials } from '../UserMenu';
 
 /* The account at the bottom of the sidebar: who is signed in and their
-   credits; it opens a menu (upwards) with account settings, credits, the
+   credits (a quiet pill); it opens a menu (upwards) with account settings, credits, the
    theme, help and signing out. `compact`: the avatar alone. */
 
 function useTheme(): [boolean, () => void] {
@@ -70,9 +70,13 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
           <>
             <span className="cz-acct-who">
               <b>{u.name || u.email}</b>
-              <small>{credits ? `${credits.total.toLocaleString()} credit${credits.total === 1 ? '' : 's'}` : 'Your account'}</small>
+              {u.name && <small>{u.email}</small>}
             </span>
-            <Icon name="chevron" className="cz-acct-chev" />
+            {credits && (
+              <span className="cz-acct-pill" title={`${credits.total.toLocaleString()} credit${credits.total === 1 ? '' : 's'}`}>
+                {credits.total.toLocaleString()} cr
+              </span>
+            )}
           </>
         )}
       </button>

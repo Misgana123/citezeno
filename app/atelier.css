@@ -802,17 +802,18 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
    the account) and the page beside it. Folds to icons; a drawer on phones.
    ===================================================================== */
 .cz-app {
-  --cz-side: 272px; --at-card-shadow: 0 1px 2px rgba(19, 33, 58, 0.05), 0 22px 44px -34px rgba(19, 33, 58, 0.4);
-  --cz-side-bg: color-mix(in srgb, var(--ground-2) 55%, var(--ground)); --cz-hover: color-mix(in srgb, var(--ink) 7%, transparent);
-  height: 100%; display: grid; grid-template-columns: var(--cz-side) minmax(0, 1fr); background: var(--ground); color: var(--ink); font-size: 14.5px;
+  --cz-side: 264px; --at-card-shadow: 0 1px 2px rgba(19, 33, 58, 0.05), 0 22px 44px -34px rgba(19, 33, 58, 0.4);
+  --cz-hover: color-mix(in srgb, var(--ink) 7%, transparent);
+  height: 100%; display: grid; grid-template-columns: var(--cz-side) minmax(0, 1fr); background: var(--cz-side-bg); color: var(--ink); font-size: 14.5px;
 }
-[data-theme='dark'] .cz-app { --cz-side-bg: #081728; --cz-hover: rgba(233, 241, 246, 0.07); --at-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 22px 44px -30px rgba(0, 0, 0, 0.7); }
+[data-theme='dark'] .cz-app { --cz-hover: rgba(233, 241, 246, 0.07); --at-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 22px 44px -30px rgba(0, 0, 0, 0.7); }
 /* the same sidebar opened over the citation studio */
 .cz-app.is-compact { --cz-side: 60px; }
 
 /* sidebar */
-.cz-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--cz-side-bg); border-right: 1px solid var(--rule-2); }
-.cz-side-top { display: flex; align-items: center; gap: 6px; padding: 12px 10px 8px 14px; min-height: 56px; }
+/* the sidebar shares the window's shell colour: no border, no footer band */
+.cz-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--cz-side-bg); }
+.cz-side-top { display: flex; align-items: center; gap: 6px; padding: 12px 10px 6px 16px; min-height: 56px; }
 .cz-brand { flex: 1; display: flex; align-items: center; gap: 9px; font: 600 20px/1 var(--f-read); letter-spacing: -0.01em; color: var(--ink); text-decoration: none; }
 .cz-mark { width: 26px; height: 26px; flex: none; }
 .cz-ib { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border: 0; border-radius: 8px; background: transparent; color: var(--ink-3); }
@@ -821,39 +822,43 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 .cz-side-scroll { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; padding: 0 8px 12px; scrollbar-width: thin; }
 
 .cz-item {
-  display: flex; align-items: center; gap: 11px; width: 100%; height: 36px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent;
-  font: inherit; font-size: 14.5px; color: var(--ink); text-align: left; text-decoration: none; white-space: nowrap;
+  display: flex; align-items: center; gap: 11px; width: 100%; height: 35px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent;
+  font: inherit; font-size: 14.5px; color: var(--ink-2); text-align: left; text-decoration: none; white-space: nowrap;
 }
-.cz-item svg { flex: none; width: 17px; height: 17px; color: var(--ink-2); }
-.cz-item:hover { background: var(--cz-hover); }
-.cz-item[aria-current='page'] { background: var(--sheet); box-shadow: 0 0 0 1px var(--rule-2); font-weight: 650; }
-.cz-item[aria-current='page'] svg { color: var(--thread); }
-.cz-new { margin-bottom: 2px; background: var(--cz-hover); font-weight: 650; }
+.cz-item svg { flex: none; width: 16px; height: 16px; color: var(--ink-3); }
+.cz-item:hover { background: var(--cz-hover); color: var(--ink); }
+/* the page you're on: a small raised chip */
+.cz-item[aria-current='page'] { background: var(--sheet); box-shadow: 0 0 0 1px var(--rule-2), 0 1px 2px rgba(19, 33, 58, 0.05); color: var(--ink); font-weight: 600; }
+.cz-item[aria-current='page'] svg { color: var(--ink); }
+/* New chat: the one raised button */
+.cz-new { height: 38px; margin: 6px 0 6px; padding: 0 12px; background: var(--sheet); box-shadow: 0 0 0 1px var(--rule), 0 1px 2px rgba(19, 33, 58, 0.05); border-radius: 11px; color: var(--ink); font-weight: 600; }
+.cz-new:hover { background: var(--sheet); box-shadow: 0 0 0 1px var(--ink-3), 0 1px 2px rgba(19, 33, 58, 0.05); }
 .cz-new svg { color: var(--ink); }
+.cz-new + .cz-item { margin-bottom: 12px; }
 .cz-lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .cz-kbd { font: 500 11px var(--f-mono); color: var(--ink-3); border: 0; background: none; padding: 0; }
 .cz-badge { min-width: 19px; height: 19px; padding: 0 6px; border-radius: 999px; background: var(--thread); color: var(--thread-ink); font: 750 11px/19px var(--f-ui); text-align: center; }
 
-.cz-sec { margin-top: 16px; }
-.cz-sec-h { display: flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 650; color: var(--ink-2); }
-.cz-sec-h svg { width: 12px; height: 12px; transform: rotate(90deg); transition: transform 0.15s; }
-.cz-sec-h[aria-expanded='false'] svg { transform: none; }
+.cz-chat-groups { margin-top: 6px; }
+.cz-sec { margin-top: 14px; }
+.cz-sec-h { margin: 0; padding: 0 10px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
 .cz-chats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; }
 .cz-chat, .cz-chat-link { min-width: 0; }
 .cz-chat { position: relative; display: grid; }
 .cz-chat-link {
-  grid-area: 1 / 1; display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 34px 0 10px; border-radius: 9px;
-  font-size: 14px; color: var(--ink); text-decoration: none;
+  grid-area: 1 / 1; display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 10px; border-radius: 9px;
+  font-size: 13.5px; color: var(--ink-2); text-decoration: none;
 }
-.cz-chat-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cz-chat-link:hover, .cz-chat.is-menu .cz-chat-link { background: var(--cz-hover); }
-.cz-chat-link[aria-current='page'] { background: var(--sheet); box-shadow: 0 0 0 1px var(--rule-2); font-weight: 650; }
-.cz-chat-ico { flex: none; width: 15px; height: 15px; color: var(--ink-3); }
-.cz-chat-link[aria-current='page'] .cz-chat-ico { color: var(--thread); }
-.cz-chat-pin { flex: none; width: 13px; height: 13px; color: var(--thread); }
+.cz-chat-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cz-chat-tag { flex: none; font-size: 11px; color: var(--ink-3); }
+.cz-chat-link:hover, .cz-chat.is-menu .cz-chat-link { background: var(--cz-hover); color: var(--ink); }
+.cz-chat-link[aria-current='page'] { background: var(--sheet); box-shadow: 0 0 0 1px var(--rule-2); color: var(--ink); font-weight: 500; }
+/* room for the ⋯ button only when it shows */
+.cz-chat:is(:hover, :focus-within, .is-menu) .cz-chat-link, .cz-chat-link[aria-current='page'] { padding-right: 34px; }
+.cz-chat:is(:hover, :focus-within, .is-menu) .cz-chat-tag { display: none; }
 .cz-chat-more { grid-area: 1 / 1; justify-self: end; align-self: center; display: grid; place-items: center; width: 28px; height: 28px; margin-right: 3px; border: 0; border-radius: 7px; background: transparent; color: var(--ink-3); opacity: 0; }
 .cz-chat-more svg { width: 14px; height: 14px; }
-.cz-chat:hover .cz-chat-more, .cz-chat-more:focus-visible, .cz-chat.is-menu .cz-chat-more { opacity: 1; }
+.cz-chat:hover .cz-chat-more, .cz-chat-more:focus-visible, .cz-chat.is-menu .cz-chat-more, .cz-chat-link[aria-current='page'] + .cz-chat-more { opacity: 1; }
 .cz-chat-more:hover { background: var(--cz-hover); color: var(--ink); }
 .cz-chat .input { height: 34px; min-height: 34px; padding: 0 10px; font-size: 14px; border-width: 1px; border-radius: 9px; }
 .cz-menu, .cz-acct-pop {
@@ -872,7 +877,7 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 .cz-note { margin: 0; padding: 4px 10px; font-size: 13px; color: var(--ink-3); }
 
 /* account */
-.cz-side-foot { padding: 8px; border-top: 1px solid var(--rule-2); }
+.cz-side-foot { padding: 6px 8px 10px; }
 .cz-acct { position: relative; }
 .cz-acct-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: 0; border-radius: 10px; background: transparent; font: inherit; color: var(--ink); text-align: left; }
 .cz-acct-btn:hover, .cz-acct-btn[aria-expanded='true'] { background: var(--cz-hover); }
@@ -880,8 +885,8 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 .cz-av img { width: 100%; height: 100%; object-fit: cover; }
 .cz-acct-who { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
 .cz-acct-who b { font-size: 14px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cz-acct-who small { font-size: 12px; color: var(--ink-3); }
-.cz-acct-chev { width: 14px; height: 14px; color: var(--ink-3); transform: rotate(-90deg); }
+.cz-acct-who small { font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cz-acct-pill { flex: none; padding: 3px 7px; border-radius: 7px; background: var(--cz-hover); font: 500 11.5px var(--f-mono); color: var(--ink-3); }
 .cz-acct-pop { bottom: calc(100% + 6px); left: 0; right: 0; min-width: 240px; }
 .cz-acct-head { display: grid; gap: 8px; padding: 8px 10px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--rule-2); }
 .cz-acct-email { font-size: 13px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; }
@@ -903,7 +908,8 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 .cz-acct.is-compact .cz-acct-pop { left: 0; right: auto; }
 
 /* the page beside it */
-.cz-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+/* the page sits on a raised sheet inset from the window (full-bleed on phones) */
+.cz-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; margin: 8px 8px 8px 0; overflow: hidden; border-radius: 16px; background: var(--ground); box-shadow: var(--cz-sheet-shadow); }
 .cz-bar { display: none; }
 .cz-page { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; background: var(--ground); }
 .cz-panel { flex: 1; min-height: 0; display: flex; overflow: hidden; background: var(--ground); }
@@ -915,6 +921,7 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 /* phones and small tablets: the sidebar is a drawer */
 @media (max-width: 860px) {
   .cz-app, .cz-app.is-compact { grid-template-columns: minmax(0, 1fr); }
+  .cz-main { margin: 0; border-radius: 0; box-shadow: none; }
   .cz-app > .cz-side { position: fixed; z-index: 120; inset: 0 auto 0 0; width: min(300px, 86vw); transform: translateX(-104%); transition: transform 0.25s var(--ease); box-shadow: var(--shadow-lg); }
   .cz-app.is-drawer > .cz-side { transform: none; }
   .cz-app.is-drawer .cz-scrim { display: block; position: fixed; inset: 0; z-index: 110; border: 0; background: rgba(11, 38, 69, 0.3); }
@@ -922,6 +929,7 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
   .cz-bar-title { flex: 1; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cz-bar-acts { display: flex; gap: 6px; }
   .cz-chat-more { opacity: 1; }
+  .cz-chat-link { padding-right: 34px; }
   body:has(.cz-app) .toasts { bottom: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { .cz-app > .cz-side { transition: none; } }
@@ -934,11 +942,16 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
    ===================================================================== */
 .cz-app {
   --ground: #fdfdfc; --ground-2: #e8ebea; --sheet: #f2f4f3; --card: #eceeed; --rule-2: #e5e8e7;
-  --cz-white: #ffffff; --cz-side-bg: #f2f4f3;
+  --cz-white: #ffffff;
+  /* the window's shell (the sidebar and the frame around the page): one calm tone of the same family */
+  --cz-side-bg: #eef1ef;
+  --cz-sheet-shadow: 0 0 0 1px rgba(19, 33, 58, 0.06), 0 1px 2px rgba(19, 33, 58, 0.04), 0 18px 48px -28px rgba(19, 33, 58, 0.28);
 }
 [data-theme='dark'] .cz-app {
   --ground: #0f2239; --ground-2: #1b3a5b; --sheet: #15304d; --card: #1a3757; --rule-2: #1f3d5e;
-  --cz-white: #132b47; --cz-side-bg: #15304d;
+  --cz-white: #132b47;
+  --cz-side-bg: #0a1828;
+  --cz-sheet-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 24px 60px -30px rgba(0, 0, 0, 0.8);
 }
 /* white again: the sidebar's own surfaces (current item, menus), controls and pop-ups */
 .cz-app .cz-side,

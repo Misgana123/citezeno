@@ -11,11 +11,13 @@ import { readHref } from '../reader/api';
 import { InlineName } from '../shelf/InlineName';
 import { useShelfNotices } from '../shelf/useShelfNotices';
 import { AccountMenu } from './AccountMenu';
+import { groupChats } from './chat-groups';
 import { APP_SECTIONS, type AppSection } from './sections';
 
 /* The app's one sidebar: New chat and Search, the tools (Citation,
-   Explore, My shelf, History), the user's pinned and recent
-   chats, and their account. `compact`: icons only. */
+   Explore, My shelf, History), the user's chats (pinned, then by date, as
+   plain titles) and their account. It shares the window's shell colour; the
+   page sits beside it on a raised sheet. `compact`: icons only. */
 
 const RECENT = 12;
 
@@ -75,11 +77,11 @@ function ChatRow({ chat, active, onDone }: { chat: ConversationSummary; active: 
         onClick={onDone}
         title={chat.paperId ? `${chat.title} (opens in the reader)` : chat.title}
       >
-        <Icon name={chat.pinned ? 'pin' : chat.paperId ? 'book' : 'chat'} className={chat.pinned ? 'cz-chat-pin' : 'cz-chat-ico'} />
-        <span>{chat.title}</span>
+        <span className="cz-chat-title">{chat.title}</span>
+        {chat.paperId && <span className="cz-chat-tag">Paper</span>}
       </Link>
       <button type="button" className="cz-chat-more" aria-label={`More for “${chat.title}”`} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
-        <Icon name="list" />
+        <Icon name="dots" />
       </button>
       {menu && (
         <div className="cz-menu" role="menu">
@@ -119,43 +121,30 @@ function ChatRow({ chat, active, onDone }: { chat: ConversationSummary; active: 
 function Chats({ onNavigate }: { onNavigate(): void }) {
   const { index, error } = useChatIndex();
   const [all, setAll] = useState(false);
-  const [open, setOpen] = useState({ pinned: true, chats: true });
   const path = usePathname();
   const activeId = useSearchParams().get('c');
   const chats = index?.conversations ?? [];
   const pinned = chats.filter((c) => c.pinned);
-  const rest = chats.filter((c) => !c.pinned);
-  const shown = all ? rest : rest.slice(0, RECENT);
+  const rest = chats.filter((c) => !c.pinned).sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  const groups = groupChats([...pinned, ...(all ? rest : rest.slice(0, RECENT))]);
   const row = (c: ConversationSummary) => <ChatRow key={c.id} chat={c} active={path === '/app/chat' && c.id === activeId} onDone={onNavigate} />;
 
   return (
-    <>
-      {pinned.length > 0 && (
-        <section className="cz-sec">
-          <button type="button" className="cz-sec-h" aria-expanded={open.pinned} onClick={() => setOpen({ ...open, pinned: !open.pinned })}>
-            Pinned <Icon name="chevron" />
-          </button>
-          {open.pinned && <ul className="cz-chats">{pinned.map(row)}</ul>}
+    <div className="cz-chat-groups">
+      {error && <p className="cz-note">{error}</p>}
+      {index && !chats.length && <p className="cz-note">Your chats will show here.</p>}
+      {groups.map((g) => (
+        <section key={g.label} className="cz-sec" aria-label={g.label}>
+          <h2 className="cz-sec-h">{g.label}</h2>
+          <ul className="cz-chats">{g.chats.map(row)}</ul>
         </section>
-      )}
-      <section className="cz-sec">
-        <button type="button" className="cz-sec-h" aria-expanded={open.chats} onClick={() => setOpen({ ...open, chats: !open.chats })}>
-          Chats <Icon name="chevron" />
+      ))}
+      {rest.length > RECENT && (
+        <button type="button" className="cz-all" onClick={() => setAll(!all)}>
+          {all ? 'Show fewer' : 'View all'}
         </button>
-        {open.chats && (
-          <>
-            {error && <p className="cz-note">{error}</p>}
-            {index && !rest.length && !pinned.length && <p className="cz-note">Your chats will show here.</p>}
-            <ul className="cz-chats">{shown.map(row)}</ul>
-            {rest.length > RECENT && (
-              <button type="button" className="cz-all" onClick={() => setAll(!all)}>
-                {all ? 'Show fewer' : 'View all'}
-              </button>
-            )}
-          </>
-        )}
-      </section>
-    </>
+      )}
+    </div>
   );
 }
 
