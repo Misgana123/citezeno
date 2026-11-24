@@ -21,7 +21,7 @@ export default async function SignUpPage({ searchParams }: Props) {
   return (
     <div className="auth-card">
       <h1>Create your account</h1>
-      <p className="sub">{`Free to start, with ${FREE_MONTHLY_CREDITS} credits every month. One credit traces one claim.`}</p>
+      <p className="sub">{`Free to start, with ${FREE_MONTHLY_CREDITS} credits every month. Answers come only from real papers.`}</p>
       <SignUpForm providers={enabledProviders} next={next} />
     </div>
   );

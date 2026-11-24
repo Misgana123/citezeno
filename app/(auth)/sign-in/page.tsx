@@ -16,7 +16,7 @@ export default async function SignInPage({ searchParams }: Props) {
   return (
     <div className="auth-card">
       <h1>Welcome back</h1>
-      <p className="sub">Sign in to open the studio. Your library and credits are waiting.</p>
+      <p className="sub">Sign in to your research assistant. Your shelf, chats and credits are waiting.</p>
       <SignInForm providers={enabledProviders} next={next} error={typeof sp.error === 'string' ? sp.error : undefined} />
     </div>
   );

@@ -31,7 +31,6 @@
 .umenu-skel { width: 36px; height: 36px; border-radius: 50%; background: color-mix(in srgb, currentColor 12%, transparent); }
 
 /* ---------- auth pages ---------- */
-.auth-page { min-height: calc(100vh - 68px); display: grid; place-items: center; padding: 48px 0 80px; }
 .auth-card {
   width: min(440px, 100% - 32px); background: var(--sheet); border: 1px solid var(--rule-2); border-radius: var(--r-lg);
   box-shadow: var(--shadow); padding: 36px 32px 30px;
