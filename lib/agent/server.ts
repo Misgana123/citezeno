@@ -15,7 +15,7 @@ import { research, RESEARCH_MS } from './research';
 import { codeRunner } from './sandbox';
 import { searchReservations } from './limits';
 import { answer, repairHistory, resume, resumeWithClientResult, retry, type ClientOutcome, type LoopDeps } from './loop';
-import { claimRun, createConversation, dropAfterLastUserMessage, getConversation, loadMessages, releaseRun, setModel, setPending, setWebSearch, titleFrom, appendMessages, type Conversation } from './store';
+import { claimRun, createConversation, dropAfterLastUserMessage, renameConversation, getConversation, loadMessages, releaseRun, setModel, setPending, setWebSearch, titleFrom, appendMessages, type Conversation } from './store';
 import { offeredTools } from './tools';
 import { tally, type ToolDisplay } from './tools/types';
 import type { AgentEvent, Pending } from './types';
@@ -65,7 +65,8 @@ export function agentRoute<P = Record<string, never>>(handler: (req: Request, us
 /* The models on offer, and whether web search is set up (new chats start with it on when it is). */
 export const agentModels = async () => ({ ...(await chatModelsFor()).info(), web: webSearchFor() != null });
 
-type Start = { conversation: Conversation; run(deps: LoopDeps, history: Parameters<typeof answer>[1]): Promise<void>; extraSystem?: string };
+/* named: the chat was just made here, so the model titles it in its first reply */
+type Start = { conversation: Conversation; run(deps: LoopDeps, history: Parameters<typeof answer>[1]): Promise<void>; extraSystem?: string; named?: boolean };
 
 /* A reply as a stream of events. The work happens while the stream is open. */
 async function streamReply(userId: string, req: Request, start: () => Promise<Start>, modelId: string | null | undefined, replyMs = REPLY_MS): Promise<Response> {
@@ -73,7 +74,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
 
   const meter = newMeter();
   const models = await chatModelsFor(meter);
-  const { conversation, run, extraSystem } = await start();
+  const { conversation, run, extraSystem, named } = await start();
   const model = models.pick(modelId ?? conversation.model);
   if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
   if (!(await claimRun(pool, userId, conversation.id, Math.ceil(replyMs / 1000) + 30))) throw new AgentHttpError(409, 'Still working on your last message.', 'busy');
@@ -122,6 +123,15 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     deadline: Date.now() + replyMs,
     extraSystem: (extraSystem ?? '') + (conversation.webSearch ? webContext() : ''),
     tools: offeredTools({ web: conversation.webSearch }),
+    ...(named
+      ? {
+          naming: {
+            async onTitle(title: string) {
+              if (await renameConversation(pool, userId, conversation.id, title)) emit({ type: 'title', title });
+            },
+          },
+        }
+      : {}),
   };
 
   void (async () => {
@@ -150,12 +160,15 @@ export function replyToMessage(req: Request, userId: string, body: { conversatio
     async () => {
       // from the reader: the open paper is context (and a new chat belongs to it)
       const reading = body.paperId ? await openPaperContext(userId, body.paperId) : null;
+      let named = false;
       let conversation = body.conversationId ? await getConversation(pool, userId, body.conversationId) : null;
       if (body.conversationId && !conversation) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
       if (!conversation) {
         const model = (await chatModelsFor()).pick(body.model);
         if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
         conversation = await createConversation(pool, userId, titleFrom(reading?.title ?? (body.text || body.attachments?.[0]?.name || '')), model.id, reading?.id ?? null);
+        // a chat about the open paper keeps the paper's title; others are titled by the model
+        named = !reading;
       }
       // a question left unanswered: the user moved on
       if (conversation.pending) await setPending(pool, conversation.id, null);
@@ -164,7 +177,7 @@ export function replyToMessage(req: Request, userId: string, body: { conversatio
         await setWebSearch(pool, userId, conversation.id, body.webSearch);
         conversation = { ...conversation, webSearch: body.webSearch };
       }
-      return { conversation, run: (deps, history) => answer(deps, history, body.text, body.attachments ?? []), extraSystem: reading?.context };
+      return { conversation, run: (deps, history) => answer(deps, history, body.text, body.attachments ?? []), extraSystem: reading?.context, named };
     },
     body.model,
   );
@@ -177,19 +190,21 @@ export function replyWithResearch(req: Request, userId: string, body: { conversa
     userId,
     req,
     async () => {
+      let named = false;
       let conversation = body.conversationId ? await getConversation(pool, userId, body.conversationId) : null;
       if (body.conversationId && !conversation) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
       if (!conversation) {
         const model = (await chatModelsFor()).pick(body.model);
         if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
         conversation = await createConversation(pool, userId, titleFrom(body.text), model.id);
+        named = true;
       }
       if (conversation.pending) await setPending(pool, conversation.id, null);
       if (body.webSearch !== undefined && body.webSearch !== conversation.webSearch) {
         await setWebSearch(pool, userId, conversation.id, body.webSearch);
         conversation = { ...conversation, webSearch: body.webSearch };
       }
-      return { conversation, run: (deps) => research(deps, body.text) };
+      return { conversation, run: (deps) => research(deps, body.text), named };
     },
     body.model,
     RESEARCH_MS,

@@ -804,7 +804,7 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 .cz-app {
   --cz-side: 264px; --at-card-shadow: 0 1px 2px rgba(19, 33, 58, 0.05), 0 22px 44px -34px rgba(19, 33, 58, 0.4);
   --cz-hover: color-mix(in srgb, var(--ink) 7%, transparent);
-  height: 100%; display: grid; grid-template-columns: var(--cz-side) minmax(0, 1fr); background: var(--cz-side-bg); color: var(--ink); font-size: 14.5px;
+  position: relative; height: 100%; display: grid; grid-template-columns: var(--cz-side) minmax(0, 1fr); background: var(--cz-side-bg); color: var(--ink); font-size: 14.5px;
 }
 [data-theme='dark'] .cz-app { --cz-hover: rgba(233, 241, 246, 0.07); --at-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 22px 44px -30px rgba(0, 0, 0, 0.7); }
 /* the same sidebar opened over the citation studio */
@@ -812,7 +812,7 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 
 /* sidebar */
 /* the sidebar shares the window's shell colour: no border, no footer band */
-.cz-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--cz-side-bg); }
+.cz-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--cz-side-bg); border-right: 1px solid var(--rule-2); }
 .cz-side-top { display: flex; align-items: center; gap: 6px; padding: 12px 10px 6px 16px; min-height: 56px; }
 .cz-brand { flex: 1; display: flex; align-items: center; gap: 9px; font: 600 20px/1 var(--f-read); letter-spacing: -0.01em; color: var(--ink); text-decoration: none; }
 .cz-mark { width: 26px; height: 26px; flex: none; }
@@ -831,10 +831,8 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 .cz-item[aria-current='page'] { background: var(--cz-active); color: var(--ink); font-weight: 600; }
 .cz-item[aria-current='page'] svg { color: var(--ink); }
 /* New chat: the one raised button */
-.cz-new { height: 38px; margin: 6px 0 6px; padding: 0 12px; background: transparent; border-radius: 11px; color: var(--ink); font-weight: 600; }
-.cz-new:hover { background: var(--cz-hover); }
+.cz-new { margin-top: 4px; color: var(--ink); font-weight: 600; }
 .cz-new svg { color: var(--ink); }
-.cz-new + .cz-item { margin-bottom: 12px; }
 .cz-lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .cz-kbd { font: 500 11px var(--f-mono); color: var(--ink-3); border: 0; background: none; padding: 0; }
 .cz-badge { min-width: 19px; height: 19px; padding: 0 6px; border-radius: 999px; background: var(--thread); color: var(--thread-ink); font: 750 11px/19px var(--f-ui); text-align: center; }
@@ -905,11 +903,24 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 .cz-side.is-compact .cz-item { position: relative; }
 .cz-side.is-compact .cz-badge { position: absolute; top: 1px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; font-size: 10px; line-height: 16px; }
 .cz-side.is-compact .cz-acct-btn { justify-content: center; padding: 6px 0; }
+/* folded: the logo in place of the panel icon; on hover it shows what a click does */
+.cz-open { width: 36px; height: 36px; }
+.cz-open .cz-mark { width: 26px; height: 26px; }
+.cz-open .cz-open-ic { display: none; }
+.cz-open:is(:hover, :focus-visible) .cz-mark { display: none; }
+.cz-open:is(:hover, :focus-visible) .cz-open-ic { display: block; }
 .cz-acct.is-compact .cz-acct-pop { left: 0; right: auto; }
 
 /* the page beside it */
-/* the page sits on a raised sheet inset from the window (full-bleed on phones) */
-.cz-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; margin: 8px 8px 8px 0; overflow: hidden; border-radius: 16px; background: var(--ground); box-shadow: var(--cz-sheet-shadow); }
+/* the page fills the rest of the window, edge to edge */
+.cz-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--ground); }
+/* drag the sidebar's edge to make it wider or narrower (double-click: back to the usual width) */
+.cz-resize { position: absolute; top: 0; bottom: 0; left: calc(var(--cz-side) - 4px); z-index: 60; width: 8px; cursor: col-resize; touch-action: none; }
+.cz-resize::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: transparent; transition: background 0.15s; }
+.cz-resize:hover::after, .cz-resize:focus-visible::after, .cz-app.is-resizing .cz-resize::after { background: color-mix(in srgb, var(--ink) 22%, transparent); }
+.cz-resize:focus-visible { outline: none; }
+.cz-app.is-resizing, .cz-app.is-resizing * { cursor: col-resize !important; user-select: none; }
+.cz-app.is-compact .cz-resize { display: none; }
 .cz-bar { display: none; }
 .cz-page { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; background: var(--ground); }
 .cz-panel { flex: 1; min-height: 0; display: flex; overflow: hidden; background: var(--ground); }
@@ -921,7 +932,7 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 /* phones and small tablets: the sidebar is a drawer */
 @media (max-width: 860px) {
   .cz-app, .cz-app.is-compact { grid-template-columns: minmax(0, 1fr); }
-  .cz-main { margin: 0; border-radius: 0; box-shadow: none; }
+  .cz-resize { display: none; }
   .cz-app > .cz-side { position: fixed; z-index: 120; inset: 0 auto 0 0; width: min(300px, 86vw); transform: translateX(-104%); transition: transform 0.25s var(--ease); box-shadow: var(--shadow-lg); }
   .cz-app.is-drawer > .cz-side { transform: none; }
   .cz-app.is-drawer .cz-scrim { display: block; position: fixed; inset: 0; z-index: 110; border: 0; background: rgba(11, 38, 69, 0.3); }
@@ -946,13 +957,11 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
   /* the window's shell (the sidebar and the frame around the page): a neutral gray, no tint;
      hover and the row you're on are plain gray too */
   --cz-side-bg: #f3f3f2; --cz-hover: rgba(20, 20, 19, 0.045); --cz-active: rgba(20, 20, 19, 0.08);
-  --cz-sheet-shadow: 0 0 0 1px rgba(20, 20, 19, 0.06), 0 1px 2px rgba(20, 20, 19, 0.04), 0 18px 48px -28px rgba(20, 20, 19, 0.22);
 }
 [data-theme='dark'] .cz-app {
   --ground: #0f2239; --ground-2: #1b3a5b; --sheet: #15304d; --card: #1a3757; --rule-2: #1f3d5e;
   --cz-white: #132b47;
   --cz-side-bg: #0a1828; --cz-hover: rgba(233, 241, 246, 0.06); --cz-active: rgba(233, 241, 246, 0.1);
-  --cz-sheet-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 24px 60px -30px rgba(0, 0, 0, 0.8);
 }
 /* white again: the sidebar's own surfaces (current item, menus), controls and pop-ups */
 .cz-app .cz-side,

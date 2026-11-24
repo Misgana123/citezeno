@@ -140,6 +140,42 @@ describe('one reply', () => {
   });
 });
 
+describe('naming a new chat', () => {
+  it('asks for a title in the first call only, names the chat, and never shows the tag', async () => {
+    const { chat, requests } = scripted(
+      { text: '<title>Sleep and memory papers</title>\nLet me search.', toolCalls: [call('c1', 'search_papers', { query: 'sleep and memory', mode: 'keyword' })], stop: 'tool_use' },
+      { text: '<title>Again</title>\nI found one paper.' },
+    );
+    const titles: string[] = [];
+    const h = harness(chat, { naming: { onTitle: async (t) => void titles.push(t) } });
+    await answer(h.deps, [], 'Find papers on sleep and memory');
+
+    expect(titles).toEqual(['Sleep and memory papers']);
+    expect(requests[0].system).toMatch(/first message of a new chat/);
+    expect(requests[1].system).not.toMatch(/first message of a new chat/); // asked once
+    // the tag is taken out of what is saved and shown, even one the model repeats
+    const texts = h.events.flatMap((e) => (e.type === 'text' ? [e.text] : []));
+    expect(texts).toEqual(['Let me search.', 'I found one paper.']);
+    expect(JSON.stringify(h.history())).not.toMatch(/<title>/);
+  });
+
+  it('keeps asking within the first reply until the title comes, and works without one', async () => {
+    const { chat, requests } = scripted({ text: '', toolCalls: [call('c1', 'search_papers', { query: 'sleep', mode: 'keyword' })], stop: 'tool_use' }, { text: 'No title here.' });
+    const titles: string[] = [];
+    const h = harness(chat, { naming: { onTitle: async (t) => void titles.push(t) } });
+    await answer(h.deps, [], 'Sleep?');
+    expect(requests.map((r) => /first message of a new chat/.test(r.system ?? ''))).toEqual([true, true]);
+    expect(titles).toEqual([]);
+    expect(h.events.find((e) => e.type === 'text')).toMatchObject({ text: 'No title here.' });
+  });
+
+  it('asks nothing in a chat that already has its title', async () => {
+    const { chat, requests } = scripted({ text: 'Hello.' });
+    await answer(harness(chat).deps, [], 'Hi');
+    expect(requests[0].system).not.toMatch(/first message of a new chat/);
+  });
+});
+
 describe('asking first', () => {
   const many = Array.from({ length: 12 }, (_, i) => `i_${i}`);
 

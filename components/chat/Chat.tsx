@@ -315,6 +315,10 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
           setActiveId(e.id);
           setTitle(e.title);
           setUrl(e.id);
+        } else if (e.type === 'title') {
+          // the model named this new chat
+          setTitle(e.title);
+          refreshChats();
         } else if (e.type === 'confirm') setWaiting({ callId: e.callId, kind: 'confirm', question: e.question });
         else if (e.type === 'client_tool') task = { callId: e.callId, name: e.name, input: e.input, label: e.label };
         else if (e.type === 'error') setError(e.message);

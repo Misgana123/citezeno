@@ -115,7 +115,7 @@
 .ch-send.is-stop svg { width: 14px; height: 14px; }
 
 /* ---------------------------------------------------------- conversation */
-.ch-head { display: flex; align-items: center; min-height: 54px; padding: 8px 16px 4px 18px; }
+.ch-head { display: flex; align-items: center; min-height: 54px; padding: 8px 16px 8px 18px; border-bottom: 1px solid var(--rule-2); }
 .ch-title { position: relative; min-width: 0; }
 .ch-title-btn { display: inline-flex; align-items: center; gap: 6px; max-width: min(560px, 70vw); padding: 6px 10px; border: 0; border-radius: 9px; background: transparent; font-size: 14.5px; font-weight: 650; color: var(--ink); }
 .ch-title-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -304,13 +304,49 @@ a.ch-file { text-decoration: none; }
 .ch-share-btn:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
 .ch-share-btn:disabled { opacity: 0.55; cursor: default; }
 .ch-share-btn svg { width: 15px; height: 15px; }
-.dialog.ch-share p.ch-share-title { margin: 0 0 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 15px var(--f-read); color: var(--ink-2); }
-.ch-share-notes { display: grid; gap: 6px; margin: 0; padding-left: 18px; font-size: 14px; color: var(--ink-2); }
-.ch-share-link { display: flex; gap: 8px; }
-.ch-share-link .input { flex: 1; min-width: 0; height: 36px; font: 13px var(--f-mono); }
-.ch-share-link .btn svg { width: 14px; height: 14px; }
-.dialog.ch-share p.ch-share-meta { margin: 8px 0 0; font-size: 13px; color: var(--ink-3); }
-.dialog.ch-share p.ch-share-behind { display: flex; align-items: center; gap: 7px; margin: 12px 0 0; padding: 9px 12px; border-radius: 10px; background: var(--thread-soft); font-size: 13.5px; color: var(--ink); }
-.ch-share-behind svg { flex: none; width: 15px; height: 15px; }
-.ch-share-stop { margin-right: auto; color: var(--warn); }
+.dialog.ch-share { position: relative; width: min(460px, 100%); padding: 22px 22px 20px; border-radius: 20px; }
+.ch-share-x { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 9px; background: none; color: var(--ink-3); cursor: pointer; }
+.ch-share-x:hover { background: var(--card); color: var(--ink); }
+.ch-share-x svg { width: 16px; height: 16px; }
+.ch-share-head { display: flex; align-items: center; gap: 12px; padding-right: 36px; }
+.ch-share-ic { display: grid; flex: none; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: color-mix(in srgb, var(--wash) 26%, transparent); color: var(--prussian); }
+[data-theme='dark'] .ch-share-ic { color: var(--wash); }
+.ch-share-ic svg { width: 19px; height: 19px; }
+.ch-share-head > div { min-width: 0; }
+.dialog.ch-share h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: 0; }
+.dialog.ch-share .ch-share-head p { margin: 1px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 14px var(--f-read); color: var(--ink-3); }
+.dialog.ch-share p.ch-share-wait { margin: 18px 0 0; }
+/* who can open it: one row with a switch */
+.ch-share-access { display: flex; align-items: center; gap: 12px; margin: 18px 0 14px; padding: 12px 14px; border: 1px solid var(--rule-2); border-radius: 14px; }
+.ch-share-dot { display: grid; flex: none; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--card); color: var(--ink-2); }
+.ch-share-dot svg { width: 16px; height: 16px; }
+.ch-share-access.is-on .ch-share-dot { background: var(--verify-soft); color: var(--verify); }
+.ch-share-who { flex: 1; min-width: 0; display: grid; line-height: 1.35; }
+.ch-share-who b { font-size: 14px; font-weight: 600; color: var(--ink); }
+.ch-share-who span { font-size: 12.5px; color: var(--ink-3); }
+.ch-share-switch { position: relative; flex: none; width: 38px; height: 22px; padding: 0; border: 0; border-radius: 99px; background: color-mix(in srgb, var(--ink) 16%, transparent); cursor: pointer; transition: background 0.15s; }
+.ch-share-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); transition: transform 0.15s; }
+.ch-share-switch[aria-checked='true'] { background: var(--verify); }
+.ch-share-switch[aria-checked='true']::after { transform: translateX(16px); }
+.ch-share-switch:disabled { opacity: 0.6; cursor: default; }
+.ch-share-notes { display: grid; gap: 9px; margin: 0 0 18px; padding: 0; list-style: none; font-size: 13.5px; color: var(--ink-2); }
+.ch-share-notes li { display: flex; gap: 10px; }
+.ch-share-notes svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--ink-3); }
+/* dark buttons: the main action, Copy and Update */
+.ch-share-go, .ch-share-btn-dark { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 10px; background: var(--prussian-deep); color: #fff; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+[data-theme='dark'] :is(.ch-share-go, .ch-share-btn-dark) { background: var(--ink); color: var(--prussian-deep); }
+.ch-share-go { width: 100%; height: 42px; }
+.ch-share-btn-dark { flex: none; height: 32px; padding: 0 12px; border-radius: 8px; }
+:is(.ch-share-go, .ch-share-btn-dark):disabled { opacity: 0.6; cursor: default; }
+:is(.ch-share-go, .ch-share-btn-dark) svg { width: 15px; height: 15px; }
+/* the link, with Copy inside its field */
+.ch-share-link { display: flex; align-items: center; gap: 6px; padding: 5px 5px 5px 12px; border: 1px solid var(--rule); border-radius: 12px; background: var(--card); }
+.ch-share-link > svg { flex: none; width: 15px; height: 15px; color: var(--ink-3); }
+.ch-share-link input { flex: 1; min-width: 0; border: 0; background: none; padding: 0; font: 13px var(--f-mono); color: var(--ink-2); outline: none; text-overflow: ellipsis; }
+.ch-share-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; font-size: 12.5px; color: var(--ink-3); }
+.ch-share-stop { flex: none; padding: 0; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 500; color: var(--ink-3); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; cursor: pointer; }
+.ch-share-stop:hover { color: var(--warn); text-decoration-color: currentColor; }
+.ch-share-behind { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 10px 10px 10px 14px; border-radius: 12px; background: var(--thread-soft); font-size: 13px; color: var(--ink); }
+.ch-share-behind span { flex: 1; }
+.dialog.ch-share p.ch-share-err { margin: 14px 0 0; }
 @media (max-width: 560px) { .ch-share-btn { padding: 0 9px; } }

@@ -45,6 +45,8 @@ export type Pending = {
 /* What the chat page receives while the agent works (one JSON object per line). */
 export type AgentEvent =
   | { type: 'conversation'; id: string; title: string; model: string }
+  /* the model titled a new chat */
+  | { type: 'title'; title: string }
   | { type: 'step'; callId: string; name: string; label: string; input: unknown; kind?: StepKind; part?: number }
   | { type: 'step_done'; step: StepView }
   /* seq: the saved message's number (for feedback on it) */

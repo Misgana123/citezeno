@@ -3,6 +3,7 @@ import type { Paper } from '@/lib/papers/types';
 import type { ChatMessage } from '@/lib/providers/chat/types';
 import type { LoopDeps } from './loop';
 import { asData } from './prompt';
+import { cleanTitle } from './title';
 import { failureMessage, runTool, stepLook } from './tools/run';
 import type { StepKind, StepLine, ToolDisplay, WebLink } from './tools/types';
 import type { StepView } from './types';
@@ -28,7 +29,8 @@ const AT_ONCE = 3;
 type Source = { key: string; kind: 'web' | 'paper'; title: string; url: string | null; date: string | null; authors?: string; retracted?: boolean; text: string; paper?: Paper };
 
 const PLAN_SYSTEM = `You plan research. Break the user's question into focused sub-questions that can each be answered by searching the web and research papers. Cover the main angles (definitions, evidence, recent developments, disagreements) without overlap. Write them in the user's language.
-Reply with JSON only: {"subQuestions": ["…", "…"]} with 3 to ${SUB_QUESTIONS_MAX} items.`;
+Also give the research a short title: 3 to 6 words, in the user's language, plain text.
+Reply with JSON only: {"title": "…", "subQuestions": ["…", "…"]} with 3 to ${SUB_QUESTIONS_MAX} items.`;
 
 const GAPS_SYSTEM = `You review research in progress. Given the question and the sources found so far (titles and snippets), name at most ${FOLLOW_UPS_MAX} important gaps worth one more search each; none if the sources already cover the question.
 Reply with JSON only: {"followUps": ["…"]}`;
@@ -181,7 +183,15 @@ export async function research(d: LoopDeps, question: string): Promise<void> {
 
   try {
     const plan = await own('Planning the research', 'plan', async () => {
-      const qs = strings(jsonIn(await ask(PLAN_SYSTEM, question, 800))?.subQuestions, SUB_QUESTIONS_MAX);
+      const planned = jsonIn(await ask(PLAN_SYSTEM, question, 800));
+      const qs = strings(planned?.subQuestions, SUB_QUESTIONS_MAX);
+      // a new chat is named by the plan's title
+      const title = cleanTitle(planned?.title);
+      if (d.naming && title) {
+        const naming = d.naming;
+        d.naming = undefined;
+        await naming.onTitle(title).catch((e) => console.warn('[citezeno] agent: naming the chat failed', e));
+      }
       const value = qs.length ? qs : [question];
       const n = `${value.length} question${value.length === 1 ? '' : 's'}`;
       return { value, line: { did: 'Planned the research', about: n }, display: { plan: value, summary: n } };

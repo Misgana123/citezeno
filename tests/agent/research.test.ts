@@ -124,6 +124,16 @@ describe('deep research', () => {
     expect(view.entries.map((e) => e.kind)).toEqual(['user', 'steps', 'assistant']);
   });
 
+  it('names a new chat from the plan’s title', async () => {
+    const { chat, requests } = scripted({ text: '{"title": "Sleep and learning", "subQuestions": ["a question"]}' }, { text: '{"followUps": []}' }, { text: '# Report\n\nText [1].' });
+    const h = harness(chat, { web: false });
+    const titles: string[] = [];
+    h.deps.naming = { onTitle: async (t) => void titles.push(t) };
+    await research(h.deps, 'How does sleep affect learning?');
+    expect(requests[0].system).toMatch(/"title"/);
+    expect(titles).toEqual(['Sleep and learning']);
+  });
+
   it('researches papers only when web search isn’t set up', async () => {
     const { chat } = scripted({ text: '{"subQuestions": ["a question"]}' }, { text: '{"followUps": []}' }, { text: '# Report\n\nText [1].' });
     const h = harness(chat, { web: false });

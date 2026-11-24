@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Icon } from '../Icon';
 import { useCredits } from '../useCredits';
 import { RAIL_EVENT } from '../chat/file/panel-state';
@@ -60,6 +60,78 @@ function useCompactSidebar(rail = false): [boolean, (v: boolean) => void] {
   return [compact, set];
 }
 
+/* The sidebar's width, dragged by its edge and remembered in this browser (null: the usual width). */
+const SIDE_MIN = 220;
+const SIDE_MAX = 420;
+const SIDE_KEY = 'cz:sidebar-width';
+const clampSide = (w: number) => Math.round(Math.min(SIDE_MAX, Math.max(SIDE_MIN, w)));
+
+function useSidebarWidth(): [number | null, (w: number | null) => void] {
+  const [width, setWidth] = useState<number | null>(null);
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem(SIDE_KEY));
+      if (saved) setWidth(clampSide(saved));
+    } catch {
+      /* storage blocked */
+    }
+  }, []);
+  const set = (w: number | null) => {
+    setWidth(w);
+    try {
+      if (w == null) localStorage.removeItem(SIDE_KEY);
+      else localStorage.setItem(SIDE_KEY, String(w));
+    } catch {
+      /* storage blocked */
+    }
+  };
+  return [width, set];
+}
+
+/* The handle on the sidebar's edge: drag it, or focus it and use the arrow keys; double-click resets. */
+function SidebarResizer({ width, onWidth, onDragging }: { width: number | null; onWidth(w: number | null): void; onDragging(on: boolean): void }) {
+  const start = useRef<{ x: number; w: number } | null>(null);
+  const current = () => width ?? (document.querySelector('.cz-side') as HTMLElement | null)?.offsetWidth ?? 264;
+  const down = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    start.current = { x: e.clientX, w: current() };
+    onDragging(true);
+  };
+  const move = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (start.current) onWidth(clampSide(start.current.w + e.clientX - start.current.x));
+  };
+  const up = () => {
+    start.current = null;
+    onDragging(false);
+  };
+  return (
+    <div
+      className="cz-resize"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Sidebar width"
+      aria-valuemin={SIDE_MIN}
+      aria-valuemax={SIDE_MAX}
+      aria-valuenow={Math.round(width ?? 264)}
+      tabIndex={0}
+      title="Drag to resize · double-click to reset"
+      onPointerDown={down}
+      onPointerMove={move}
+      onPointerUp={up}
+      onPointerCancel={up}
+      onDoubleClick={() => onWidth(null)}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          onWidth(clampSide(current() + (e.key === 'ArrowRight' ? 16 : -16)));
+        }
+      }}
+    />
+  );
+}
+
 const isPhone = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches;
 
 export function AppShell({
@@ -89,6 +161,8 @@ export function AppShell({
     return () => window.removeEventListener(RAIL_EVENT, on);
   }, []);
   const small = compact || folded;
+  const [sideWidth, setSideWidth] = useSidebarWidth();
+  const [resizing, setResizing] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const path = usePathname();
   useEffect(() => setDrawer(false), [path]);
@@ -101,8 +175,12 @@ export function AppShell({
 
   return (
     <div className="at-frame">
-      <div className={`cz-app at-page${small ? ' is-compact' : ''}${drawer ? ' is-drawer' : ''}`}>
+      <div
+        className={`cz-app at-page${small ? ' is-compact' : ''}${drawer ? ' is-drawer' : ''}${resizing ? ' is-resizing' : ''}`}
+        style={!small && sideWidth ? ({ '--cz-side': `${sideWidth}px` } as CSSProperties) : undefined}
+      >
         <Sidebar current={current} compact={small && !drawer} onToggle={() => (isPhone() ? setDrawer(false) : folded ? setFolded(false) : setCompact(!compact))} onNavigate={() => setDrawer(false)} />
+        {!small && <SidebarResizer width={sideWidth} onWidth={setSideWidth} onDragging={setResizing} />}
         {drawer && <button type="button" className="cz-scrim" aria-label="Close the menu" onClick={() => setDrawer(false)} />}
 
         <div className="cz-main">

@@ -71,67 +71,87 @@ export function ShareChatDialog({ chatId, title, onClose }: { chatId: string; ti
       toast('Sharing stopped');
     });
 
+  const on = !!share?.shared;
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog ch-share" role="dialog" aria-modal="true" aria-labelledby="ch-share-h">
-        <h2 id="ch-share-h">Share this chat</h2>
-        <p className="ch-share-title">{title}</p>
+        <button type="button" className="ch-share-x" onClick={onClose} aria-label="Close">
+          <Icon name="x" />
+        </button>
+        <header className="ch-share-head">
+          <span className="ch-share-ic" aria-hidden="true">
+            <Icon name="link" />
+          </span>
+          <div>
+            <h2 id="ch-share-h">Share</h2>
+            <p title={title}>{title}</p>
+          </div>
+        </header>
 
-        {!share && !error && <p className="ch-quiet">Checking…</p>}
+        {!share && !error && <p className="ch-quiet ch-share-wait">Checking…</p>}
+
+        {share && (
+          <div className={`ch-share-access${on ? ' is-on' : ''}`}>
+            <span className="ch-share-dot" aria-hidden="true">
+              <Icon name={on ? 'globe' : 'lock'} />
+            </span>
+            <span className="ch-share-who">
+              <b>{on ? 'Anyone with the link' : 'Only you'}</b>
+              <span>{on ? 'Can read, can’t reply' : 'Turn on to get a link anyone can read'}</span>
+            </span>
+            <button type="button" role="switch" aria-checked={on} aria-label="Share with anyone who has the link" className="ch-share-switch" onClick={on ? stop : create} disabled={busy} />
+          </div>
+        )}
 
         {share && !share.shared && (
-          <ul className="ch-share-notes">
-            <li>Anyone with the link can read this chat as it is now, without signing in.</li>
-            <li>Messages you send later aren’t included until you update the link.</li>
-            <li>Your attached files, the files made for you and your shelf notes stay private.</li>
-          </ul>
+          <>
+            <ul className="ch-share-notes">
+              <li>
+                <Icon name="clock" /> The link shows the chat as it is now. Later messages stay private until you update it.
+              </li>
+              <li>
+                <Icon name="shield" /> Your files, downloads and shelf notes are never shared.
+              </li>
+            </ul>
+            <button type="button" className="ch-share-go" onClick={create} disabled={busy}>
+              <Icon name="link" /> {busy ? 'Creating…' : 'Create public link'}
+            </button>
+          </>
         )}
 
         {share?.shared && (
           <>
             <div className="ch-share-link">
-              <input className="input" readOnly value={share.url} aria-label="Link to this chat" onFocus={(e) => e.currentTarget.select()} />
-              <button type="button" className="btn btn-sm" onClick={() => copy(share.url)}>
+              <Icon name="link" />
+              <input readOnly value={share.url} aria-label="Link to this chat" onFocus={(e) => e.currentTarget.select()} />
+              <button type="button" className="ch-share-btn-dark" onClick={() => copy(share.url)}>
                 <Icon name="copy" /> Copy
               </button>
             </div>
-            <p className="ch-share-meta">
-              Shared {when(share.sharedAt)} · {share.views.toLocaleString('en-US')} view{share.views === 1 ? '' : 's'}
-            </p>
+            <div className="ch-share-meta">
+              <span>
+                Shared {when(share.sharedAt)} · {share.views.toLocaleString('en-US')} view{share.views === 1 ? '' : 's'}
+              </span>
+              <button type="button" className="ch-share-stop" onClick={stop} disabled={busy}>
+                Stop sharing
+              </button>
+            </div>
             {share.behind && (
-              <p className="ch-share-behind">
-                <Icon name="history" /> This chat has newer messages than the link shows.
-              </p>
+              <div className="ch-share-behind">
+                <span>This chat has newer messages than the link.</span>
+                <button type="button" className="ch-share-btn-dark" onClick={create} disabled={busy}>
+                  {busy ? 'Updating…' : 'Update link'}
+                </button>
+              </div>
             )}
           </>
         )}
 
         {error && (
-          <p className="ch-error" role="alert">
+          <p className="ch-error ch-share-err" role="alert">
             <Icon name="alert" /> {error}
           </p>
         )}
-
-        <div className="dialog-actions">
-          {share?.shared && (
-            <button type="button" className="btn btn-ghost btn-sm ch-share-stop" onClick={stop} disabled={busy}>
-              Stop sharing
-            </button>
-          )}
-          <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
-            {share?.shared ? 'Done' : 'Cancel'}
-          </button>
-          {share && !share.shared && (
-            <button type="button" className="btn btn-sm" onClick={create} disabled={busy}>
-              <Icon name="link" /> {busy ? 'Creating…' : 'Create link'}
-            </button>
-          )}
-          {share?.shared && share.behind && (
-            <button type="button" className="btn btn-sm" onClick={create} disabled={busy}>
-              {busy ? 'Updating…' : 'Update link'}
-            </button>
-          )}
-        </div>
       </div>
     </div>
   );

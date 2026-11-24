@@ -160,9 +160,17 @@ export function Sidebar({ current, compact, onToggle, onNavigate = () => {} }: {
             <LogoMark className="cz-mark" /> Citezeno
           </Link>
         )}
-        <button type="button" className="cz-ib" onClick={onToggle} aria-label={compact ? 'Open the sidebar' : 'Close the sidebar'} title={compact ? 'Open the sidebar' : 'Close the sidebar'}>
-          <Icon name="panel" />
-        </button>
+        {compact ? (
+          // folded: the logo opens the sidebar (it turns into the panel icon on hover)
+          <button type="button" className="cz-ib cz-open" onClick={onToggle} aria-label="Open the sidebar" title="Open the sidebar">
+            <LogoMark className="cz-mark" />
+            <Icon name="panel" className="cz-open-ic" />
+          </button>
+        ) : (
+          <button type="button" className="cz-ib" onClick={onToggle} aria-label="Close the sidebar" title="Close the sidebar">
+            <Icon name="panel" />
+          </button>
+        )}
       </div>
 
       <div className="cz-side-scroll">

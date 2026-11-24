@@ -1,6 +1,7 @@
 import type { Attachment, ChatMessage, ChatModel, ChatProvider, ToolCall, ToolResult } from '@/lib/providers/chat/types';
 import type { AgentContext } from './context';
 import { asData, systemPrompt } from './prompt';
+import { takeTitle, TITLE_ASK } from './title';
 import { toolSpecs } from './tools';
 import type { ClientTool } from './tools/client';
 import { failureMessage, runTool, stepLook, type ToolRun } from './tools/run';
@@ -31,6 +32,8 @@ export type LoopDeps = {
   refs?: Map<string, number>;
   /* more instructions for this reply (the reader: the paper the user has open) */
   extraSystem?: string;
+  /* a new chat: the model is asked to title it in its first reply (see title.ts); cleared once titled */
+  naming?: { onTitle(title: string): Promise<void> };
   /* the tools offered for this reply (all of them when not given); others are refused */
   tools?: readonly (AgentTool | ClientTool)[];
 };
@@ -147,16 +150,24 @@ async function think(d: LoopDeps, history: ChatMessage[], turns: number): Promis
     }
     const res = await d.chat.complete({
       model: d.model,
-      system: systemPrompt() + (d.extraSystem ?? ''),
+      system: systemPrompt() + (d.extraSystem ?? '') + (d.naming ? TITLE_ASK : ''),
       messages: dropOldImages(trimHistory(history)),
       tools,
       maxOutputTokens: d.maxOutputTokens ?? 2048,
     });
     turns++;
-    const assistant: ChatMessage = { role: 'assistant', text: res.text, toolCalls: res.toolCalls, native: res.native };
+    // a title tag never reaches the user (the model may repeat one it saw earlier); a new chat is named by it
+    const named = takeTitle(res.text);
+    const text = named.text;
+    if (d.naming && named.title) {
+      const naming = d.naming;
+      d.naming = undefined;
+      await naming.onTitle(named.title).catch((e) => console.warn('[citezeno] agent: naming the chat failed', e));
+    }
+    const assistant: ChatMessage = { role: 'assistant', text, toolCalls: res.toolCalls, native: res.native };
     const [seq] = (await d.save([{ message: assistant, costUsd: res.costUsd }])) ?? [];
     history = [...history, assistant];
-    if (res.text) d.emit({ type: 'text', text: res.text, ...(seq != null ? { seq } : {}) });
+    if (text) d.emit({ type: 'text', text, ...(seq != null ? { seq } : {}) });
     if (!res.toolCalls.length) {
       d.emit({ type: 'done', reason: 'answered' });
       return;
