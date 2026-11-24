@@ -4,7 +4,7 @@
 
 /* the app's neutral light colours (the public site's are tinted); dark keeps the site's */
 :root:not([data-theme='dark']) .au { --ground: #fdfdfc; --sheet: #ffffff; --rule: #e1e1df; --rule-2: #ececea; }
-.au { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); min-height: 100vh; background: var(--ground); }
+.au { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); min-height: 100vh; background: var(--ground); }
 .au-left { display: flex; flex-direction: column; min-height: 100vh; padding: 28px 48px 24px; }
 .au-logo { display: inline-flex; align-items: center; gap: 9px; width: fit-content; font: 600 20px/1 var(--f-read); letter-spacing: -0.01em; color: var(--ink); text-decoration: none; }
 .au-mark { width: 28px; height: 28px; }
@@ -32,16 +32,16 @@
 .au .auth-or::before, .au .auth-or::after { background: var(--rule-2); }
 
 /* ---------------------------------------------------------- the demo */
-.ad { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 40px 44px; background: #0b2645; overflow: hidden; }
+.ad { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 36px 40px; background: #0b2645; overflow: hidden; }
 [data-theme='dark'] .ad { background: #08182b; }
 .ad::before { content: ''; position: absolute; inset: 0; background: radial-gradient(620px 420px at 80% 0%, rgba(157, 194, 212, 0.15), transparent 70%); pointer-events: none; }
-.ad-stage { position: relative; width: 100%; max-width: 580px; }
+.ad-stage { position: relative; width: 100%; max-width: 760px; }
 .ad-caption { position: relative; max-width: 460px; margin: 0; font: 400 17px/1.4 var(--f-read); color: #c8d9e6; text-align: center; }
 
 /* the window: always the light app, whatever the page's theme */
 .ad-win {
   --w-ink: #13213a; --w-ink-2: #44526a; --w-ink-3: #6b778f; --w-rule: #e1e1df; --w-rule-2: #ececea; --w-card: #f3f3f2;
-  position: relative; height: 480px; overflow: hidden; border-radius: 14px; background: #fdfdfc; color: var(--w-ink); font: 400 13px/1.45 var(--f-ui);
+  position: relative; height: min(600px, calc(100vh - 160px)); min-height: 500px; overflow: hidden; border-radius: 16px; background: #fdfdfc; color: var(--w-ink); font: 400 13.5px/1.45 var(--f-ui);
   box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 .ad-win svg { flex: none; width: 13px; height: 13px; }
