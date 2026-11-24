@@ -62,7 +62,8 @@ export function agentRoute<P = Record<string, never>>(handler: (req: Request, us
   };
 }
 
-export const agentModels = async () => (await chatModelsFor()).info();
+/* The models on offer, and whether web search is set up (new chats start with it on when it is). */
+export const agentModels = async () => ({ ...(await chatModelsFor()).info(), web: webSearchFor() != null });
 
 type Start = { conversation: Conversation; run(deps: LoopDeps, history: Parameters<typeof answer>[1]): Promise<void>; extraSystem?: string };
 

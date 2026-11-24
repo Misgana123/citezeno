@@ -186,8 +186,9 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [files, setFiles] = useState<AttachItem[]>([]);
-  /* the Web switch in the + menu (off by default; kept per chat) */
-  const [webSearch, setWebSearch] = useState(false);
+  /* the Web switch in the + menu, kept per chat; null on a new chat until the user
+     sets it: then it is on whenever web search is set up (a research platform) */
+  const [webChoice, setWebSearch] = useState<boolean | null>(null);
   /* Deep research chosen from the + menu, for the next message only */
   const [deepResearch, setDeepResearch] = useState(false);
   const abort = useRef<AbortController | null>(null);
@@ -245,6 +246,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
   const models = useMemo(() => index?.models ?? [], [index]);
   const noModels = index != null && models.length === 0;
   const pinned = index?.conversations.find((c) => c.id === activeId)?.pinned ?? false;
+  const webSearch = webChoice ?? index?.web === true;
 
   /* the model new chats start with: the last one picked on a new chat, if still offered */
   const startModel = useCallback(() => {
@@ -272,7 +274,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
         setEntries([]);
         setTitle(null);
         setModel(startModel());
-        setWebSearch(false);
+        setWebSearch(null);
         setLoading(false);
         setTimeout(() => inputRef.current?.focus(), 0);
         return;
@@ -362,6 +364,15 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
     await run((onEvent, signal) => sendClientResult({ conversationId, callId: task.callId, outcome }, onEvent, signal));
   };
 
+  /* Deep research on a question: from the + menu, or the button under an answer that offered it. */
+  const research = (question: string) => {
+    if (busy || noModels) return;
+    setWaiting(null);
+    setDeepResearch(false);
+    setEntries((prev) => [...prev, { kind: 'user', text: question }]);
+    return run((onEvent, signal) => startResearch({ conversationId: activeId, text: question, model, webSearch }, onEvent, signal));
+  };
+
   const send = async (raw: string = text) => {
     const typed = raw.trim();
     const ready = files.filter((f) => f.status === 'ready' && f.attachment);
@@ -370,10 +381,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
       if (files.length) return setError('Deep research takes a question only. Remove the added files, or turn off Deep research.');
       if (typed.length < 3) return setError('Say what to research.');
       setText('');
-      setWaiting(null);
-      setDeepResearch(false);
-      setEntries((prev) => [...prev, { kind: 'user', text: typed }]);
-      return run((onEvent, signal) => startResearch({ conversationId: activeId, text: typed, model, webSearch }, onEvent, signal));
+      return research(typed);
     }
     const attachments = ready.map((f) => f.attachment!);
     const shown: AttachmentView[] = ready.map((f) => ({ kind: f.attachment!.kind, name: f.name, ...(f.preview ? { src: f.preview } : {}), ...(f.excerpt ? { excerpt: f.excerpt } : {}) }));
@@ -481,7 +489,9 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
             <div className="ch-col">
               {loading && <p className="ch-quiet">Opening the chat…</p>}
 
-              {turns.map((t) => {
+              {turns.map((t, ti) => {
+                /* the latest answer offered deep research: a button starts it */
+                const offer = ti === turns.length - 1 ? t.parts.flatMap((p) => (p.kind === 'steps' ? p.steps : [])).find((s) => s.status === 'done' && s.display?.research)?.display?.research : undefined;
                 const titles = refTitles(t);
                 // [p3-2] passages come from the paper the turn read (or the one open)
                 const read = readPaper(t.parts) ?? panel.active;
@@ -535,6 +545,18 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
                               )}
                             </div>
                           ) : null,
+                        )}
+                        {offer && !busy && (
+                          <div className="ch-offer" role="group" aria-label="Deep research">
+                            <Icon name="compass" />
+                            <p>
+                              This could use a full research report: <strong>{offer.question}</strong>
+                              <span className="ch-quiet"> Takes a few minutes and searches many sources.</span>
+                            </p>
+                            <button type="button" className="ch-btn is-go" onClick={() => research(offer.question)}>
+                              Run deep research
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}

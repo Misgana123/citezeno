@@ -19,3 +19,19 @@ export const DEFAULT_CHAT_MODEL = 'google/gemini-3.5-flash-lite';
 
 /* The direct Gemini model that answers for a model Gemini doesn't serve. */
 export const DEFAULT_FALLBACK_MODEL = 'google/gemini-3.5-flash-lite';
+
+/* Shown first in the model picker, in this order, so the best-known models are
+   found without scrolling (AGENT_POPULAR_MODELS replaces the list). IDs not on
+   offer are skipped. */
+export const POPULAR_MODELS: readonly string[] = [
+  'google/gemini-3.5-flash-lite',
+  'anthropic/claude-sonnet-5.5',
+  'anthropic/claude-haiku-5.5',
+  'anthropic/claude-opus-5.5',
+  'openai/gpt-6.2-sol',
+  'openai/gpt-6-luna',
+  'google/gemini-4-neon',
+  'x-ai/grok-4.7',
+  'deepseek/deepseek-v4.1-flash',
+  'qwen/qwen4-max',
+];

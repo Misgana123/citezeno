@@ -27,6 +27,8 @@ export type ToolDisplay = {
   code?: { language: 'python'; source: string; output: string; failed?: boolean };
   /* the reply's number for each paper shown here (by paper ID), as the answer cites them: [1], [2]… */
   refs?: Record<string, number>;
+  /* deep research offered for this question: the chat shows a button that starts it */
+  research?: { question: string };
   /* what the step came to, in a few words, shown on its row: "6 papers", "No notices", "Saved" */
   summary?: string;
 };

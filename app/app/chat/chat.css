@@ -222,6 +222,10 @@ a.ch-file { text-decoration: none; }
 .ch-report-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .ch-report-acts .ch-btn { display: inline-flex; align-items: center; gap: 6px; }
 .ch-report-acts svg { width: 15px; height: 15px; }
+.ch-offer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-top: 14px; padding: 12px 14px; border: 1px solid var(--rule-2); border-radius: 14px; background: var(--ch-card); }
+.ch-offer > svg { flex: none; width: 18px; height: 18px; color: var(--thread); }
+.ch-offer p { flex: 1; min-width: 220px; margin: 0; font-size: 14px; line-height: 1.5; }
+.ch-offer p .ch-quiet { display: block; margin: 2px 0 0; font-size: 13px; }
 
 .ch-dock { padding: 4px 24px 12px; }
 .ch-dock .ch-compose { max-width: 740px; margin: 0 auto; }

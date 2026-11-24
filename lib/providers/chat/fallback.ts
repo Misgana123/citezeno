@@ -8,7 +8,10 @@ import { streamOrComplete, type ChatModel, type ChatProvider } from './types';
    carries the backup's own turn; the next request sends it on as plain text
    and tool calls, which every provider reads. */
 export function withFallback(primary: ChatProvider, backup: ChatProvider, backupModel: ChatModel): ChatProvider {
-  const note = (e: unknown) => console.warn(`[citezeno] chat: ${primary.name} failed (${(e as Error)?.message}); using ${backup.name} ${backupModel.id}`);
+  const note = (e: unknown) => {
+    const reason = (e as { details?: { reason?: string } })?.details?.reason;
+    console.warn(`[citezeno] chat: ${primary.name} failed (${(e as Error)?.message}${reason ? ` ${reason}` : ''}); using ${backup.name} ${backupModel.id}`);
+  };
   return {
     name: primary.name,
     ...(primary.models ? { models: primary.models } : {}),

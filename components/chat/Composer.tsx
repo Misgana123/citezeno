@@ -8,13 +8,17 @@ import { ATTACH_ACCEPT, canScreenshot, type AttachItem } from './attach';
 import { AttachCard } from './AttachCard';
 import { ModelIcon } from './ModelIcon';
 
-/* The model picker's list: grouped by maker (A to Z) when there is more than one. */
+/* The model picker's list: the popular models first, then every model grouped
+   by maker (A to Z) under "All". A short list stays as it is. */
 function modelOptions(models: ModelInfo[]): SelectItems {
   const option = (m: ModelInfo) => ({ value: m.id, label: m.label, icon: <ModelIcon vendor={m.vendor} /> });
   const groups = new Map<string, ModelInfo[]>();
   for (const m of models) groups.set(m.vendorName, [...(groups.get(m.vendorName) ?? []), m]);
-  if (groups.size < 2) return models.map(option);
-  return [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([label, ms]) => ({ label, options: ms.map(option) }));
+  if (groups.size < 2 && models.length <= 8) return models.map(option);
+  const makers = [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([label, ms]) => ({ label, options: ms.map(option) }));
+  const popular = models.filter((m) => m.popular != null).sort((a, b) => a.popular! - b.popular!);
+  if (!popular.length || popular.length === models.length) return makers;
+  return [{ label: 'Popular', options: popular.map(option), shortcut: true }, { ...makers[0], section: 'All' }, ...makers.slice(1)];
 }
 
 /* The message box: what to ask (and, with a file open, which paper it's about),

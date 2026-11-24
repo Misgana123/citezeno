@@ -13,7 +13,9 @@ import { Icon } from './Icon';
 export type SelectValue = string | number;
 /* icon: drawn before the label, in the list and on the button (a model's vendor mark) */
 export type SelectOption<V extends SelectValue = string> = { value: V; label: string; disabled?: boolean; icon?: ReactNode };
-export type SelectGroup<V extends SelectValue = string> = { label: string; options: SelectOption<V>[] };
+/* section: a heading above the group that starts a new part of the list ("All");
+   shortcut: the group repeats options listed again below (say, "Popular"), so it is hidden while searching */
+export type SelectGroup<V extends SelectValue = string> = { label: string; options: SelectOption<V>[]; section?: string; shortcut?: boolean };
 export type SelectItems<V extends SelectValue = string> = (SelectOption<V> | SelectGroup<V>)[];
 
 type Props<V extends SelectValue> = {
@@ -40,6 +42,7 @@ function narrow<V extends SelectValue>(options: SelectItems<V>, query: string): 
   const hit = (...texts: string[]) => words.every((w) => texts.some((t) => t.toLowerCase().includes(w)));
   return options.flatMap((o): SelectItems<V> => {
     if (!isGroup(o)) return hit(o.label) ? [o] : [];
+    if (o.shortcut) return [];
     const kept = o.options.filter((x) => hit(x.label, o.label));
     return kept.length ? [{ ...o, options: kept }] : [];
   });
@@ -259,6 +262,7 @@ export function Select<V extends SelectValue>({ value, onChange, options, placeh
               isGroup(o) ? (
                 o.options.length > 0 && (
                   <div key={`g${gi}`} role="group" aria-label={o.label}>
+                    {o.section && <p className="cz-opt-section">{o.section}</p>}
                     <p className="cz-opt-group">{o.label}</p>
                     {o.options.map(renderOption)}
                   </div>

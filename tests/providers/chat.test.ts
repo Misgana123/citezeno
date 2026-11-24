@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { chatModels, loadChatModels, selectModels } from '@/lib/providers/chat/catalog';
+import { chatModels, loadChatModels, popularRank, selectModels } from '@/lib/providers/chat/catalog';
 import { withFallback } from '@/lib/providers/chat/fallback';
 import { chatError, chatPolicy } from '@/lib/providers/chat/http';
-import { CHAT_MODELS, DEFAULT_CHAT_MODEL } from '@/lib/providers/chat/models';
+import { CHAT_MODELS, DEFAULT_CHAT_MODEL, POPULAR_MODELS } from '@/lib/providers/chat/models';
 import { CHAT_PROVIDERS } from '@/lib/providers/chat/registry';
 import { costOf, type ChatMessage, type ChatModel, type ChatProvider, type ChatRequest } from '@/lib/providers/chat/types';
 import { ProviderError } from '@/lib/providers/errors';
@@ -205,6 +205,9 @@ describe('errors and the gateway policy', () => {
     expect(chatError('p', 'P', 404, {}, h())).toMatchObject({ code: 'unavailable' });
     expect(chatError('p', 'P', 400, { error: { message: 'bad' } }, h())).toMatchObject({ code: 'bad_request', details: { reason: 'bad' } });
     expect(chatError('p', 'P', 529, {}, h())).toMatchObject({ code: 'busy' });
+    // OpenRouter says which host behind it failed, and how
+    const upstream = { error: { code: 502, message: 'Provider returned error', metadata: { provider_name: 'Google', raw: '{"error":\n "overloaded"}' } } };
+    expect(chatError('p', 'P', 502, upstream, h()).details.reason).toBe('Provider returned error (Google): {"error": "overloaded"}');
   });
 
   it('turns network failures into "unavailable"', async () => {
@@ -289,6 +292,24 @@ describe('the model catalog', () => {
       { id: 'meta-llama/llama-5', label: 'meta-llama/llama-5', vendor: 'meta-llama', vendorName: 'Meta' },
       { id: 'mistralai/x', label: 'mistralai/x', vendor: 'mistralai', vendorName: 'Mistralai' },
     ]);
+  });
+
+  it('marks the popular models with their place, from POPULAR_MODELS or AGENT_POPULAR_MODELS, skipping those not on offer', async () => {
+    const env = { OPENROUTER_API_KEY: 'o' };
+    const info = (await loadChatModels(env, ungated, CHAT_MODELS, registry(LIVE))).info();
+    const popular = (i: typeof info) => i.models.filter((m) => m.popular != null).sort((a, b) => a.popular! - b.popular!).map((m) => m.id);
+    expect(popular(info)).toEqual(POPULAR_MODELS.filter((id) => info.models.some((m) => m.id === id)));
+    expect(popular(info).slice(0, 3)).toEqual(['google/gemini-3.5-flash-lite', 'anthropic/claude-haiku-5.5', 'openai/gpt-6-luna']);
+    const mine = (await loadChatModels({ ...env, AGENT_POPULAR_MODELS: 'openai/gpt-6-luna, gone/model, anthropic/claude-sonnet-5' }, ungated, CHAT_MODELS, registry(LIVE))).info();
+    expect(popular(mine)).toEqual(['openai/gpt-6-luna', 'anthropic/claude-sonnet-5']);
+    // names as shown work too, whatever the case, spaces or hyphens
+    const named = [live('google/gemini-3.5-flash-lite', { label: 'Gemini 3.5 Flash Lite' }), live('anthropic/claude-sonnet-5.5', { label: 'Claude Sonnet 5.5' }), live('x/other')];
+    expect([...popularRank(named, 'Gemini 3.5 Flash-Lite, claude Sonnet 5.5, Nope 1').keys()]).toEqual(['google/gemini-3.5-flash-lite', 'anthropic/claude-sonnet-5.5']);
+    // naming nothing on offer: the default list, with a warning
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect([...popularRank(named, 'Nothing, At All').keys()]).toEqual(['google/gemini-3.5-flash-lite', 'anthropic/claude-sonnet-5.5']);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   describe('the Gemini fallback', () => {

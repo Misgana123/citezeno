@@ -543,6 +543,8 @@ img, svg { display: block; }
 .cz-select-search svg { flex: none; width: 15px; height: 15px; color: var(--ink-3); }
 .cz-select-search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--ink); font: 500 14px/1.3 var(--f-ui); }
 .cz-select-search + [role='group'] > .cz-opt-group { margin-top: 0; border-top: 0; padding-top: 9px; }
+.cz-opt-section { margin: 8px 0 0; padding: 12px 10px 2px; border-top: 1px solid var(--rule-2); font: 700 12px/1.3 var(--f-ui); color: var(--ink-2); }
+[role='group'] > .cz-opt-section + .cz-opt-group { margin-top: 0; border-top: 0; padding-top: 6px; }
 .cz-opt-none { margin: 0; padding: 10px; color: var(--ink-3); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .cz-select-pop { animation: none; } .cz-select-chev { transition: none; } }
 .check { display: inline-flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600; color: var(--ink-2); cursor: pointer; }

@@ -78,7 +78,10 @@ function count(d?: ToolDisplay): string | null {
   return n ? `${n} result${n === 1 ? '' : 's'}` : null;
 }
 
-export function Steps({ steps, turn, chatId = null }: { steps: LiveStep[]; turn: number; chatId?: string | null }) {
+export function Steps({ steps: all, turn, chatId = null }: { steps: LiveStep[]; turn: number; chatId?: string | null }) {
+  // offering deep research isn't work done: the offer shows as a button under the answer instead
+  const steps = all.filter((s) => s.name !== 'offer_deep_research');
+  if (!steps.length) return null;
   const papers = steps.flatMap((s) => s.display?.papers ?? []);
   const items = steps.flatMap((s) => s.display?.items ?? []);
   const refs = Object.assign({}, ...steps.map((s) => s.display?.refs ?? {})) as Record<string, number>;

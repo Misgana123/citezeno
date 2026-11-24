@@ -33,10 +33,16 @@ function retryAfter(headers: Headers): number | undefined {
 }
 
 /* The vendor's own error message, for logs only (users get ours). */
+/* The vendor's own error message, for logs only (users get ours). OpenRouter
+   adds which host behind it failed and that host's own words. */
 function vendorMessage(body: unknown): string | undefined {
-  const b = body as { error?: { message?: unknown; type?: unknown; status?: unknown } | string; message?: unknown } | null;
+  const b = body as { error?: { message?: unknown; metadata?: { provider_name?: unknown; raw?: unknown } } | string; message?: unknown } | null;
   const m = typeof b?.error === 'string' ? b.error : (b?.error?.message ?? b?.message);
-  return typeof m === 'string' ? m.slice(0, 300) : undefined;
+  if (typeof m !== 'string') return undefined;
+  const meta = typeof b?.error === 'object' ? b.error.metadata : undefined;
+  const host = typeof meta?.provider_name === 'string' ? ` (${meta.provider_name})` : '';
+  const raw = typeof meta?.raw === 'string' ? `: ${meta.raw.replace(/\s+/g, ' ')}` : '';
+  return `${m}${host}${raw}`.slice(0, 300);
 }
 
 export function chatError(provider: string, label: string, status: number, body: unknown, headers: Headers): ProviderError {
