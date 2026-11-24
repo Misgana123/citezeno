@@ -50,14 +50,14 @@ async function seedOne(deps: CopyJobDeps, plan: SeedPlan, deadline: number): Pro
       // the newest papers since last time: one page from the start
       const page = await source.browse({ cursor: null, perPage: SEED_PAGE, order: plan.order, sinceYear: plan.sinceYear });
       await deps.copy.save(page.papers, { detail: false, origin: `seed:${plan.source}`, seen: false });
-      await saveSyncState(deps.db, { ...state, lastError: null });
+      await saveSyncState(deps.db, { ...state, lastError: null }, new Date(now()));
       return { added: page.papers.length };
     }
     while (now() < deadline - 2000 && state.fetched < plan.target) {
       const page = await source.browse({ cursor: state.cursor, perPage: Math.min(SEED_PAGE, plan.target - state.fetched), order: plan.order, sinceYear: plan.sinceYear });
       if (!page.papers.length && state.lastError !== EMPTY) {
         // an empty page may be a hiccup rather than the end: try again next run, and believe it the second time
-        await saveSyncState(deps.db, { ...state, lastError: EMPTY });
+        await saveSyncState(deps.db, { ...state, lastError: EMPTY }, new Date(now()));
         return { added, note: 'empty page' };
       }
       await deps.copy.save(page.papers, { detail: false, origin: `seed:${plan.source}`, seen: false });
@@ -66,12 +66,12 @@ async function seedOne(deps: CopyJobDeps, plan: SeedPlan, deadline: number): Pro
       state.cursor = page.next;
       state.doneAt = !page.next || state.fetched >= plan.target ? new Date(now()) : null;
       state.lastError = null;
-      await saveSyncState(deps.db, state);
+      await saveSyncState(deps.db, state, new Date(now()));
       if (state.doneAt) break;
     }
     return { added };
   } catch (e) {
-    await saveSyncState(deps.db, { ...state, lastError: ((e as Error)?.message ?? String(e)).slice(0, 300) });
+    await saveSyncState(deps.db, { ...state, lastError: ((e as Error)?.message ?? String(e)).slice(0, 300) }, new Date(now()));
     return { added, note: 'failed' };
   }
 }

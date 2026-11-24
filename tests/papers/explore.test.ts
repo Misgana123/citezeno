@@ -97,7 +97,11 @@ describe.skipIf(!TEST_DB_URL)('explore over the copy (postgres)', () => {
       { detail: false, origin: 'seed:openalex', seen: false },
     );
     // papers users looked at this week: S8 twice, S7 once
-    await copy.save([paper('S7', { citedByCount: 70 }), paper('S8', { citedByCount: 80 })], { detail: false, origin: 'live' });
+    // (the same records again, as users would see them)
+    await copy.save(
+      [paper('S7', { subject: subjects[7 % 3], type: 'article', year: year - 2, citedByCount: 70, isOpenAccess: false }), paper('S8', { subject: subjects[8 % 3], type: 'review', year: year - 3, citedByCount: 80 })],
+      { detail: false, origin: 'live' },
+    );
     await copy.touch(['openalex:S8']);
     d = { db: pool, copyEnabled: true, sources: () => paperSources([]) as never };
   });
@@ -120,7 +124,7 @@ describe.skipIf(!TEST_DB_URL)('explore over the copy (postgres)', () => {
     const free = await exploreList(d, q('sort=free'));
     expect(free.total).toBe(20);
     expect(free.papers.every((p) => p.pdfUrl)).toBe(true);
-    const last = await exploreList(d, q('page=9'));
+    const last = await exploreList(d, q('page=10')); // 199 papers, 24 a page: page 9 is the last
     expect(last).toMatchObject({ papers: [], total: 199, hasMore: false });
   });
 
