@@ -3,7 +3,7 @@ import type { AgentContext } from './context';
 import { asData, systemPrompt } from './prompt';
 import { toolSpecs } from './tools';
 import type { ClientTool } from './tools/client';
-import { failureMessage, runTool, type ToolRun } from './tools/run';
+import { failureMessage, runTool, stepLook, type ToolRun } from './tools/run';
 import type { AgentTool, ToolDisplay, ToolOutput } from './tools/types';
 import { WEB_TOOL_NAMES } from './tools/web';
 import type { AgentEvent, Pending, StepView, StoredMessage } from './types';
@@ -97,10 +97,10 @@ async function runCalls(d: LoopDeps, calls: ToolCall[], from: number, results: T
       confirmed: call.id === confirmed,
       onStart: (label, input) => {
         started = true;
-        d.emit({ type: 'step', callId: call.id, name: call.name, label, input });
+        d.emit({ type: 'step', callId: call.id, name: call.name, label, input, ...stepLook(call.name, input, false) });
       },
     });
-    if (!started) d.emit({ type: 'step', callId: call.id, name: call.name, label: run.label, input: run.input });
+    if (!started) d.emit({ type: 'step', callId: call.id, name: call.name, label: run.label, input: run.input, ...stepLook(call.name, run.input, false) });
     const o = run.outcome;
     if (o.status === 'needs_confirmation') {
       await d.setPending({ calls, results, steps, waiting: { callId: call.id, kind: 'confirm', question: o.question }, turns, refs: Object.fromEntries(d.refs ?? []) });
@@ -115,8 +115,8 @@ async function runCalls(d: LoopDeps, calls: ToolCall[], from: number, results: T
     const out = o.status === 'done' ? numberPapers(o.output, (d.refs ??= new Map())) : null;
     const step: StepView =
       out
-        ? { callId: call.id, name: call.name, label: run.label, input: run.input, status: 'done', ...(out.display ? { display: out.display } : {}) }
-        : { callId: call.id, name: call.name, label: run.label, input: run.input, status: 'error', error: (o as { message: string }).message };
+        ? { callId: call.id, name: call.name, label: run.label, input: run.input, status: 'done', ...stepLook(call.name, run.input, true), ...(out.display ? { display: out.display } : {}) }
+        : { callId: call.id, name: call.name, label: run.label, input: run.input, status: 'error', ...stepLook(call.name, run.input, false), error: (o as { message: string }).message };
     steps = [...steps, step];
     results = [...results, out ? { callId: call.id, name: call.name, content: asData(call.name, out.result) } : { callId: call.id, name: call.name, content: (o as { message: string }).message, isError: true }];
     d.emit({ type: 'step_done', step });
@@ -201,7 +201,7 @@ export async function resume(d: LoopDeps, history: ChatMessage[], pending: Pendi
     if (approved) return finishTurn(d, history, pending, at, pending.results, pending.steps, pending.waiting.callId);
     const call = pending.calls[at];
     const question = pending.waiting.kind === 'confirm' ? pending.waiting.question : pending.waiting.label;
-    const step: StepView = { callId: call.id, name: call.name, label: question, input: call.input, status: 'declined' };
+    const step: StepView = { callId: call.id, name: call.name, label: question, input: call.input, status: 'declined', ...stepLook(call.name, call.input, false) };
     d.emit({ type: 'step_done', step });
     const result: ToolResult = { callId: call.id, name: call.name, content: 'The user said no. Do not do this, and do not try another way to do it.', isError: true };
     await finishTurn(d, history, pending, at + 1, [...pending.results, result], [...pending.steps, step]);
@@ -219,8 +219,8 @@ export async function resumeWithClientResult(d: LoopDeps, history: ChatMessage[]
     const call = pending.calls[at];
     const label = pending.waiting.kind === 'client' ? pending.waiting.label : call.name;
     const step: StepView = outcome.ok
-      ? { callId: call.id, name: call.name, label, input: call.input, status: 'done', ...(outcome.display ? { display: outcome.display } : {}) }
-      : { callId: call.id, name: call.name, label, input: call.input, status: 'error', error: outcome.error };
+      ? { callId: call.id, name: call.name, label, input: call.input, status: 'done', ...stepLook(call.name, call.input, true), ...(outcome.display ? { display: outcome.display } : {}) }
+      : { callId: call.id, name: call.name, label, input: call.input, status: 'error', ...stepLook(call.name, call.input, false), error: outcome.error };
     d.emit({ type: 'step_done', step });
     const result: ToolResult = outcome.ok ? { callId: call.id, name: call.name, content: asData(call.name, outcome.result) } : { callId: call.id, name: call.name, content: outcome.error, isError: true };
     await finishTurn(d, history, pending, at + 1, [...pending.results, result], [...pending.steps, step]);

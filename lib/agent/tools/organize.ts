@@ -51,7 +51,9 @@ export const createProjectTool = defineTool({
   description: 'Create a project (e.g. a thesis or an essay) to group papers.',
   input: z.object({ name: NAME }),
   kind: 'write',
+  step: 'change',
   label: (i) => `Creating project “${i.name}”`,
+  done: (i) => ({ did: 'Created a project', about: i.name }),
   run: async (ctx, { name }) => {
     const p = await createProject(ctx.db, ctx.userId, name);
     return { result: { projectId: p.id, name: p.name }, display: { summary: 'Created' } };
@@ -63,7 +65,9 @@ export const renameProjectTool = defineTool({
   description: 'Rename a project (an ID from list_collections).',
   input: z.object({ projectId: ID, name: NAME }),
   kind: 'write',
+  step: 'change',
   label: (i) => `Renaming a project to “${i.name}”`,
+  done: (i) => ({ did: 'Renamed a project', about: `to “${i.name}”` }),
   run: async (ctx, { projectId, name }) => {
     if (!(await renameProject(ctx.db, ctx.userId, projectId, name))) throw notFound('project');
     return { result: { ok: true }, display: { summary: 'Renamed' } };
@@ -75,7 +79,9 @@ export const deleteProjectTool = defineTool({
   description: 'Delete a project and its folders. Its papers stay on the shelf.',
   input: z.object({ projectId: ID }),
   kind: 'write',
+  step: 'change',
   label: () => 'Deleting a project',
+  done: () => ({ did: 'Deleted a project' }),
   confirm: async (i, ctx) => `Delete the project “${await nameOf(ctx, 'project', i.projectId)}”? Its papers stay on your shelf.`,
   run: async (ctx, { projectId }) => {
     if (!(await deleteProject(ctx.db, ctx.userId, projectId))) throw notFound('project');
@@ -88,7 +94,9 @@ export const createFolderTool = defineTool({
   description: 'Create a folder inside a project.',
   input: z.object({ projectId: ID, name: NAME }),
   kind: 'write',
+  step: 'change',
   label: (i) => `Creating folder “${i.name}”`,
+  done: (i) => ({ did: 'Created a folder', about: i.name }),
   run: async (ctx, { projectId, name }) => {
     const f = await createFolder(ctx.db, ctx.userId, projectId, name);
     return { result: { folderId: f.id, projectId: f.projectId, name: f.name }, display: { summary: 'Created' } };
@@ -100,7 +108,9 @@ export const renameFolderTool = defineTool({
   description: 'Rename a folder (an ID from list_collections).',
   input: z.object({ folderId: ID, name: NAME }),
   kind: 'write',
+  step: 'change',
   label: (i) => `Renaming a folder to “${i.name}”`,
+  done: (i) => ({ did: 'Renamed a folder', about: `to “${i.name}”` }),
   run: async (ctx, { folderId, name }) => {
     if (!(await renameFolder(ctx.db, ctx.userId, folderId, name))) throw notFound('folder');
     return { result: { ok: true }, display: { summary: 'Renamed' } };
@@ -112,7 +122,9 @@ export const deleteFolderTool = defineTool({
   description: 'Delete a folder. Its papers stay in the project.',
   input: z.object({ folderId: ID }),
   kind: 'write',
+  step: 'change',
   label: () => 'Deleting a folder',
+  done: () => ({ did: 'Deleted a folder' }),
   confirm: async (i, ctx) => `Delete the folder “${await nameOf(ctx, 'folder', i.folderId)}”? Its papers stay in the project.`,
   run: async (ctx, { folderId }) => {
     if (!(await deleteFolder(ctx.db, ctx.userId, folderId))) throw notFound('folder');
@@ -125,7 +137,9 @@ export const createTagTool = defineTool({
   description: 'Create a tag. To tag papers, use organize_papers with action "tag" (it can also create tags by name).',
   input: z.object({ name: NAME, color: COLOR }),
   kind: 'write',
+  step: 'change',
   label: (i) => `Creating tag “${i.name}”`,
+  done: (i) => ({ did: 'Created a tag', about: i.name }),
   run: async (ctx, { name, color }) => {
     const t = await createTag(ctx.db, ctx.userId, name, color ?? null);
     return { result: { tagId: t.id, name: t.name }, display: { summary: 'Created' } };
@@ -137,7 +151,9 @@ export const updateTagTool = defineTool({
   description: 'Rename a tag or change its color.',
   input: z.object({ tagId: ID, name: NAME.optional(), color: COLOR }),
   kind: 'write',
+  step: 'change',
   label: () => 'Updating a tag',
+  done: () => ({ did: 'Updated a tag' }),
   run: async (ctx, { tagId, ...patch }) => {
     if (!(await updateTag(ctx.db, ctx.userId, tagId, patch))) throw notFound('tag');
     return { result: { ok: true }, display: { summary: 'Updated' } };
@@ -149,7 +165,9 @@ export const deleteTagTool = defineTool({
   description: 'Delete a tag. The papers stay; only the tag is removed from them.',
   input: z.object({ tagId: ID }),
   kind: 'write',
+  step: 'change',
   label: () => 'Deleting a tag',
+  done: () => ({ did: 'Deleted a tag' }),
   confirm: async (i, ctx) => `Delete the tag “${await nameOf(ctx, 'tag', i.tagId)}”? The papers stay; only the tag goes.`,
   run: async (ctx, { tagId }) => {
     if (!(await deleteTag(ctx.db, ctx.userId, tagId))) throw notFound('tag');
@@ -218,7 +236,9 @@ export const organizePapers = defineTool({
     status: z.enum(READING_STATUSES).optional(),
   }),
   kind: 'write',
+  step: 'change',
   label: (i) => `Updating ${i.itemIds.length === 1 ? 'a paper' : `${i.itemIds.length} papers`}`,
+  done: (i) => ({ did: `Updated ${i.itemIds.length === 1 ? 'a paper' : `${i.itemIds.length} papers`}` }),
   confirm: async (i, ctx) => (new Set(i.itemIds).size > BULK_CONFIRM_AT ? organizeQuestion(ctx, i, await which(ctx, i.itemIds)) : null),
   async run(ctx, { itemIds, action, ...rest }) {
     const body = bulkBody.parse({ action: BULK_ACTION[action], ids: itemIds, ...rest });
@@ -233,7 +253,9 @@ export const updateLibraryItem = defineTool({
   description: 'Set a saved paper’s note (replaces it; null clears it) or its reading status (to_read, reading, done).',
   input: z.object({ itemId: ID, note: z.string().max(NOTE_MAX).nullable().optional(), readingStatus: z.enum(READING_STATUSES).optional() }),
   kind: 'write',
+  step: 'change',
   label: (i) => (i.note !== undefined ? 'Writing a note' : 'Setting the reading status'),
+  done: (i) => ({ did: i.note !== undefined ? 'Wrote a note' : 'Set the reading status' }),
   async run(ctx, { itemId, ...changes }) {
     const item = await changeItem(ctx.db, ctx.userId, itemId, changes);
     return { result: itemBrief(item, await loadGroups(ctx)), display: { items: [item], summary: 'Saved' } };
@@ -245,7 +267,9 @@ export const deletePapers = defineTool({
   description: 'Remove papers from the user’s shelf, with their notes and PDFs. Always asks the user first.',
   input: z.object({ itemIds: ITEM_IDS }),
   kind: 'write',
+  step: 'change',
   label: (i) => `Deleting ${i.itemIds.length === 1 ? 'a paper' : `${i.itemIds.length} papers`}`,
+  done: (i) => ({ did: `Deleted ${i.itemIds.length === 1 ? 'a paper' : `${i.itemIds.length} papers`}` }),
   confirm: async (i, ctx) => `Delete ${await which(ctx, i.itemIds)} from your shelf, with their notes and PDFs? This can’t be undone.`,
   async run(ctx, { itemIds }) {
     const r = await runBulk(ctx.db, ctx.userId, { action: 'delete', ids: itemIds });
@@ -258,7 +282,9 @@ export const resolveDuplicate = defineTool({
   description: 'For a pair from find_duplicates: "merge" them into one (keeps the fuller record, every note, tag, project and PDF; asks the user first), or "keep_both" (stops offering the pair).',
   input: z.object({ action: z.enum(['merge', 'keep_both']), itemA: ID, itemB: ID }),
   kind: 'write',
+  step: 'change',
   label: (i) => (i.action === 'merge' ? 'Merging two papers' : 'Keeping both papers'),
+  done: (i) => ({ did: i.action === 'merge' ? 'Merged two papers' : 'Kept both papers' }),
   confirm: async (i, ctx) => (i.action === 'merge' ? `Merge ${await which(ctx, [i.itemA])} and ${await which(ctx, [i.itemB])} into one paper?` : null),
   async run(ctx, { action, itemA, itemB }) {
     const r = await decideDuplicate(ctx.db, ctx.userId, action, itemA, itemB);

@@ -23,6 +23,7 @@ import { applyEvent, type Entry } from './events';
 import { Markdown } from './Markdown';
 import { refAnchor } from './PaperRefs';
 import { Steps } from './Steps';
+import { segments } from './steps/timeline';
 
 /* The research assistant. A new chat opens on a greeting with a large message
    box; a conversation shows each turn (the steps it took, folded to one line;
@@ -527,10 +528,12 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
                     {!!t.user && <div className="ch-user">{t.user}</div>}
                     {t.parts.length > 0 && (
                       <div className="ch-ai">
-                        {t.parts.map((p, i) =>
-                          p.kind === 'steps' ? (
-                            <Steps key={i} steps={p.steps} turn={t.key} chatId={activeId} />
-                          ) : p.kind === 'assistant' ? (
+                        {segments(t.parts).map((seg) => {
+                          // the steps and the notes between them make one timeline; answers stay in view
+                          if (seg.kind === 'work') return <Steps key={`w${seg.at}`} items={seg.items} turn={t.key} chatId={activeId} />;
+                          const i = seg.at;
+                          const p = t.parts[i];
+                          return p.kind === 'assistant' ? (
                             <div key={i} className="ch-answer">
                               <Markdown text={p.text} cite={cite} passage={passage} />
                               {isReport(t, i) && !busy && (
@@ -544,8 +547,8 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
                                 </div>
                               )}
                             </div>
-                          ) : null,
-                        )}
+                          ) : null;
+                        })}
                         {offer && !busy && (
                           <div className="ch-offer" role="group" aria-label="Deep research">
                             <Icon name="compass" />

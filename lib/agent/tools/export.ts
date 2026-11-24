@@ -21,7 +21,9 @@ export const exportLibrary = defineTool({
   description: `Export saved papers as a BibTeX, RIS or CSV file the user can download: chosen itemIds, or everything matching the filters (the whole shelf with none). At most ${EXPORT_MAX} papers; more than ${EXPORT_CONFIRM_AT} asks the user first.`,
   input: z.object({ format: z.enum(FORMATS), itemIds: z.array(z.string().min(1).max(80)).max(EXPORT_MAX).optional(), ...listFilters }),
   kind: 'read',
+  step: 'make',
   label: (i) => `Exporting ${EXPORT_FILES[i.format].label}`,
+  done: (i) => ({ did: 'Exported', about: EXPORT_FILES[i.format].label }),
   async confirm(input, ctx) {
     const { total } = await listItems(ctx.db, ctx.userId, listQuery(input, 1, 1));
     return total > EXPORT_CONFIRM_AT ? `Export ${Math.min(total, EXPORT_MAX)} papers as ${EXPORT_FILES[input.format].label}?` : null;

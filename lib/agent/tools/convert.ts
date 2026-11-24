@@ -81,7 +81,9 @@ export const convertFile = defineTool({
     .object({ fileId: z.string().min(1).max(80).optional(), attachment: z.string().min(1).max(200).optional(), pdfId: z.string().min(1).max(80).optional(), to: z.enum(CONVERT_TO) })
     .refine((r) => [r.fileId, r.attachment, r.pdfId].filter(Boolean).length === 1, 'Give one of fileId or attachment.'),
   kind: 'write',
+  step: 'make',
   label: (i) => `Converting ${i.attachment ?? 'a file'} to ${i.to.toUpperCase()}`,
+  done: (i) => ({ did: `Converted ${i.attachment ?? 'a file'}`, about: `to ${i.to.toUpperCase()}` }),
   async run(ctx, i) {
     const src = await load(ctx, i);
     const family = src.textOnly ? 'text' : FAMILY[src.ext];

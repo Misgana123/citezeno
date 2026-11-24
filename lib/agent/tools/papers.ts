@@ -58,7 +58,9 @@ export const searchPapers = defineTool({
     'Search research papers by topic, question or a pasted paragraph. "smart" (default) mixes keyword and meaning; "keyword" matches words; "semantic" matches meaning. Returns 25 papers a page. Each search counts toward the user’s daily search limit (smart counts as two).',
   input: z.object({ query: z.string().min(1).max(10_000), mode: z.enum(SEARCH_MODES).optional(), ...filters }),
   kind: 'read',
+  step: 'papers',
   label: (i) => `Searching papers for “${i.query.slice(0, 60)}”`,
+  done: (i) => ({ did: 'Searched papers', about: i.query.slice(0, 120) }),
   async run(ctx, input) {
     const req = request(ctx, input, true);
     await ctx.reserveSearches(searchesFor(req.mode));
@@ -71,7 +73,9 @@ export const getPaperTool = defineTool({
   description: 'Full details of one paper: authors, abstract, topics, links, citation count and whether it is retracted. Free.',
   input: z.object({ paperId: PAPER_ID }),
   kind: 'read',
+  step: 'read',
   label: () => 'Opening a paper',
+  done: () => ({ did: 'Opened a paper' }),
   async run(ctx, { paperId }) {
     const { paper } = await getPaper(parsePaperId(ctx.sources(), paperId));
     return { result: { ...paperBrief(paper, { fullAbstract: true }), topics: paper.topics, references: paper.referenceIds.length }, display: { papers: [paper], summary: 'Opened' } };
@@ -83,7 +87,9 @@ export const getReferences = defineTool({
   description: 'The papers this paper cites (its reference list), with the same filters and sorting as search. Free.',
   input: z.object({ paperId: PAPER_ID, ...filters }),
   kind: 'read',
+  step: 'trace',
   label: () => 'Reading the reference list',
+  done: () => ({ did: 'Traced the references' }),
   run: async (ctx, { paperId, ...f }) => listOut((await referencesOf(parsePaperId(ctx.sources(), paperId), request(ctx, f, false))).list),
 });
 
@@ -92,7 +98,9 @@ export const getCitingPapers = defineTool({
   description: 'Later papers that cite this paper, with the same filters and sorting as search. Free.',
   input: z.object({ paperId: PAPER_ID, ...filters }),
   kind: 'read',
+  step: 'trace',
   label: () => 'Finding papers that cite it',
+  done: () => ({ did: 'Found papers that cite it' }),
   run: async (ctx, { paperId, ...f }) => listOut((await citedBy(parsePaperId(ctx.sources(), paperId), request(ctx, f, false))).list),
 });
 
@@ -101,7 +109,9 @@ export const findSimilarPapers = defineTool({
   description: 'Papers close in meaning to this one ("more like this"). Counts as one search toward the daily limit.',
   input: z.object({ paperId: PAPER_ID, ...filters }),
   kind: 'read',
+  step: 'trace',
   label: () => 'Finding similar papers',
+  done: () => ({ did: 'Found similar papers' }),
   async run(ctx, { paperId, ...f }) {
     const sources = ctx.sources();
     const target = parsePaperId(sources, paperId);

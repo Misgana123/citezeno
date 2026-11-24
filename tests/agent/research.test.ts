@@ -112,6 +112,11 @@ describe('deep research', () => {
     const writing = last.ui!.find((s) => s.label === 'Writing the report')!;
     expect(writing.display?.refs).toBeTruthy();
     expect(Object.values(writing.display!.refs!)).not.toHaveLength(0);
+    // the plan is on its step, and every search and read sits under the plan question it looked into
+    expect(last.ui!.find((s) => s.label === 'Planning the research')?.display?.plan).toEqual(['sleep and memory', 'sleep in teens']);
+    expect(last.ui!.filter((s) => s.name !== 'deep_research').every((s) => typeof s.part === 'number' && !!s.kind && !!s.line?.did)).toBe(true);
+    expect(new Set(last.ui!.filter((s) => s.name === 'search_papers').map((s) => s.part))).toEqual(new Set([0, 1, 2]));
+    expect(writing.line?.did).toBe('Wrote the report');
     // paper searches don't list their papers; the report's sources do
     expect(last.ui!.filter((s) => s.name === 'search_papers').every((s) => !s.display?.papers)).toBe(true);
 

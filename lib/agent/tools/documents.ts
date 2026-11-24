@@ -48,7 +48,9 @@ export const createDocx = defineTool({
   description: `Make a Word document (.docx) the user can download, e.g. a report, a literature review or notes. ${BLOCKS_HELP}`,
   input,
   kind: 'write',
+  step: 'make',
   label: (i) => `Making a Word document “${i.filename}”`,
+  done: (i) => ({ did: 'Made a Word document', about: i.filename }),
   async run(ctx, i) {
     checkSize(i);
     const pictures = await loadPictures(ctx, blockPictures(i.blocks));
@@ -63,7 +65,9 @@ export const createPdf = defineTool({
   description: `Make a PDF the user can download, e.g. a report or a handout. ${BLOCKS_HELP} The PDF font covers Latin, Greek and Cyrillic text; for other scripts make a Word document instead.`,
   input,
   kind: 'write',
+  step: 'make',
   label: (i) => `Making a PDF “${i.filename}”`,
+  done: (i) => ({ did: 'Made a PDF', about: i.filename }),
   async run(ctx, i) {
     checkSize(i);
     const pictures = await loadPictures(ctx, blockPictures(i.blocks));
@@ -79,7 +83,9 @@ export const createPptx = defineTool({
     'Make a PowerPoint deck (.pptx) the user can download. Each slide has a title and at most two of: bullets (short points), a table, an image (a chart or picture made in this chat, by fileId) or a native chart from numbers. A slide with only a title and subtitle is a title slide. Add speaker notes when useful. Never invent sources or numbers.',
   input: z.object(deckInput),
   kind: 'write',
+  step: 'make',
   label: (i) => `Making slides “${i.filename}”`,
+  done: (i) => ({ did: 'Made slides', about: i.filename }),
   async run(ctx, i) {
     const problem = slideProblems(i.slides);
     if (problem) throw new ShelfError('bad_request', problem);
@@ -102,7 +108,9 @@ export const createXlsx = defineTool({
     'Make an Excel workbook (.xlsx) the user can download: one or more sheets with a header row and rows of cells (text, numbers, true/false, null, { "formula": "SUM(B2:B9)" } or { "date": "2024-05-01" }). Numbers stay numbers. Charts or pictures made in this chat can be placed at a cell. Use only data from tool results or the user.',
   input: z.object(workbookInput),
   kind: 'write',
+  step: 'make',
   label: (i) => `Making a spreadsheet “${i.filename}”`,
+  done: (i) => ({ did: 'Made a spreadsheet', about: i.filename }),
   async run(ctx, i) {
     const problem = workbookProblems(i.sheets);
     if (problem) throw new ShelfError('bad_request', problem);

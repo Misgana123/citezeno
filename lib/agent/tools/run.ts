@@ -5,7 +5,7 @@ import { papersErrorCode } from '@/lib/shelf/papers-error';
 import type { AgentContext } from '../context';
 import { findTool } from './index';
 import type { ClientTool } from './client';
-import type { AgentTool, ToolOutput } from './types';
+import type { AgentTool, StepKind, StepLine, ToolOutput } from './types';
 
 /* Running one tool call the model asked for: check the input, ask the user
    first when the action needs it, run it as the user, and turn any failure
@@ -58,5 +58,17 @@ export async function runTool(ctx: AgentContext, name: string, rawInput: unknown
     return { tool, input, label, outcome: { status: 'done', output: await tool.run(ctx, input) } };
   } catch (e) {
     return { tool, input, label, outcome: { status: 'error', ...failureMessage(e) } };
+  }
+}
+
+/* How the chat shows a step: its kind (its icon) and, once done, its line in the past tense. */
+export function stepLook(name: string, input: unknown, done: boolean): { kind?: StepKind; line?: StepLine } {
+  const tool = findTool(name);
+  if (!tool) return {};
+  if (!done) return { kind: tool.step };
+  try {
+    return { kind: tool.step, line: tool.done(input as never) };
+  } catch {
+    return { kind: tool.step };
   }
 }

@@ -54,7 +54,9 @@ export const webSearch = defineTool({
     days: z.number().int().min(1).max(365).optional().describe('With topic "news": only articles from the last n days.'),
   }),
   kind: 'read',
+  step: 'web',
   label: (i) => `Searching the web for “${clipText(i.query, 60)}”`,
+  done: (i) => ({ did: 'Searched the web', about: clipText(i.query, 120) }),
   async run(ctx, { query, maxResults, topic, days }) {
     const results: WebResult[] = await searcher(ctx).search(query, { maxResults: maxResults ?? 5, topic, days });
     return {
@@ -70,7 +72,9 @@ export const webFetch = defineTool({
     'Read the main text of one public web page (or an online PDF) by its link, e.g. a result from web_search or a link the user gave. Long pages are cut; ask for more characters only when needed.',
   input: z.object({ url: z.string().trim().url().max(2000), maxChars: z.number().int().min(1000).max(PAGE_CHARS_MAX).optional().describe(`How much text to read (default ${PAGE_CHARS_DEFAULT}).`) }),
   kind: 'read',
+  step: 'read',
   label: (i) => `Reading ${clipText(i.url.replace(/^https?:\/\/(www\.)?/i, ''), 60)}`,
+  done: (i) => ({ did: 'Read', about: i.url.replace(/^https?:\/\/(www\.)?/i, '').slice(0, 80) }),
   async run(ctx, { url, maxChars }) {
     const limit = maxChars ?? PAGE_CHARS_DEFAULT;
     const files = ctx.webFiles();

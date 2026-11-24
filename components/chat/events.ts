@@ -10,7 +10,7 @@ export function applyEvent(entries: Entry[], e: AgentEvent): Entry[] {
   const last = entries.at(-1);
   if (e.type === 'text') return [...entries, { kind: 'assistant', text: e.text }];
   if (e.type === 'step') {
-    const step: LiveStep = { callId: e.callId, name: e.name, label: e.label, input: e.input, status: 'running' };
+    const step: LiveStep = { callId: e.callId, name: e.name, label: e.label, input: e.input, status: 'running', ...(e.kind ? { kind: e.kind } : {}), ...(e.part != null ? { part: e.part } : {}) };
     if (last?.kind === 'steps') return [...entries.slice(0, -1), { kind: 'steps', steps: [...last.steps.filter((s) => s.callId !== e.callId), step] }];
     return [...entries, { kind: 'steps', steps: [step] }];
   }

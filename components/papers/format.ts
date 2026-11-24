@@ -1,7 +1,10 @@
-import type { PaperAuthor } from '@/lib/papers/types';
+import type { Paper, PaperAuthor } from '@/lib/papers/types';
 import type { WorkType } from '@/lib/papers/search/options';
 
 /* Display helpers for paper cards and the preview. */
+
+/* Where a paper opens: its DOI, else its landing page or record. */
+export const paperLink = (p: Pick<Paper, 'doi' | 'landingUrl' | 'record'>): string | null => (p.doi ? `https://doi.org/${p.doi}` : (p.landingUrl ?? p.record?.url ?? null));
 
 /* "Ada Lovelace, Alan Turing, Grace Hopper et al." */
 export function authorsShort(authors: PaperAuthor[], max = 3): string {

@@ -40,7 +40,9 @@ export const lookupPaperTool = defineTool({
     'Find a paper from a DOI, a link (doi.org, arXiv, PubMed, publisher pages, paper database links) or a title, before saving it. IDs and links are free lookups; a title is one search toward the daily limit and returns up to 5 matches. Says which matches are already saved.',
   input: z.object({ input: z.string().min(1).max(2000).describe('The DOI, link or title.') }),
   kind: 'read',
+  step: 'papers',
   label: (i) => `Looking up “${i.input.slice(0, 60)}”`,
+  done: (i) => ({ did: 'Looked up', about: i.input.slice(0, 80) }),
   async run(ctx, { input }) {
     const r = await lookupPaper({ db: ctx.db, sources: ctx.sources(), reserveSearches: ctx.reserveSearches }, ctx.userId, input);
     return { result: { via: r.via, papers: r.papers.map((p) => ({ ...paperBrief(p), savedItemId: r.saved[p.id] ?? null })) }, display: { papers: r.papers, summary: tally(r.papers.length, 'match', 'matches') } };
@@ -52,7 +54,9 @@ export const savePaper = defineTool({
   description: 'Save a paper found by search_papers, lookup_paper or the other paper tools to the user’s shelf, optionally into a project. Its details always come from the paper database, never from the conversation.',
   input: z.object({ paperId: z.string().min(1).max(240), projectId: PROJECT_ID }),
   kind: 'write',
+  step: 'change',
   label: () => 'Saving a paper to your shelf',
+  done: () => ({ did: 'Saved a paper to your shelf' }),
   run: (ctx, { paperId, projectId }) =>
     orAlreadySaved(ctx, async () => {
       const { item, pending } = await saveFoundPaper({ db: ctx.db, sources: ctx.sources() }, ctx.userId, { paperId, via: 'search', projectId: projectId ?? null });
@@ -65,7 +69,9 @@ export const addPaperManually = defineTool({
   description: 'Add a paper by typing its details, only when the user gives details for a paper that lookup_paper cannot find. Never invent details the user did not give.',
   input: z.object({ details: manualPaperSchema, projectId: PROJECT_ID }),
   kind: 'write',
+  step: 'change',
   label: (i) => `Adding “${i.details.title.slice(0, 60)}” by hand`,
+  done: (i) => ({ did: 'Added a paper by hand', about: i.details.title.slice(0, 80) }),
   run: (ctx, { details, projectId }) => orAlreadySaved(ctx, async () => saved(ctx, await saveManualPaper(ctx.db, ctx.userId, details, projectId ?? null), {}, 'Added')),
 });
 

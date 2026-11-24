@@ -142,7 +142,7 @@ describe('the agent asks the browser', () => {
     const h = harness(chat);
     await answer(h.deps, [], 'Find a citation for: sleep helps memory');
     expect(h.events.slice(-3)).toEqual([
-      { type: 'step', callId: 'k1', name: 'find_citations', label: 'Finding sources for “Sleep helps memory.”', input: { text: 'Sleep helps memory.' } },
+      { type: 'step', callId: 'k1', name: 'find_citations', label: 'Finding sources for “Sleep helps memory.”', input: { text: 'Sleep helps memory.' }, kind: 'cite' },
       { type: 'client_tool', callId: 'k1', name: 'find_citations', input: { text: 'Sleep helps memory.' }, label: 'Finding sources for “Sleep helps memory.”' },
       { type: 'done', reason: 'waiting' },
     ]);

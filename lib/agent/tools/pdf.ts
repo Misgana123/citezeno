@@ -41,7 +41,9 @@ export const pdfMerge = defineTool({
   description: 'Merge 2 to 20 PDFs (shelf PDFs by pdfId, or PDFs made in this chat by fileId) into one PDF, in the order given.',
   input: z.object({ filename: z.string().trim().min(1).max(120).describe('Without the extension.'), inputs: z.array(pdfRef).min(2).max(20), title: z.string().max(300).optional() }),
   kind: 'write',
+  step: 'make',
   label: (i) => `Merging ${i.inputs.length} PDFs`,
+  done: (i) => ({ did: `Merged ${i.inputs.length} PDFs`, about: i.filename }),
   async run(ctx, i) {
     const inputs: { name: string; bytes: Uint8Array }[] = [];
     for (const ref of i.inputs) inputs.push(await readPdf(ctx, ref));
@@ -57,7 +59,9 @@ export const pdfSplit = defineTool({
   description: 'Make a new PDF from some pages of a PDF (shelf PDF by pdfId, or one made in this chat by fileId). Pages like "1-3, 5" or "10-" (to the end).',
   input: z.object({ filename: z.string().trim().min(1).max(120).describe('Without the extension.'), pdf: pdfRef, pages: z.string().trim().min(1).max(200) }),
   kind: 'write',
+  step: 'make',
   label: (i) => `Taking pages ${i.pages} from a PDF`,
+  done: (i) => ({ did: 'Took pages from a PDF', about: `pages ${i.pages}` }),
   async run(ctx, i) {
     const src = await readPdf(ctx, i.pdf);
     const { pickPages } = await import('../documents/pdfs');
@@ -72,7 +76,9 @@ export const pdfExtractText = defineTool({
   description: `Read the text of a PDF (shelf PDF by pdfId, or one made in this chat by fileId), optionally only some pages ("1-3"). At most ${PDF_TEXT_CHARS.toLocaleString('en-US')} characters. For questions about a saved paper’s content, ask_paper is better.`,
   input: z.object({ pdf: pdfRef, pages: z.string().trim().max(200).optional() }),
   kind: 'read',
+  step: 'read',
   label: (i) => (i.pages ? `Reading pages ${i.pages} of a PDF` : 'Reading a PDF'),
+  done: (i) => ({ did: 'Read a PDF', ...(i.pages ? { about: `pages ${i.pages}` } : {}) }),
   async run(ctx, i) {
     const src = await readPdf(ctx, i.pdf);
     const { pageCount, pickPages } = await import('../documents/pdfs');

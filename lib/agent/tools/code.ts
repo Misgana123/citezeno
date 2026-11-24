@@ -93,7 +93,9 @@ export const runPython = defineTool({
     timeoutSeconds: z.number().int().min(5).max(TIMEOUT_MAX_S).optional(),
   }),
   kind: 'write',
+  step: 'code',
   label: () => 'Running Python',
+  done: () => ({ did: 'Ran Python' }),
   async run(ctx, i) {
     const runner = ctx.code();
     if (!runner) throw new ShelfError('unavailable', 'Running code isn’t set up yet.');

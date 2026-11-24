@@ -3,15 +3,16 @@ import type { Paper } from '@/lib/papers/types';
 import type { ChatMessage } from '@/lib/providers/chat/types';
 import type { LoopDeps } from './loop';
 import { asData } from './prompt';
-import { failureMessage, runTool } from './tools/run';
-import type { ToolDisplay, WebLink } from './tools/types';
+import { failureMessage, runTool, stepLook } from './tools/run';
+import type { StepKind, StepLine, ToolDisplay, WebLink } from './tools/types';
 import type { StepView } from './types';
 
 /* Deep research, started by the user from the + menu (never by the model on
    its own): plan sub-questions, research each with the existing tools (web
    search and reading pages when web search is set up, paper search), look
    for gaps once, then write a report that cites only what was found. Every
-   search and page read shows as a step; the report ends with its sources. */
+   search and page read shows as a step, under the plan question it looked
+   into; the report ends with its sources. */
 
 export const RESEARCH_MS = 240_000;
 /* Stop researching this long before the deadline, to leave time to write. */
@@ -101,17 +102,17 @@ export async function research(d: LoopDeps, question: string): Promise<void> {
   };
 
   /* A step of our own (planning, writing), shown like a tool's step. */
-  const own = async <T>(label: string, work: () => Promise<{ value: T; display?: ToolDisplay }>): Promise<T> => {
+  const own = async <T>(label: string, kind: StepKind, work: () => Promise<{ value: T; line: StepLine; display?: ToolDisplay }>): Promise<T> => {
     const callId = `r_${randomUUID()}`;
-    d.emit({ type: 'step', callId, name: 'deep_research', label, input: {} });
+    d.emit({ type: 'step', callId, name: 'deep_research', label, input: {}, kind });
     try {
-      const { value, display } = await work();
-      const step: StepView = { callId, name: 'deep_research', label, input: {}, status: 'done', ...(display ? { display } : {}) };
+      const { value, line, display } = await work();
+      const step: StepView = { callId, name: 'deep_research', label, input: {}, status: 'done', kind, line, ...(display ? { display } : {}) };
       steps.push(step);
       d.emit({ type: 'step_done', step });
       return value;
     } catch (e) {
-      const step: StepView = { callId, name: 'deep_research', label, input: {}, status: 'error', error: failureMessage(e).message };
+      const step: StepView = { callId, name: 'deep_research', label, input: {}, status: 'error', kind, error: failureMessage(e).message };
       steps.push(step);
       d.emit({ type: 'step_done', step });
       throw e;
@@ -120,16 +121,16 @@ export async function research(d: LoopDeps, question: string): Promise<void> {
 
   /* One of the existing tools, as a step; its findings become sources. Failures are shown and skipped.
      Paper searches don't list their papers on the step: the report's numbered sources do. */
-  const tool = async (name: string, input: Record<string, unknown>): Promise<{ result: unknown; display?: ToolDisplay }> => {
+  const tool = async (name: string, input: Record<string, unknown>, part: number): Promise<{ result: unknown; display?: ToolDisplay }> => {
     const callId = `r_${randomUUID()}`;
-    const run = await runTool(d.ctx, name, input, { onStart: (label, inp) => d.emit({ type: 'step', callId, name, label, input: inp }) });
+    const run = await runTool(d.ctx, name, input, { onStart: (label, inp) => d.emit({ type: 'step', callId, name, label, input: inp, part, ...stepLook(name, inp, false) }) });
     const o = run.outcome;
     const display = o.status === 'done' ? o.output.display : undefined;
     const shown = display && name === 'search_papers' ? { summary: display.summary } : display;
     const step: StepView =
       o.status === 'done'
-        ? { callId, name, label: run.label, input: run.input, status: 'done', ...(shown ? { display: shown } : {}) }
-        : { callId, name, label: run.label, input: run.input, status: 'error', error: o.status === 'error' ? o.message : 'Not available here.' };
+        ? { callId, name, label: run.label, input: run.input, status: 'done', part, ...stepLook(name, run.input, true), ...(shown ? { display: shown } : {}) }
+        : { callId, name, label: run.label, input: run.input, status: 'error', part, ...stepLook(name, run.input, false), error: o.status === 'error' ? o.message : 'Not available here.' };
     steps.push(step);
     d.emit({ type: 'step_done', step });
     return { result: o.status === 'done' ? o.output.result : null, display };
@@ -139,23 +140,23 @@ export async function research(d: LoopDeps, question: string): Promise<void> {
     for (const l of links) if (!sources.has(l.url)) sources.set(l.url, { key: l.url, kind: 'web', title: l.title, url: l.url, date: l.published ?? null, text: l.snippet ?? '' });
   };
 
-  /* Research one question: the web (search, then read the best pages) and papers. */
-  const investigate = async (q: string) => {
+  /* Research one question (number `part` of the plan): the web (search, then read the best pages) and papers. */
+  const investigate = async ({ q, part }: { q: string; part: number }) => {
     if (now() > d.deadline - WRITE_RESERVE_MS) return;
     if (web) {
-      const found = (await tool('web_search', { query: q, maxResults: 5 })).result as { results?: WebLink[] } | null;
+      const found = (await tool('web_search', { query: q, maxResults: 5 }, part)).result as { results?: WebLink[] } | null;
       const links = found?.results ?? [];
       addWeb(links);
       for (const l of links.filter((x) => !sources.get(x.url)?.text.includes('\n')).slice(0, PAGES_PER_QUESTION)) {
         if (now() > d.deadline - WRITE_RESERVE_MS) break;
-        const page = (await tool('web_fetch', { url: l.url, maxChars: PAGE_CHARS })).result as { title?: string; text?: string } | null;
+        const page = (await tool('web_fetch', { url: l.url, maxChars: PAGE_CHARS }, part)).result as { title?: string; text?: string } | null;
         const s = sources.get(l.url);
         if (page?.text && s) s.text = `${page.text}\n`;
       }
     }
     if (paperSearches < PAPER_SEARCHES_MAX) {
       paperSearches++;
-      const { result, display } = await tool('search_papers', { query: q });
+      const { result, display } = await tool('search_papers', { query: q }, part);
       const found = result as { papers?: { paperId: string; title: string; authors: string; year: number | null; link: string | null; abstract: string | null; retracted?: boolean }[] } | null;
       for (const p of (found?.papers ?? []).slice(0, 5)) {
         if (!sources.has(p.paperId))
@@ -179,20 +180,22 @@ export async function research(d: LoopDeps, question: string): Promise<void> {
   };
 
   try {
-    const plan = await own('Planning the research', async () => {
+    const plan = await own('Planning the research', 'plan', async () => {
       const qs = strings(jsonIn(await ask(PLAN_SYSTEM, question, 800))?.subQuestions, SUB_QUESTIONS_MAX);
       const value = qs.length ? qs : [question];
-      return { value, display: { summary: `${value.length} question${value.length === 1 ? '' : 's'}` } };
+      const n = `${value.length} question${value.length === 1 ? '' : 's'}`;
+      return { value, line: { did: 'Planned the research', about: n }, display: { plan: value, summary: n } };
     });
-    await inTurns(plan, AT_ONCE, investigate);
+    await inTurns(plan.map((q, part) => ({ q, part })), AT_ONCE, investigate);
 
     if (sources.size && now() < d.deadline - WRITE_RESERVE_MS) {
       const brief = [...sources.values()].slice(0, SOURCES_MAX).map((s) => ({ title: s.title, snippet: s.text.slice(0, 200) }));
-      const more = await own('Looking for gaps', async () => {
+      const more = await own('Checking what’s missing', 'plan', async () => {
         const qs = strings(jsonIn(await ask(GAPS_SYSTEM, `Question: ${question}\n\n${asData('sources', brief)}`, 400))?.followUps, FOLLOW_UPS_MAX);
-        return { value: qs, display: { summary: qs.length ? `${qs.length} more` : 'None' } };
+        const line = { did: 'Checked what’s missing', about: qs.length ? `${qs.length} more question${qs.length === 1 ? '' : 's'}` : 'nothing missing' };
+        return { value: qs, line, display: { plan: qs, summary: qs.length ? `${qs.length} more` : 'None' } };
       });
-      await inTurns(more, AT_ONCE, investigate);
+      await inTurns(more.map((q, i) => ({ q, part: plan.length + i })), AT_ONCE, investigate);
     }
 
     // number the sources: papers and pages that were read first, then the rest
@@ -202,8 +205,8 @@ export async function research(d: LoopDeps, question: string): Promise<void> {
       .map((s, i) => ({ ...s, n: i + 1 }));
     const refs = Object.fromEntries(numbered.flatMap((s) => (s.paper ? [[s.paper.id, s.n]] : [])));
 
-    const report = await own('Writing the report', async () => {
-      if (!numbered.length) return { value: 'I couldn’t find sources for this question, so I can’t write a report on it. Try rephrasing it, or turn on web search from the + menu.' };
+    const report = await own('Writing the report', 'make', async () => {
+      if (!numbered.length) return { value: 'I couldn’t find sources for this question, so I can’t write a report on it. Try rephrasing it, or turn on web search from the + menu.', line: { did: 'Found no sources to write from' } };
       const data = numbered.map((s) => ({
         n: s.n,
         kind: s.kind,
@@ -214,7 +217,7 @@ export async function research(d: LoopDeps, question: string): Promise<void> {
         text: s.text.slice(0, PAGE_CHARS),
       }));
       const text = await ask(WRITE_SYSTEM, `Question: ${question}\n\n${asData('sources', data)}`, 4000);
-      return { value: text.trim() + sourcesSection(numbered), display: { refs, papers: numbered.flatMap((s) => (s.paper ? [s.paper] : [])), summary: `${numbered.length} sources` } };
+      return { value: text.trim() + sourcesSection(numbered), line: { did: 'Wrote the report', about: `from ${numbered.length} source${numbered.length === 1 ? '' : 's'}` }, display: { refs, papers: numbered.flatMap((s) => (s.paper ? [s.paper] : [])), summary: `${numbered.length} sources` } };
     });
 
     await d.save([{ message: { role: 'assistant', text: report, toolCalls: [] }, ui: steps, costUsd: cost }]);

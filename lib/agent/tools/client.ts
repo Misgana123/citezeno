@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { StepKind, StepLine } from './types';
 
 /* Tools that run in the user's browser, not on the server. The citation
    feature searches OpenAlex, Crossref, Open Library and Wikipedia from the
@@ -10,7 +11,9 @@ export type ClientTool<S extends z.ZodType = z.ZodType> = {
   description: string;
   input: S;
   kind: 'client';
+  step: StepKind;
   label(input: z.infer<S>): string;
+  done(input: z.infer<S>): StepLine;
 };
 
 export const findCitationsInput = z.object({
@@ -25,7 +28,9 @@ export const findCitations: ClientTool<typeof findCitationsInput> = {
     'Find real published sources (articles, books, web pages) that support one claim or short passage, with the reference formatted in a citation style. Uses the Studio’s citation search in the user’s browser and costs the user 1 credit per call. For a paragraph with several claims, call it once per claim.',
   input: findCitationsInput,
   kind: 'client',
+  step: 'cite',
   label: (i) => `Finding sources for “${i.text.slice(0, 60)}${i.text.length > 60 ? '…' : ''}”`,
+  done: (i) => ({ did: 'Found sources', about: `for “${i.text.slice(0, 80)}${i.text.length > 80 ? '…' : ''}”` }),
 };
 
 export const CLIENT_TOOLS: readonly ClientTool[] = [findCitations] as ClientTool[];

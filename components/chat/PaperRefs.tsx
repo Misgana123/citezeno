@@ -5,7 +5,7 @@ import { useState } from 'react';
 import type { Paper } from '@/lib/papers/types';
 import type { ShelfItem } from '@/lib/shelf/types';
 import { Icon } from '../Icon';
-import { authorsShort } from '../papers/format';
+import { authorsShort, paperLink } from '../papers/format';
 import { ReadButton } from '../reader/ReadButton';
 import { SaveButton } from '../shelf/SaveButton';
 import { useFilePanel } from './file/panel-state';
@@ -18,10 +18,8 @@ const SHOWN = 5;
 
 export const refAnchor = (turn: number, n: number) => `ref-${turn}-${n}`;
 
-const link = (p: Pick<Paper, 'doi' | 'landingUrl' | 'record'>) => (p.doi ? `https://doi.org/${p.doi}` : (p.landingUrl ?? p.record?.url ?? null));
-
 function Row({ n, turn, paper, action, open = false }: { n?: number; turn: number; paper: Paper | ShelfItem['paper']; action: React.ReactNode; open?: boolean }) {
-  const href = link(paper);
+  const href = paperLink(paper);
   const meta = [authorsShort(paper.authors), paper.year, paper.source].filter(Boolean).join(' · ');
   return (
     <li className={`ch-ref-row${paper.isRetracted ? ' is-retracted' : ''}${open ? ' is-open' : ''}`} id={n ? refAnchor(turn, n) : undefined}>

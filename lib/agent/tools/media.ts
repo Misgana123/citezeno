@@ -25,7 +25,9 @@ export const createChart = defineTool({
     'Draw a chart as a PNG picture from numbers: bar, horizontal_bar, line, area, pie or scatter, with one or more series. Use only numbers from tool results or the user. The chat shows it; its fileId can go into create_docx or create_pdf as an image block.',
   input: chartInput,
   kind: 'write',
+  step: 'make',
   label: (i) => `Drawing a ${KIND_LABEL[i.kind]}${i.title ? ` “${i.title}”` : ''}`,
+  done: (i) => ({ did: `Drew a ${KIND_LABEL[i.kind]}`, ...(i.title ? { about: i.title } : {}) }),
   async run(ctx, i) {
     const { chartPng } = await import('../documents/chart');
     const file = await ctx.files.save({ name: i.filename, mime: 'image/png', bytes: await chartPng(i) });
@@ -62,7 +64,9 @@ export const editImageTool = defineTool({
     })
     .refine((i) => !!i.fileId !== !!i.attachment, 'Give either fileId or attachment.'),
   kind: 'write',
+  step: 'make',
   label: (i) => `Editing ${i.attachment ?? 'a picture'}`,
+  done: (i) => ({ did: 'Edited a picture', ...(i.attachment ? { about: i.attachment } : {}) }),
   async run(ctx, i) {
     const src = await source(ctx, i);
     const format = i.format ?? 'png';

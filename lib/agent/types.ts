@@ -1,5 +1,5 @@
 import type { ChatMessage, ToolCall, ToolResult } from '@/lib/providers/chat/types';
-import type { ToolDisplay } from './tools/types';
+import type { StepKind, StepLine, ToolDisplay } from './tools/types';
 
 /* One step the agent took, as the chat page shows it. */
 export type StepView = {
@@ -10,6 +10,12 @@ export type StepView = {
   status: 'done' | 'error' | 'declined';
   error?: string;
   display?: ToolDisplay;
+  /* its icon on the timeline (rows saved before kinds existed have none) */
+  kind?: StepKind;
+  /* its line once done, in the past tense (else the label is shown) */
+  line?: StepLine;
+  /* deep research: the plan question (its index) this step looked into */
+  part?: number;
 };
 
 /* What the reader adds to a message in a paper's conversation: which scope
@@ -36,7 +42,7 @@ export type Pending = {
 /* What the chat page receives while the agent works (one JSON object per line). */
 export type AgentEvent =
   | { type: 'conversation'; id: string; title: string; model: string }
-  | { type: 'step'; callId: string; name: string; label: string; input: unknown }
+  | { type: 'step'; callId: string; name: string; label: string; input: unknown; kind?: StepKind; part?: number }
   | { type: 'step_done'; step: StepView }
   | { type: 'text'; text: string }
   | { type: 'confirm'; callId: string; question: string; label: string }

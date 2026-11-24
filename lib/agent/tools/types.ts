@@ -12,6 +12,15 @@ import type { CitedSource } from './client';
 /* A page the web search found or the assistant read, as the chat shows it. */
 export type WebLink = { title: string; url: string; snippet?: string; published?: string | null };
 
+/* What kind of step a tool is, for its icon on the chat's timeline and for
+   joining steps of one kind that ran one after another ("Read 3 sources"). */
+export const STEP_KINDS = ['papers', 'web', 'read', 'trace', 'shelf', 'change', 'make', 'code', 'cite', 'plan'] as const;
+export type StepKind = (typeof STEP_KINDS)[number];
+
+/* A step's line once it is done, in the past tense: what it did and, when it
+   helps, what about. { did: 'Searched papers', about: 'sleep and memory' } */
+export type StepLine = { did: string; about?: string };
+
 /* What the chat shows the user next to a step (the model gets `result`). */
 export type ToolDisplay = {
   papers?: Paper[];
@@ -31,6 +40,8 @@ export type ToolDisplay = {
   research?: { question: string };
   /* what the step came to, in a few words, shown on its row: "6 papers", "No notices", "Saved" */
   summary?: string;
+  /* deep research: the questions the research looks into, in order */
+  plan?: string[];
 };
 
 /* "No papers", "1 paper", "1,240 papers": a count for a step's row. */
@@ -53,8 +64,13 @@ export type AgentTool<S extends z.ZodType = z.ZodType> = {
   description: string;
   input: S;
   kind: ToolKind;
-  /* A short label for the step, e.g. 'Searching papers for “sleep”'. */
+  /* What kind of step this is (its icon on the chat's timeline). */
+  step: StepKind;
+  /* A short label for the step while it runs, e.g. 'Searching papers for “sleep”'. */
   label(input: z.infer<S>): string;
+  /* Its line once done, in the past tense: { did: 'Searched papers', about: 'sleep' }.
+     Plain words only: never a tool name, a provider, an ID or raw input. */
+  done(input: z.infer<S>): StepLine;
   /* The question to ask before running, or null when it can run straight away. */
   confirm?(input: z.infer<S>, ctx: AgentContext): string | null | Promise<string | null>;
   run(ctx: AgentContext, input: z.infer<S>): Promise<ToolOutput>;

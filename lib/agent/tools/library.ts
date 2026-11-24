@@ -63,7 +63,9 @@ export const listLibrary = defineTool({
     'List or search the papers saved on the user’s shelf, with filters (project, folder, tag, reading status, year, open access, retracted, has PDF). Use this to answer questions about what the user has saved.',
   input: z.object({ ...listFilters, page: z.number().int().min(1).optional(), perPage: z.number().int().min(1).max(50).optional() }),
   kind: 'read',
+  step: 'shelf',
   label: (i) => (i.search ? `Searching your shelf for “${i.search.slice(0, 60)}”` : 'Reading your shelf'),
+  done: (i) => (i.search ? { did: 'Searched your shelf', about: i.search.slice(0, 80) } : { did: 'Read your shelf' }),
   async run(ctx, { page = 1, perPage = 25, ...f }) {
     const [list, groups] = await Promise.all([listItems(ctx.db, ctx.userId, listQuery(f, page, perPage)), loadGroups(ctx)]);
     return {
@@ -78,7 +80,9 @@ export const getLibraryItem = defineTool({
   description: 'One saved paper with its full details, note, reading status, projects, folders, tags and PDFs (each with its pdfId, for the PDF tools).',
   input: z.object({ itemId: z.string().min(1).max(80) }),
   kind: 'read',
+  step: 'shelf',
   label: () => 'Opening a saved paper',
+  done: () => ({ did: 'Opened a saved paper' }),
   async run(ctx, { itemId }) {
     const [item, groups] = await Promise.all([getItem(ctx.db, ctx.userId, itemId), loadGroups(ctx)]);
     if (!item) throw new ShelfError('not_found', 'That paper is not on your shelf.');
@@ -94,7 +98,9 @@ export const listCollections = defineTool({
   description: 'The user’s projects, folders (each inside a project) and tags, with their IDs and paper counts. Use it to find IDs by name before organizing papers.',
   input: z.object({}),
   kind: 'read',
+  step: 'shelf',
   label: () => 'Reading your projects, folders and tags',
+  done: () => ({ did: 'Read your projects, folders and tags' }),
   async run(ctx) {
     const g = await loadGroups(ctx);
     return {
@@ -113,7 +119,9 @@ export const findDuplicates = defineTool({
   description: 'Pairs of saved papers that look like the same paper (same DOI or record, or very similar titles), minus pairs the user chose to keep.',
   input: z.object({}),
   kind: 'read',
+  step: 'shelf',
   label: () => 'Looking for duplicates',
+  done: () => ({ did: 'Looked for duplicates' }),
   async run(ctx) {
     const [pairs, groups] = await Promise.all([duplicatePairs(ctx.db, ctx.userId), loadGroups(ctx)]);
     return { result: { pairs: pairs.map((p) => ({ reason: p.reason, a: itemBrief(p.a, groups), b: itemBrief(p.b, groups) })) }, display: { items: pairs.flatMap((p) => [p.a, p.b]), summary: tally(pairs.length, 'pair') } };
@@ -125,7 +133,9 @@ export const listNotices = defineTool({
   description: 'Unread notices about saved papers that were retracted after the user saved them.',
   input: z.object({}),
   kind: 'read',
+  step: 'shelf',
   label: () => 'Checking retraction notices',
+  done: () => ({ did: 'Checked retraction notices' }),
   async run(ctx) {
     const r = await unreadNotices(ctx.db, ctx.userId);
     return { result: r, display: { summary: r.unread ? tally(r.unread, 'new notice') : 'No new notices' } };
