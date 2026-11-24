@@ -3,10 +3,9 @@ import { ATTACH_MAX, ATTACH_TOTAL_MAX } from '@/lib/agent/attachments';
 import { messageBody } from '@/lib/agent/bodies';
 import { dropOldImages } from '@/lib/agent/loop';
 import { toView } from '@/lib/agent/view';
-import { toAnthropicMessages } from '@/lib/providers/anthropic/chat';
 import { userContent, type ChatMessage } from '@/lib/providers/chat/types';
 import { toGeminiContents } from '@/lib/providers/gemini/chat';
-import { toOpenAiMessages } from '@/lib/providers/openai/chat';
+import { toOpenRouterMessages } from '@/lib/providers/openrouter/chat';
 
 /* Files and screenshots added to a chat message: what the server accepts,
    how each model is sent them, and what the page shows again. */
@@ -55,11 +54,13 @@ describe('what the model reads', () => {
   });
   it('sends pictures in each vendor’s format', () => {
     expect(toGeminiContents([msg])[0].parts[0]).toEqual({ inlineData: { mimeType: 'image/png', data: PIC.data } });
-    expect(toAnthropicMessages([msg])[0].content[0]).toEqual({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: PIC.data } });
-    const openai = toOpenAiMessages('sys', [msg])[1] as { content: { type: string; image_url?: { url: string } }[] };
-    expect(openai.content[0]).toEqual({ type: 'image_url', image_url: { url: `data:image/png;base64,${PIC.data}` } });
+    const routed = toOpenRouterMessages('sys', [msg])[1] as { content: { type: string; image_url?: { url: string } }[] };
+    expect(routed.content[0]).toEqual({ type: 'image_url', image_url: { url: `data:image/png;base64,${PIC.data}` } });
     // without pictures a message stays plain text
-    expect(toOpenAiMessages('sys', [{ role: 'user', text: 'hi' }])[1]).toEqual({ role: 'user', content: 'hi' });
+    expect(toOpenRouterMessages('sys', [{ role: 'user', text: 'hi' }])[1]).toEqual({ role: 'user', content: 'hi' });
+    // a model that can't see pictures gets their names only
+    const blind = toOpenRouterMessages('sys', [msg], { images: false })[1] as { content: string };
+    expect(blind.content).toContain('[image attached: Screenshot]');
   });
   it('sends only the latest pictures again', () => {
     const history: ChatMessage[] = [1, 2, 3, 4].map((n) => ({ role: 'user', text: `q${n}`, attachments: [{ ...PIC, name: `p${n}` }] }));

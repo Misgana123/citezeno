@@ -16,6 +16,6 @@ type P = { paperId: string };
 export const GET = readerRoute<P>(async ({ req, userId, deps }, { paperId }) => {
   const { view, needsWork } = await openPaper(deps, userId, paperId, { pdfId: pdfParam(req) });
   if (needsWork) after(() => processNext(deps, { id: needsWork, deadline: Date.now() + 50_000 }).catch(() => {}));
-  return Response.json({ ...view, ai: aiAvailable() }, { headers: { 'cache-control': 'no-store' } });
+  return Response.json({ ...view, ai: await aiAvailable() }, { headers: { 'cache-control': 'no-store' } });
 });
 

@@ -81,7 +81,7 @@ function offending(test: (line: string) => boolean, list = outside): string[] {
 describe('provider boundaries', () => {
   it('finds the app code and the adapters', () => {
     expect(outside.length).toBeGreaterThan(50);
-    expect(adapters).toEqual(expect.arrayContaining(['openalex', 'cloudinary', 'r2', 'basic-pdf', 'gemini', 'openai', 'anthropic']));
+    expect(adapters).toEqual(expect.arrayContaining(['openalex', 'cloudinary', 'r2', 'basic-pdf', 'gemini', 'openrouter']));
   });
 
   it('no outside service API address outside lib/providers (citation exempt)', () => {

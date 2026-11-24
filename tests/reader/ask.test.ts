@@ -58,6 +58,9 @@ describe('the assistant reading a paper', () => {
 });
 
 /* A chat model answering from a script, recording what it was sent. */
+// the reader's quick jobs use the "fast" model below (by default they use the main one)
+vi.stubEnv('READER_FAST_MODEL', 'fast');
+
 function fakeChat(answer: (req: ChatRequest) => string) {
   const seen: ChatRequest[] = [];
   const reply = (req: ChatRequest) => {

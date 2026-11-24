@@ -1,17 +1,19 @@
+import { providerDown } from '../errors';
 import type { Env, Gate } from '../types';
 import { DEFAULT_EMBEDDING_DIMENSIONS, DEFAULT_EMBEDDING_MODEL, EMBEDDING_MODELS } from './models';
 import { EMBEDDINGS_PROVIDERS } from './registry';
-import type { EmbedInput, EmbedKind, EmbeddingModel, EmbeddingsProviderDefinition } from './types';
+import type { EmbedInput, EmbedKind, EmbeddingModel, EmbeddingsProviderDefinition, EmbedRequest } from './types';
 
 /* The configured embedding model, ready to use: inputs are sent in batches the
    model accepts, and every vector comes back normalized to length 1 (so cosine
    search is right whatever the vendor does at reduced sizes).
 
-     READER_EMBEDDING_MODEL        a model ID from models.ts (default gemini-embedding-001)
+     READER_EMBEDDING_MODEL        a model ID from models.ts (default google/gemini-embedding-2)
      READER_EMBEDDING_DIMENSIONS   stored vector size, 128–2000 (default 768)
 
-   null when the model's provider isn't configured (no key): search by meaning
-   is off and keyword search carries on. */
+   A model with a fallback (the same model by another route) uses it while its
+   own provider is down or has no key. null when neither is configured: search
+   by meaning is off and keyword search carries on. */
 
 export type Embedder = {
   readonly model: EmbeddingModel;
@@ -41,8 +43,22 @@ export function embedder(
   registry: Readonly<Record<string, EmbeddingsProviderDefinition>> = EMBEDDINGS_PROVIDERS,
 ): Embedder | null {
   const { model, dimensions } = embeddingSettings(env, catalog);
-  const provider = registry[model.provider]?.create(env, gate) ?? null;
-  if (!provider) return null;
+  const primary = registry[model.provider]?.create(env, gate) ?? null;
+  // the stand-in: the same model by another route (same vectors), sent the model as itself
+  const backupModel = model.fallback ? catalog.find((m) => m.id === model.fallback && m.provider !== model.provider) : undefined;
+  const backup = backupModel ? (registry[backupModel.provider]?.create(env, gate) ?? null) : null;
+  if (!primary && !backup) return null;
+  const call = async (req: Omit<EmbedRequest, 'model'>) => {
+    if (primary) {
+      try {
+        return await primary.embed({ ...req, model });
+      } catch (e) {
+        if (!backup || !providerDown(e)) throw e;
+        console.warn(`[citezeno] embeddings: ${model.provider} failed (${(e as Error).message}); using ${backupModel!.provider}`);
+      }
+    }
+    return backup!.embed({ ...req, model: backupModel! });
+  };
   return {
     model,
     dimensions,
@@ -51,7 +67,7 @@ export function embedder(
       let tokens = 0;
       let costUsd = 0;
       for (let i = 0; i < inputs.length; i += model.maxBatch) {
-        const res = await provider.embed({ model, kind, inputs: inputs.slice(i, i + model.maxBatch), dimensions });
+        const res = await call({ kind, inputs: inputs.slice(i, i + model.maxBatch), dimensions });
         vectors.push(...res.vectors.map(normalize));
         tokens += res.tokens;
         costUsd += res.costUsd;

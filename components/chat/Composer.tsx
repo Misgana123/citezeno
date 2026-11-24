@@ -3,10 +3,19 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
 import type { ModelInfo } from '@/lib/providers/chat/catalog';
 import { Icon } from '../Icon';
-import { Select } from '../Select';
+import { Select, type SelectItems } from '../Select';
 import { ATTACH_ACCEPT, canScreenshot, type AttachItem } from './attach';
 import { AttachCard } from './AttachCard';
 import { ModelIcon } from './ModelIcon';
+
+/* The model picker's list: grouped by maker (A to Z) when there is more than one. */
+function modelOptions(models: ModelInfo[]): SelectItems {
+  const option = (m: ModelInfo) => ({ value: m.id, label: m.label, icon: <ModelIcon vendor={m.vendor} /> });
+  const groups = new Map<string, ModelInfo[]>();
+  for (const m of models) groups.set(m.vendorName, [...(groups.get(m.vendorName) ?? []), m]);
+  if (groups.size < 2) return models.map(option);
+  return [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([label, ms]) => ({ label, options: ms.map(option) }));
+}
 
 /* The message box: what to ask (and, with a file open, which paper it's about),
    files or a screenshot added with +, web search switched on from +, which
@@ -223,12 +232,13 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
             value={p.model ?? ''}
             onChange={p.onModel}
             aria-label="AI model"
-            options={p.models.map((m) => ({ value: m.id, label: m.label, icon: <ModelIcon provider={m.provider} /> }))}
+            search={p.models.length > 8 ? 'Search models' : undefined}
+            options={modelOptions(p.models)}
           />
         ) : (
           p.models[0] && (
             <span className="ch-model is-one">
-              <ModelIcon provider={p.models[0].provider} />
+              <ModelIcon vendor={p.models[0].vendor} />
               {p.models[0].label}
             </span>
           )

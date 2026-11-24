@@ -39,7 +39,7 @@ export async function explainSelection(
   const { loaded, text } = await readableText(deps, userId, rawId, { pdfId: sel.pdfId });
   const quote = sel.quote.replace(/\s+/g, ' ').trim().slice(0, 2000);
   if (!quote) throw new ReaderError('bad_request', 'Select some text to explain.');
-  const ai = readerAi(deps, { userId, paperId: loaded.paper.id });
+  const ai = await readerAi(deps, { userId, paperId: loaded.paper.id });
 
   let context: StoredPassage[] = [];
   if (text?.status === 'ready') {

@@ -86,6 +86,9 @@ describe('summary checks', () => {
 });
 
 /* A chat model that answers from a script and records what it was sent. */
+// the reader's quick jobs use the "fast" model below (by default they use the main one)
+vi.stubEnv('READER_FAST_MODEL', 'fast');
+
 function fakeChat(answer: (req: ChatRequest) => string | Error) {
   const seen: ChatRequest[] = [];
   const def: ChatProviderDefinition = {
@@ -227,7 +230,7 @@ describe.skipIf(!TEST_DB_URL)('fast model fallback (Postgres)', () => {
     const db = await openTestDb();
     try {
       const f = fakeChat((req) => (req.model.id === 'fast' ? new ProviderError('unavailable', 'bad key', { reason: 'auth' }) : 'ok'));
-      const ai = readerAi({ db: db.pool, chat: f.chat } as never, { userId: null, paperId: 'p' });
+      const ai = await readerAi({ db: db.pool, chat: f.chat } as never, { userId: null, paperId: 'p' });
       const r = await ai.ask({ model: ai.fast, action: 'explain', system: 's', user: 'u', maxOutputTokens: 10 });
       expect(r.text).toBe('ok');
       expect(f.seen.map((s) => s.model.id)).toEqual(['fast', 'main']);

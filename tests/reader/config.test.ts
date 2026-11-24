@@ -17,11 +17,11 @@ describe('reader config', () => {
     expect(readerConfig({ READER_MODEL: 'small', READER_FULLTEXT_MAX_TOKENS: '12000' })).toMatchObject({ model: 'small', fullTextMaxTokens: 12000 });
   });
 
-  it('uses the assistant’s default for answers and the cheapest model for quick jobs', () => {
-    expect(readerModels(chat(), readerConfig({}))).toMatchObject({ main: { id: 'big' }, fast: { id: 'small' } });
+  it('uses the assistant’s default for answers, and the same model for quick jobs unless told', () => {
+    expect(readerModels(chat(), readerConfig({}))).toMatchObject({ main: { id: 'big' }, fast: { id: 'big' } });
     expect(readerModels(chat(), readerConfig({ READER_MODEL: 'small', READER_FAST_MODEL: 'big' }))).toMatchObject({ main: { id: 'small' }, fast: { id: 'big' } });
     // a model that isn't on offer falls back
-    expect(readerModels(chat(), readerConfig({ READER_MODEL: 'gone', READER_FAST_MODEL: 'gone' }))).toMatchObject({ main: { id: 'big' }, fast: { id: 'small' } });
+    expect(readerModels(chat(), readerConfig({ READER_MODEL: 'gone', READER_FAST_MODEL: 'gone' }))).toMatchObject({ main: { id: 'big' }, fast: { id: 'big' } });
   });
 
   it('is off when no AI model is set up', () => {

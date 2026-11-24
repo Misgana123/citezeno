@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createAnthropicChat } from '@/lib/providers/anthropic/chat';
 import { streamOrComplete, type ChatModel, type ChatProvider, type ChatRequest } from '@/lib/providers/chat/types';
 import { createGeminiChat } from '@/lib/providers/gemini/chat';
-import { createOpenAiChat } from '@/lib/providers/openai/chat';
+import { createOpenRouterChat } from '@/lib/providers/openrouter/chat';
 import type { Gate } from '@/lib/providers/types';
 
 const ungated: Gate = (t) => t;
@@ -45,45 +44,28 @@ describe('streaming chat', () => {
     expect(r.costUsd).toBeCloseTo((1000 * 1 + 100 * 4) / 1e6);
   });
 
-  it('OpenAI: asks for usage and reads it from the last chunk', async () => {
-    const { fetch, sent } = sseFetch([
-      { choices: [{ delta: { role: 'assistant', content: '' } }] },
-      { choices: [{ delta: { content: 'Nurses' } }] },
-      { choices: [{ delta: {}, finish_reason: 'stop' }] },
-      { choices: [], usage: { prompt_tokens: 50, completion_tokens: 5 } },
-      'data: [DONE]\n\n',
-    ]);
-    const pieces: string[] = [];
-    const r = await createOpenAiChat({ OPENAI_API_KEY: 'k' }, ungated, fetch)!.stream!(request('openai'), (t) => pieces.push(t));
-    expect(sent().body).toMatchObject({ stream: true, stream_options: { include_usage: true } });
-    expect(pieces).toEqual(['Nurses']);
-    expect(r).toMatchObject({ text: 'Nurses', stop: 'end', usage: { inputTokens: 50, outputTokens: 5 } });
-  });
-
-  it('Anthropic: reads typed events and CRLF line endings', async () => {
+  it('OpenRouter: streams text through its keep-alive comments and CRLF lines, with the stated cost from the last chunk', async () => {
     const { fetch, sent } = sseFetch(
       [
-        'event: message_start\r\ndata: {"type":"message_start","message":{"usage":{"input_tokens":40,"output_tokens":1}}}\r\n\r\n',
-        ': keep-alive\r\n\r\n',
-        'event: content_block_delta\r\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"This paper "}}\r\n\r\n',
-        'event: content_block_delta\r\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"doesn’t say."}}\r\n\r\n',
-        'event: message_delta\r\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":9}}\r\n\r\n',
+        ': OPENROUTER PROCESSING\r\n\r\n',
+        'data: {"choices":[{"delta":{"role":"assistant","content":""}}]}\r\n\r\n',
+        'data: {"choices":[{"delta":{"content":"This paper "}}]}\r\n\r\n',
+        'data: {"choices":[{"delta":{"content":"doesn’t say."},"finish_reason":"stop"}]}\r\n\r\n',
+        'data: {"choices":[],"usage":{"prompt_tokens":50,"completion_tokens":5,"cost":0.00001}}\r\n\r\n',
+        'data: [DONE]\r\n\r\n',
       ],
       { chunk: 5 },
     );
     const pieces: string[] = [];
-    const r = await createAnthropicChat({ ANTHROPIC_API_KEY: 'k' }, ungated, fetch)!.stream!(request('anthropic'), (t) => pieces.push(t));
-    expect(sent().body.stream).toBe(true);
+    const r = await createOpenRouterChat({ OPENROUTER_API_KEY: 'k' }, ungated, fetch)!.stream!(request('openrouter'), (t) => pieces.push(t));
+    expect(sent().body).toMatchObject({ stream: true, usage: { include: true } });
     expect(pieces.join('')).toBe('This paper doesn’t say.');
-    expect(r).toMatchObject({ text: 'This paper doesn’t say.', stop: 'end', usage: { inputTokens: 40, outputTokens: 9 } });
+    expect(r).toMatchObject({ text: 'This paper doesn’t say.', stop: 'end', usage: { inputTokens: 50, outputTokens: 5 }, costUsd: 0.00001 });
   });
 
   it('turns an error sent mid-stream into a common error that is not retried', async () => {
-    const { fetch } = sseFetch([
-      { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Part' } },
-      { type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' } },
-    ]);
-    await expect(createAnthropicChat({ ANTHROPIC_API_KEY: 'k' }, ungated, fetch)!.stream!(request('anthropic'), () => {})).rejects.toMatchObject({ name: 'ProviderError', code: 'unavailable' });
+    const { fetch } = sseFetch([{ choices: [{ delta: { content: 'Part' } }] }, { error: { code: 502, message: 'Provider returned error' }, choices: [{ delta: { content: '' }, finish_reason: 'error' }] }]);
+    await expect(createOpenRouterChat({ OPENROUTER_API_KEY: 'k' }, ungated, fetch)!.stream!(request('openrouter'), () => {})).rejects.toMatchObject({ name: 'ProviderError', code: 'unavailable' });
   });
 
   it('a refused stream request fails like a one-shot one (429 → busy, so the gateway retries it)', async () => {

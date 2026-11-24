@@ -11,7 +11,7 @@ import { costOf, type ChatModel } from './types';
    (shaped like the vendor's one-shot answer) and its token counts. */
 export type StreamAccumulator = {
   event(data: unknown): void;
-  result(): { body: unknown; usage: { inputTokens: number; outputTokens: number } };
+  result(): { body: unknown; usage: Usage };
 };
 
 /* One call to a chat vendor: a one-shot JSON answer, or a streamed one when
@@ -19,8 +19,11 @@ export type StreamAccumulator = {
    limits, retries); a streamed call's cost is logged when the stream ends. */
 export type ChatHttpRequest = { model: ChatModel; url: string; headers: Record<string, string>; body: unknown; stream?: StreamAccumulator };
 
-/* Reads the token counts out of a vendor's answer. */
-export type UsageReader = (body: unknown) => { inputTokens: number; outputTokens: number };
+/* Token counts, and what the call cost when the vendor says so (OpenRouter does). */
+export type Usage = { inputTokens: number; outputTokens: number; costUsd?: number };
+
+/* Reads the token counts (and any stated cost) out of a vendor's answer. */
+export type UsageReader = (body: unknown) => Usage;
 
 const TIMEOUT_MS = 90_000;
 
@@ -44,6 +47,7 @@ export function chatError(provider: string, label: string, status: number, body:
     return new ProviderError('busy', `${label} is rate limiting requests.`, { provider, status, reason, retryAfterS: retryAfter(headers) });
   }
   if (status === 400 || status === 413 || status === 422) return new ProviderError('bad_request', `${label} could not handle this request.`, { provider, status, reason });
+  if (status === 402) return new ProviderError('unavailable', `${label} is out of credits.`, { provider, status, reason: 'credits' });
   if (status === 401 || status === 403) return new ProviderError('unavailable', `${label} refused our key.`, { provider, status, reason: 'auth' });
   if (status === 404) return new ProviderError('unavailable', `${label} does not offer this model.`, { provider, status, reason: reason ?? 'model' });
   if (status === 503 || status === 529) return new ProviderError('busy', `${label} is overloaded.`, { provider, status, reason });

@@ -20,8 +20,8 @@ export type ReaderAi = {
 export const AI_OFF = () => new ReaderError('ai_unavailable', 'AI isn’t set up yet.', { reason: 'off' });
 export const AI_DOWN = (reason: string) => new ReaderError('ai_unavailable', 'AI is temporarily unavailable.', { reason });
 
-export function readerAi(deps: ReaderDeps, who: { userId: string | null; paperId: string }): ReaderAi {
-  const chat = deps.chat?.();
+export async function readerAi(deps: ReaderDeps, who: { userId: string | null; paperId: string }): Promise<ReaderAi> {
+  const chat = await deps.chat?.();
   const models = chat ? readerModels(chat, readerConfig()) : null;
   if (!chat || !models) throw AI_OFF();
   return {

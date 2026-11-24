@@ -11,6 +11,8 @@ export type EmbeddingModel = {
   usdPerM: number; // price per million input tokens
   maxInputTokens: number; // longest text the model reads (longer text is cut)
   maxBatch: number; // most texts per call
+  taskInText?: boolean; // the model reads the job (query or document) from the text itself (see task.ts)
+  fallback?: string; // a model in the catalog that gives the same vectors, used while this one's provider is down or not set up
 };
 
 /* "document": text to be found (a passage); "query": what is searched with (a question). */

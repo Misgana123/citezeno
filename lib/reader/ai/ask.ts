@@ -60,7 +60,7 @@ export async function askPaper(deps: ReaderDeps, userId: string, rawId: string, 
   if (!question && kind === 'ask') throw new ReaderError('bad_request', 'Type a question.');
   const { loaded, text } = await readableText(deps, userId, rawId, { pdfId: input.pdfId });
   const paper = loaded.paper;
-  const ai = readerAi(deps, { userId, paperId: paper.id });
+  const ai = await readerAi(deps, { userId, paperId: paper.id });
 
   const ready = text?.status === 'ready';
   if (text && (text.status === 'pending' || text.status === 'processing')) throw new ReaderError('not_ready', 'Preparing paper…');
@@ -168,7 +168,7 @@ export async function askOnce(deps: ReaderDeps, userId: string, rawId: string, q
   const { loaded, text } = await readableText(deps, userId, rawId);
   if (text && (text.status === 'pending' || text.status === 'processing')) throw new ReaderError('not_ready', 'The paper is still being prepared. Try again in a minute.');
   if (text?.status !== 'ready' && !loaded.paper.abstract?.trim()) throw new ReaderError('no_pdf', 'This paper has no text or abstract to answer from.');
-  const ai = readerAi(deps, { userId, paperId: loaded.paper.id });
+  const ai = await readerAi(deps, { userId, paperId: loaded.paper.id });
   const r = await paperAnswer(deps, userId, { paper: loaded.paper, text: text?.status === 'ready' ? text : null, ai }, { question: question.slice(0, 2000), quote: null, past: '', followUp: false });
   return { ...r, title: loaded.paper.title, paperId: loaded.paper.id };
 }

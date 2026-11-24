@@ -26,4 +26,4 @@ export function readerDeps(): ReaderDeps {
 }
 
 /* Whether AI (summaries, questions, Explain) is set up: some chat model has a key. */
-export const aiAvailable = () => readerModels(chatModelsFor(), readerConfig()) != null;
+export const aiAvailable = async () => readerModels(await chatModelsFor(), readerConfig()) != null;

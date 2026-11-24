@@ -16,7 +16,7 @@ export type ReaderDeps = {
   embedder: () => Embedder | null;
   sources: () => PaperSources;
   /* The chat models on offer (summaries, answers, Explain); absent → AI is off. */
-  chat?: () => ChatModels;
+  chat?: () => ChatModels | Promise<ChatModels>;
   /* Largest PDF the reader opens or processes, in bytes. */
   maxPdfBytes: number;
   now?: () => number;

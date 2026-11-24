@@ -33,6 +33,9 @@ export type ChatModel = {
   vendorModel: string; // the vendor's model name
   inputUsdPerM: number; // price per million input tokens
   outputUsdPerM: number; // price per million output tokens
+  vendor?: string; // who made the model, for its icon and group (default: the part of the ID before "/")
+  vendorName?: string; // the maker's name as shown (default: from `vendor`)
+  images?: boolean; // reads images (default yes); without, attached images go as their names only
 };
 
 export type ChatRequest = {
@@ -56,6 +59,9 @@ export type ChatResponse = {
 
 export interface ChatProvider {
   readonly name: string;
+  /* Optional: the models this provider offers right now (a live list, such as
+     OpenRouter's). They join the fixed ones in models.ts; same ID, this one wins. */
+  models?(): Promise<ChatModel[]>;
   complete(req: ChatRequest): Promise<ChatResponse>;
   /* Optional: the same answer, with its text handed to `onText` piece by piece
      as it is written. Only for requests without tools. */
@@ -87,6 +93,6 @@ export function userContent(m: Extract<ChatMessage, { role: 'user' }>): { text: 
 
 export type ChatProviderDefinition = ProviderDefinition<ChatProvider>;
 
-/* What a call cost, from the tokens used and the model's prices. */
-export const costOf = (model: ChatModel, usage: { inputTokens: number; outputTokens: number }) =>
-  (usage.inputTokens * model.inputUsdPerM + usage.outputTokens * model.outputUsdPerM) / 1_000_000;
+/* What a call cost: what the vendor says it charged when it says so, else from the tokens used and the model's prices. */
+export const costOf = (model: ChatModel, usage: { inputTokens: number; outputTokens: number; costUsd?: number }) =>
+  usage.costUsd != null && Number.isFinite(usage.costUsd) && usage.costUsd >= 0 ? usage.costUsd : (usage.inputTokens * model.inputUsdPerM + usage.outputTokens * model.outputUsdPerM) / 1_000_000;

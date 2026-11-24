@@ -228,7 +228,7 @@ describe.skipIf(!TEST_DB_URL)('conversations (Postgres)', () => {
   afterAll(async () => db?.close());
 
   it('stores conversations per user: list, rename, delete', async () => {
-    const c = await createConversation(db.pool, user, 'Sleep papers', 'gemini-flash-lite');
+    const c = await createConversation(db.pool, user, 'Sleep papers', 'google/gemini-3.5-flash-lite');
     expect(await listConversations(db.pool, user)).toMatchObject([{ id: c.id, title: 'Sleep papers' }]);
     expect(await listConversations(db.pool, other)).toEqual([]);
     expect(await getConversation(db.pool, other, c.id)).toBeNull();

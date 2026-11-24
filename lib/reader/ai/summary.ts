@@ -125,7 +125,7 @@ export async function summarize(deps: ReaderDeps, userId: string, rawId: string,
   const { summary, text, paper } = await savedSummary(deps, userId, rawId, opts);
   if (summary) return { summary, cached: true };
   if (text && (text.status === 'pending' || text.status === 'processing')) throw new ReaderError('not_ready', 'Preparing paper…');
-  const ai = readerAi(deps, { userId, paperId: paper.id });
+  const ai = await readerAi(deps, { userId, paperId: paper.id });
 
   if (text?.status === 'ready') {
     const passages = (await listPassages(deps.db, text.id)).filter((p) => !p.isReferences);

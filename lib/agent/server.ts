@@ -62,7 +62,7 @@ export function agentRoute<P = Record<string, never>>(handler: (req: Request, us
   };
 }
 
-export const agentModels = () => chatModelsFor().info();
+export const agentModels = async () => (await chatModelsFor()).info();
 
 type Start = { conversation: Conversation; run(deps: LoopDeps, history: Parameters<typeof answer>[1]): Promise<void>; extraSystem?: string };
 
@@ -71,7 +71,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
   if (!(await allow(`agent:${userId}`, 60, PER_MINUTE))) throw new AgentHttpError(429, 'Too many messages. Please wait a moment.', 'busy');
 
   const meter = newMeter();
-  const models = chatModelsFor(meter);
+  const models = await chatModelsFor(meter);
   const { conversation, run, extraSystem } = await start();
   const model = models.pick(modelId ?? conversation.model);
   if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
@@ -152,7 +152,7 @@ export function replyToMessage(req: Request, userId: string, body: { conversatio
       let conversation = body.conversationId ? await getConversation(pool, userId, body.conversationId) : null;
       if (body.conversationId && !conversation) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
       if (!conversation) {
-        const model = chatModelsFor().pick(body.model);
+        const model = (await chatModelsFor()).pick(body.model);
         if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
         conversation = await createConversation(pool, userId, titleFrom(reading?.title ?? (body.text || body.attachments?.[0]?.name || '')), model.id, reading?.id ?? null);
       }
@@ -179,7 +179,7 @@ export function replyWithResearch(req: Request, userId: string, body: { conversa
       let conversation = body.conversationId ? await getConversation(pool, userId, body.conversationId) : null;
       if (body.conversationId && !conversation) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
       if (!conversation) {
-        const model = chatModelsFor().pick(body.model);
+        const model = (await chatModelsFor()).pick(body.model);
         if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
         conversation = await createConversation(pool, userId, titleFrom(body.text), model.id);
       }

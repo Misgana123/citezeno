@@ -1,5 +1,5 @@
 import 'server-only';
-import { chatModels, type ChatModels } from './chat/catalog';
+import { loadChatModels, type ChatModels } from './chat/catalog';
 import { CODE_SANDBOX_PROVIDERS, DEFAULT_CODE_SANDBOX } from './code-sandbox/registry';
 import type { CodeSandbox } from './code-sandbox/types';
 import { chooseProviders, choose } from './config';
@@ -88,10 +88,10 @@ export function pdfPagesReader(env: Env = process.env): PdfPagesReader {
   return pagesReader(env, gateFor(newMeter()));
 }
 
-/* The chat models on offer (AGENT_MODELS), each provider wired through the
-   gateway with this request's meter. */
-export function chatModelsFor(meter: Meter = newMeter(), env: Env = process.env): ChatModels {
-  return chatModels(env, gateFor(meter));
+/* The chat models on offer (AGENT_MODELS, OpenRouter's live list included),
+   each provider wired through the gateway with this request's meter. */
+export function chatModelsFor(meter: Meter = newMeter(), env: Env = process.env): Promise<ChatModels> {
+  return loadChatModels(env, gateFor(meter));
 }
 
 /* The configured embedding model (READER_EMBEDDING_MODEL), wired through the

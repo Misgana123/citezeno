@@ -1,5 +1,6 @@
 import { chatError, tokens } from '../chat/http';
 import { ProviderError } from '../errors';
+import { taskText } from '../embeddings/task';
 import type { EmbeddingsProvider, EmbedInput, EmbedKind, EmbedRequest } from '../embeddings/types';
 import type { GatewayPolicy, Transport } from '../gateway/types';
 import type { Env, Gate } from '../types';
@@ -28,10 +29,7 @@ export const estimateTokens = (text: string) => Math.ceil(text.length / 4);
 export function geminiEmbedRequest(vendorModel: string, kind: EmbedKind, input: EmbedInput, dimensions: number): Record<string, unknown> {
   const title = input.title?.trim() || null;
   const base = { model: `models/${vendorModel}`, outputDimensionality: dimensions };
-  if (PREFIX_MODELS.has(vendorModel)) {
-    const text = kind === 'query' ? `task: search result | query: ${input.text}` : `title: ${title ?? 'none'} | text: ${input.text}`;
-    return { ...base, content: { parts: [{ text }] } };
-  }
+  if (PREFIX_MODELS.has(vendorModel)) return { ...base, content: { parts: [{ text: taskText(kind, input) }] } };
   return { ...base, content: { parts: [{ text: input.text }] }, taskType: kind === 'query' ? 'RETRIEVAL_QUERY' : 'RETRIEVAL_DOCUMENT', ...(kind === 'document' && title ? { title } : {}) };
 }
 

@@ -6,7 +6,8 @@ import type { ChatModel } from '@/lib/providers/chat/types';
      READER_MODEL                answers and summaries: a model ID from the chat
                                  model list (default: the assistant's default model)
      READER_FAST_MODEL           "Explain", follow-up rewriting, section notes
-                                 (default: the cheapest model on offer)
+                                 (default: the answers model; with hundreds of
+                                 models on offer, the cheapest is often a poor one)
      READER_FULLTEXT_MAX_TOKENS  largest paper sent whole instead of searched (default 30000)
      READER_PDF_MAX_MB           largest open-access PDF fetched and processed (default 50)
      READER_SHARED_KEEP_DAYS     remove a stored shared copy nobody opened for this long (default 90)
@@ -31,14 +32,10 @@ export function readerConfig(env: Record<string, string | undefined> = process.e
   };
 }
 
-/* What a model costs for a typical call (input weighs more: we send passages). */
-const weight = (m: ChatModel) => m.inputUsdPerM * 4 + m.outputUsdPerM;
-
 /* The reader's two models among those on offer, or null when no AI is set up. */
 export function readerModels(chat: ChatModels, config: ReaderConfig): { main: ChatModel; fast: ChatModel } | null {
   const main = chat.pick(config.model);
   if (!main) return null;
-  const wanted = config.fastModel ? chat.models.find((m) => m.id === config.fastModel) : undefined;
-  const fast = wanted ?? [...chat.models].sort((a, b) => weight(a) - weight(b))[0] ?? main;
+  const fast = (config.fastModel ? chat.models.find((m) => m.id === config.fastModel) : undefined) ?? main;
   return { main, fast };
 }

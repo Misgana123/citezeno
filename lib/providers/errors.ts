@@ -28,3 +28,7 @@ export function isProviderError(e: unknown): e is ProviderError {
   const err = e as Partial<ProviderError> | null;
   return err?.name === 'ProviderError' && typeof err.code === 'string';
 }
+
+/* The provider is down, failing or too busy, as opposed to our request being
+   wrong or our own spending cap reached: a fallback provider may answer instead. */
+export const providerDown = (e: unknown) => isProviderError(e) && (e.code === 'unavailable' || e.code === 'busy');

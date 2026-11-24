@@ -7,7 +7,8 @@ import { Icon } from './Icon';
 /* The app's dropdown, in place of the native <select>: a button that opens a
    listbox in a portal (so dialogs and labels never clip or swallow it), with
    groups, a check on the chosen option, and the keyboard of a real select
-   (arrows, Home/End, Enter/Space, Escape, type to jump). */
+   (arrows, Home/End, Enter/Space, Escape, type to jump). Long lists can have a
+   search box on top (`search`): typing narrows the list, arrows and Enter still work. */
 
 export type SelectValue = string | number;
 /* icon: drawn before the label, in the list and on the button (a model's vendor mark) */
@@ -26,23 +27,43 @@ type Props<V extends SelectValue> = {
   disabled?: boolean;
   id?: string;
   'aria-label'?: string;
+  /* The search box's placeholder; without it, no search box. */
+  search?: string;
 };
 
 const isGroup = <V extends SelectValue>(o: SelectOption<V> | SelectGroup<V>): o is SelectGroup<V> => 'options' in o;
 
-export function Select<V extends SelectValue>({ value, onChange, options, placeholder, className = 'select', menuClassName, disabled, id, ...aria }: Props<V>) {
+/* The options whose label (or group's label) has every word of the query in it. */
+function narrow<V extends SelectValue>(options: SelectItems<V>, query: string): SelectItems<V> {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return options;
+  const hit = (...texts: string[]) => words.every((w) => texts.some((t) => t.toLowerCase().includes(w)));
+  return options.flatMap((o): SelectItems<V> => {
+    if (!isGroup(o)) return hit(o.label) ? [o] : [];
+    const kept = o.options.filter((x) => hit(x.label, o.label));
+    return kept.length ? [{ ...o, options: kept }] : [];
+  });
+}
+
+export function Select<V extends SelectValue>({ value, onChange, options, placeholder, className = 'select', menuClassName, disabled, id, search, ...aria }: Props<V>) {
   const uid = useId();
   const listId = `${uid}-list`;
   const btn = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const [active, setActive] = useState(-1);
   const [pos, setPos] = useState<{ left: number; top?: number; bottom?: number; minWidth: number; maxHeight: number } | null>(null);
   const typed = useRef({ text: '', at: 0 });
 
-  const flat = useMemo(() => options.flatMap((o) => (isGroup(o) ? o.options : [o])), [options]);
+  const all = useMemo(() => options.flatMap((o) => (isGroup(o) ? o.options : [o])), [options]);
+  const chosen = all.find((o) => o.value === value);
+  const shown = chosen ? chosen.label : (placeholder ?? '');
+  /* What the open list shows: everything, or what the search leaves. */
+  const items = useMemo(() => (search ? narrow(options, query) : options), [options, search, query]);
+  const flat = useMemo(() => items.flatMap((o) => (isGroup(o) ? o.options : [o])), [items]);
   const selected = flat.findIndex((o) => o.value === value);
-  const shown = selected >= 0 ? flat[selected].label : (placeholder ?? '');
 
   const place = useCallback(() => {
     const r = btn.current?.getBoundingClientRect();
@@ -73,6 +94,7 @@ export function Select<V extends SelectValue>({ value, onChange, options, placeh
   };
   const close = (refocus = true) => {
     setOpen(false);
+    setQuery('');
     if (refocus) btn.current?.focus();
   };
   const choose = (i: number) => {
@@ -96,7 +118,7 @@ export function Select<V extends SelectValue>({ value, onChange, options, placeh
 
   useLayoutEffect(() => {
     if (!open) return;
-    list.current?.focus({ preventScroll: true });
+    (box.current ?? list.current)?.focus({ preventScroll: true });
     const onMove = () => place();
     const onDown = (e: PointerEvent) => {
       const t = e.target as Node;
@@ -123,10 +145,19 @@ export function Select<V extends SelectValue>({ value, onChange, options, placeh
       e.preventDefault();
       show();
     } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (search) return show();
       const hit = typeahead(e.key);
       if (hit !== undefined && flat[hit].value !== value) onChange(flat[hit].value);
     }
   };
+
+  /* Typing in the search box narrows the list; its keys reach the list's (arrows, Enter, Escape). */
+  const onSearch = (q: string) => {
+    setQuery(q);
+    const left = (search ? narrow(options, q) : options).flatMap((o) => (isGroup(o) ? o.options : [o]));
+    setActive(left.findIndex((o) => !o.disabled));
+  };
+
 
   const onListKey = (e: React.KeyboardEvent) => {
     const keys: Record<string, () => void> = {
@@ -137,15 +168,16 @@ export function Select<V extends SelectValue>({ value, onChange, options, placeh
       PageDown: () => setActive((a) => [...Array(8)].reduce((x) => step(x, 1), a)),
       PageUp: () => setActive((a) => [...Array(8)].reduce((x) => step(x, -1), a)),
       Enter: () => choose(active),
-      ' ': () => choose(active),
+      ...(search ? {} : { ' ': () => choose(active) }),
       Escape: () => close(),
     };
     if (e.key === 'Tab') return close(false);
+    if (search && (e.key === 'Home' || e.key === 'End')) return; // the search box's caret
     if (keys[e.key]) {
       e.preventDefault();
       e.stopPropagation();
       keys[e.key]();
-    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    } else if (!search && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const hit = typeahead(e.key);
       if (hit !== undefined) setActive(hit);
     }
@@ -180,7 +212,7 @@ export function Select<V extends SelectValue>({ value, onChange, options, placeh
         ref={btn}
         id={id}
         type="button"
-        className={`${className} cz-select${open ? ' is-open' : ''}${selected < 0 ? ' is-placeholder' : ''}`}
+        className={`${className} cz-select${open ? ' is-open' : ''}${!chosen ? ' is-placeholder' : ''}`}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -189,7 +221,7 @@ export function Select<V extends SelectValue>({ value, onChange, options, placeh
         onClick={() => (open ? close() : show())}
         onKeyDown={onButtonKey}
       >
-        {selected >= 0 && flat[selected].icon}
+        {chosen?.icon}
         <span className="cz-select-val">{shown}</span>
         <Icon name="chevron" className="cz-select-chev" />
       </button>
@@ -207,7 +239,23 @@ export function Select<V extends SelectValue>({ value, onChange, options, placeh
             style={{ left: pos.left, top: pos.top, bottom: pos.bottom, minWidth: pos.minWidth, maxHeight: pos.maxHeight }}
             onKeyDown={onListKey}
           >
-            {options.map((o, gi) =>
+            {search && (
+              <div className="cz-select-search">
+                <Icon name="search" />
+                <input
+                  ref={box}
+                  type="search"
+                  value={query}
+                  placeholder={search}
+                  aria-label={search}
+                  aria-controls={listId}
+                  aria-activedescendant={active >= 0 ? `${uid}-o${active}` : undefined}
+                  onChange={(e) => onSearch(e.target.value)}
+                />
+              </div>
+            )}
+            {search && !flat.length && <p className="cz-opt-none">No matches</p>}
+            {items.map((o, gi) =>
               isGroup(o) ? (
                 o.options.length > 0 && (
                   <div key={`g${gi}`} role="group" aria-label={o.label}>

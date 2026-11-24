@@ -9,6 +9,8 @@ import { toGeminiSchema } from './schema';
 export const PROVIDER = 'gemini';
 const LABEL = 'Gemini';
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+/* Gemini's documented stand-in signature for tool calls it didn't make itself. */
+const FOREIGN_SIGNATURE = 'skip_thought_signature_validator';
 
 type Part =
   | { text: string; thought?: boolean }
@@ -44,9 +46,11 @@ export function toGeminiContents(messages: ChatMessage[]): Content[] {
       };
     }
     if (m.native?.provider === PROVIDER && Array.isArray(m.native.content)) return { role: 'model', parts: m.native.content as Part[] };
+    // another provider's turn (a model switch, or the fallback taking over): its tool calls
+    // carry no thought signature, so they say so with the marker Gemini accepts for that
     const parts: Part[] = [];
     if (m.text) parts.push({ text: m.text });
-    for (const c of m.toolCalls) parts.push({ functionCall: { name: c.name, args: c.input } });
+    for (const c of m.toolCalls) parts.push({ functionCall: { name: c.name, args: c.input }, thoughtSignature: FOREIGN_SIGNATURE });
     return { role: 'model', parts };
   });
 }

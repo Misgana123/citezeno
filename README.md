@@ -216,8 +216,16 @@ Open any paper at `/app/read/<paper id>` (for example `/app/read/openalex:W26267
 - **The PDF**: the user's own upload first, then the open-access PDF from OpenAlex (one shared copy is kept in storage only for CC BY, CC BY-SA, CC0 and public-domain papers; others are fetched fresh and streamed each time), else the details and abstract.
 - **Tables and search by meaning**: `npm run db:migrate` creates the `reader_*` tables and turns on pgvector when the database offers it (it prints which). Without pgvector, questions use keyword search only.
 - **Background work (Vercel Cron)**: `vercel.json` also calls `/api/reader/cron` every minute with `CRON_SECRET`: it reads new PDFs into passages, embeds them, re-embeds after an embedding model change and removes shared copies nobody opened for 90 days. A paper opened in the app starts processing right away.
-- **AI**: summaries, "Ask the paper" and Explain use the chat models (`READER_MODEL`, `READER_FAST_MODEL`); embeddings use Gemini (`READER_EMBEDDING_MODEL`, `READER_EMBEDDING_DIMENSIONS`), all with the AI keys and daily cap above. Without an AI key the reader still opens, reads and highlights. Every AI call is logged in `reader_ai_log`.
+- **AI**: summaries, "Ask the paper" and Explain use the chat models (`READER_MODEL`, `READER_FAST_MODEL`); embeddings use Gemini Embedding 2 through OpenRouter, or straight from Gemini when OpenRouter is down (`READER_EMBEDDING_MODEL`, `READER_EMBEDDING_DIMENSIONS`), all with the AI keys and daily cap (see AI models below). Without an AI key the reader still opens, reads and highlights. Every AI call is logged in `reader_ai_log`.
 - **Running locally**: nothing extra beyond the keys above; PDF.js's worker is served by `/api/reader/worker`. For open-access PDFs stored in R2, the bucket's CORS rule must allow GET from `http://localhost:3000`.
+
+## AI models
+
+The assistant and the reader reach AI models through OpenRouter: one key (`OPENROUTER_API_KEY`) for hundreds of models from many makers. Code lives in `lib/providers/openrouter/` and `lib/providers/chat/`.
+
+- **The model list**: OpenRouter's live list, fetched at most once a day and cached (kept for 30 days while OpenRouter can't be reached). Only models that can use tools, answer in text and have a fixed price are offered. `AGENT_MODELS` narrows it (IDs, or a maker's models with `*`, e.g. `google/*,anthropic/*`); `AGENT_DEFAULT_MODEL` sets the default (`google/gemini-3.5-flash-lite`). The chat's model picker groups the models by maker and has a search box.
+- **Fallback**: with `GEMINI_API_KEY` set too, Gemini answers directly while OpenRouter is down, out of credits or too busy: the same model for Google's models, `AI_FALLBACK_MODEL` for the rest. A bad request or our own daily cap never falls back. With only `GEMINI_API_KEY`, Gemini's own models are offered.
+- **Spending**: each call's cost is what OpenRouter says it charged. `AI_DAILY_ALERT_USD` and `AI_DAILY_CAP_USD` apply to OpenRouter and to Gemini each. Setting a credit limit on the OpenRouter key in its dashboard adds a second safety net.
 
 ## Paper sources, the waiting line and our own copy
 
