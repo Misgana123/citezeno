@@ -220,8 +220,8 @@ export async function research(d: LoopDeps, question: string): Promise<void> {
       return { value: text.trim() + sourcesSection(numbered), line: { did: 'Wrote the report', about: `from ${numbered.length} source${numbered.length === 1 ? '' : 's'}` }, display: { refs, papers: numbered.flatMap((s) => (s.paper ? [s.paper] : [])), summary: `${numbered.length} sources` } };
     });
 
-    await d.save([{ message: { role: 'assistant', text: report, toolCalls: [] }, ui: steps, costUsd: cost }]);
-    d.emit({ type: 'text', text: report });
+    const [seq] = (await d.save([{ message: { role: 'assistant', text: report, toolCalls: [] }, ui: steps, costUsd: cost }])) ?? [];
+    d.emit({ type: 'text', text: report, ...(seq != null ? { seq } : {}) });
     d.emit({ type: 'done', reason: 'answered' });
   } catch (e) {
     // what was found stays visible; the user can ask again

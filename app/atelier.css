@@ -828,11 +828,11 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 .cz-item svg { flex: none; width: 16px; height: 16px; color: var(--ink-3); }
 .cz-item:hover { background: var(--cz-hover); color: var(--ink); }
 /* the page you're on: a small raised chip */
-.cz-item[aria-current='page'] { background: var(--sheet); box-shadow: 0 0 0 1px var(--rule-2), 0 1px 2px rgba(19, 33, 58, 0.05); color: var(--ink); font-weight: 600; }
+.cz-item[aria-current='page'] { background: var(--cz-active); color: var(--ink); font-weight: 600; }
 .cz-item[aria-current='page'] svg { color: var(--ink); }
 /* New chat: the one raised button */
-.cz-new { height: 38px; margin: 6px 0 6px; padding: 0 12px; background: var(--sheet); box-shadow: 0 0 0 1px var(--rule), 0 1px 2px rgba(19, 33, 58, 0.05); border-radius: 11px; color: var(--ink); font-weight: 600; }
-.cz-new:hover { background: var(--sheet); box-shadow: 0 0 0 1px var(--ink-3), 0 1px 2px rgba(19, 33, 58, 0.05); }
+.cz-new { height: 38px; margin: 6px 0 6px; padding: 0 12px; background: transparent; border-radius: 11px; color: var(--ink); font-weight: 600; }
+.cz-new:hover { background: var(--cz-hover); }
 .cz-new svg { color: var(--ink); }
 .cz-new + .cz-item { margin-bottom: 12px; }
 .cz-lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -852,7 +852,7 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 .cz-chat-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cz-chat-tag { flex: none; font-size: 11px; color: var(--ink-3); }
 .cz-chat-link:hover, .cz-chat.is-menu .cz-chat-link { background: var(--cz-hover); color: var(--ink); }
-.cz-chat-link[aria-current='page'] { background: var(--sheet); box-shadow: 0 0 0 1px var(--rule-2); color: var(--ink); font-weight: 500; }
+.cz-chat-link[aria-current='page'] { background: var(--cz-active); color: var(--ink); font-weight: 500; }
 /* room for the ⋯ button only when it shows */
 .cz-chat:is(:hover, :focus-within, .is-menu) .cz-chat-link, .cz-chat-link[aria-current='page'] { padding-right: 34px; }
 .cz-chat:is(:hover, :focus-within, .is-menu) .cz-chat-tag { display: none; }
@@ -941,16 +941,17 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
    The shared tokens are redefined here, so the public site is unchanged.
    ===================================================================== */
 .cz-app {
-  --ground: #fdfdfc; --ground-2: #e8ebea; --sheet: #f2f4f3; --card: #eceeed; --rule-2: #e5e8e7;
+  --ground: #fdfdfc; --ground-2: #e9e9e8; --sheet: #f3f3f2; --card: #ececeb; --rule-2: #e6e6e4;
   --cz-white: #ffffff;
-  /* the window's shell (the sidebar and the frame around the page): one calm tone of the same family */
-  --cz-side-bg: #eef1ef;
-  --cz-sheet-shadow: 0 0 0 1px rgba(19, 33, 58, 0.06), 0 1px 2px rgba(19, 33, 58, 0.04), 0 18px 48px -28px rgba(19, 33, 58, 0.28);
+  /* the window's shell (the sidebar and the frame around the page): a neutral gray, no tint;
+     hover and the row you're on are plain gray too */
+  --cz-side-bg: #f3f3f2; --cz-hover: rgba(20, 20, 19, 0.045); --cz-active: rgba(20, 20, 19, 0.08);
+  --cz-sheet-shadow: 0 0 0 1px rgba(20, 20, 19, 0.06), 0 1px 2px rgba(20, 20, 19, 0.04), 0 18px 48px -28px rgba(20, 20, 19, 0.22);
 }
 [data-theme='dark'] .cz-app {
   --ground: #0f2239; --ground-2: #1b3a5b; --sheet: #15304d; --card: #1a3757; --rule-2: #1f3d5e;
   --cz-white: #132b47;
-  --cz-side-bg: #0a1828;
+  --cz-side-bg: #0a1828; --cz-hover: rgba(233, 241, 246, 0.06); --cz-active: rgba(233, 241, 246, 0.1);
   --cz-sheet-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 24px 60px -30px rgba(0, 0, 0, 0.8);
 }
 /* white again: the sidebar's own surfaces (current item, menus), controls and pop-ups */

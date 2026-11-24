@@ -116,6 +116,6 @@ export function publicEntries(messages: StoredMessage[]): ChatEntry[] {
       ? { kind: 'user', text: e.text, ...(e.attachments?.length ? { attachments: e.attachments.map((a) => ({ kind: a.kind, name: a.name })) } : {}) }
       : e.kind === 'steps'
         ? { kind: 'steps', steps: e.steps.map(publicStep) }
-        : e,
+        : { kind: 'assistant', text: e.text },
   );
 }

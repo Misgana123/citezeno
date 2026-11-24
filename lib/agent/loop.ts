@@ -18,7 +18,8 @@ export type LoopDeps = {
   chat: ChatProvider;
   model: ChatModel;
   emit(e: AgentEvent): void;
-  save(messages: StoredMessage[]): Promise<void>;
+  /* saves messages; returns their numbers when it knows them */
+  save(messages: StoredMessage[]): Promise<number[] | void>;
   setPending(p: Pending | null): Promise<void>;
   /* model calls allowed for one user message */
   maxTurns: number;
@@ -139,8 +140,8 @@ async function think(d: LoopDeps, history: ChatMessage[], turns: number): Promis
     if (turns >= d.maxTurns || now() >= d.deadline) {
       const limit = turns >= d.maxTurns ? 'step_limit' : 'time_limit';
       const text = limit === 'step_limit' ? STEP_LIMIT_TEXT : TIME_LIMIT_TEXT;
-      await d.save([{ message: { role: 'assistant', text, toolCalls: [] } }]);
-      d.emit({ type: 'text', text });
+      const [seq] = (await d.save([{ message: { role: 'assistant', text, toolCalls: [] } }])) ?? [];
+      d.emit({ type: 'text', text, ...(seq != null ? { seq } : {}) });
       d.emit({ type: 'done', reason: limit });
       return;
     }
@@ -153,9 +154,9 @@ async function think(d: LoopDeps, history: ChatMessage[], turns: number): Promis
     });
     turns++;
     const assistant: ChatMessage = { role: 'assistant', text: res.text, toolCalls: res.toolCalls, native: res.native };
-    await d.save([{ message: assistant, costUsd: res.costUsd }]);
+    const [seq] = (await d.save([{ message: assistant, costUsd: res.costUsd }])) ?? [];
     history = [...history, assistant];
-    if (res.text) d.emit({ type: 'text', text: res.text });
+    if (res.text) d.emit({ type: 'text', text: res.text, ...(seq != null ? { seq } : {}) });
     if (!res.toolCalls.length) {
       d.emit({ type: 'done', reason: 'answered' });
       return;
@@ -179,7 +180,12 @@ export async function answer(d: LoopDeps, history: ChatMessage[], text: string, 
   await guarded(d, () => think(d, [...history, user], 0));
 }
 
-/* The user's yes / no to the step that was waiting; then carry on. */
+/* Try again: answer the user's last message afresh (what followed it was already dropped). */
+export async function retry(d: LoopDeps, history: ChatMessage[]): Promise<void> {
+  d.refs = new Map();
+  await guarded(d, () => think(d, history, 0));
+}
+
 /* Carry on with the rest of a paused turn's calls (from `from`), then think again. */
 async function finishTurn(d: LoopDeps, history: ChatMessage[], pending: Pending, from: number, results: ToolResult[], steps: StepView[], confirmed?: string): Promise<void> {
   const r = await runCalls(d, pending.calls, from, results, steps, pending.turns, confirmed);

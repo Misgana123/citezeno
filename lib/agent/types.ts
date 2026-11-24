@@ -24,7 +24,10 @@ export type StepView = {
 export type MessageMeta = { scope: 'paper' | 'assistant'; passageIds?: string[]; quote?: string; page?: number; kind?: 'ask' | 'explain'; basedOn?: 'full_text' | 'abstract' };
 
 /* A message as stored: the chat format plus what the page shows for it. */
-export type StoredMessage = { message: ChatMessage; ui?: StepView[] | null; costUsd?: number; meta?: MessageMeta | null };
+/* seq, createdAt and feedback come back when messages are loaded (the user's thumbs up or down on an answer) */
+export type StoredMessage = { message: ChatMessage; ui?: StepView[] | null; costUsd?: number; meta?: MessageMeta | null; seq?: number; createdAt?: string; feedback?: Feedback | null };
+
+export type Feedback = 'up' | 'down';
 
 /* A tool turn paused for the user: the calls of that turn, the results so
    far, and the call that is waiting. */
@@ -44,7 +47,8 @@ export type AgentEvent =
   | { type: 'conversation'; id: string; title: string; model: string }
   | { type: 'step'; callId: string; name: string; label: string; input: unknown; kind?: StepKind; part?: number }
   | { type: 'step_done'; step: StepView }
-  | { type: 'text'; text: string }
+  /* seq: the saved message's number (for feedback on it) */
+  | { type: 'text'; text: string; seq?: number }
   | { type: 'confirm'; callId: string; question: string; label: string }
   /* the page should run this tool in the browser and send back the result */
   | { type: 'client_tool'; callId: string; name: string; input: unknown; label: string }

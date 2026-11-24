@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { ChatMessage } from '@/lib/providers/chat/types';
 import { iso, tx, type Db, type Queryable } from '@/lib/shelf/db';
-import type { MessageMeta, Pending, StepView, StoredMessage } from './types';
+import type { Feedback, MessageMeta, Pending, StepView, StoredMessage } from './types';
 
 /* Conversations and their messages. Every query is scoped to the user. */
 
@@ -104,29 +104,62 @@ export async function setPending(q: Queryable, id: string, pending: Pending | nu
   await q.query(`update agent_conversation set pending = $2, "updatedAt" = now() where id = $1`, [id, pending ? JSON.stringify(pending) : null]);
 }
 
-/* Add messages at the end, and their cost to the conversation's total. */
-export async function appendMessages(db: Db, conversationId: string, messages: StoredMessage[]): Promise<void> {
-  if (!messages.length) return;
+/* Add messages at the end, and their cost to the conversation's total. Returns their numbers. */
+export async function appendMessages(db: Db, conversationId: string, messages: StoredMessage[]): Promise<number[]> {
+  if (!messages.length) return [];
+  const seqs: number[] = [];
   await tx(db, async (q) => {
     const { rows } = await q.query<{ n: number }>(`select coalesce(max(seq), 0) as n from agent_message where "conversationId" = $1`, [conversationId]);
     let seq = Number(rows[0].n);
     let cost = 0;
     for (const m of messages) {
       cost += m.costUsd ?? 0;
-      const values = [conversationId, ++seq, m.message.role, JSON.stringify(m.message), m.ui ? JSON.stringify(m.ui) : null, m.costUsd ?? 0];
+      seqs.push(++seq);
+      const values = [conversationId, seq, m.message.role, JSON.stringify(m.message), m.ui ? JSON.stringify(m.ui) : null, m.costUsd ?? 0];
       // the reader's meta column exists once its tables are migrated; plain chats never need it
       if (m.meta) await q.query(`insert into agent_message ("conversationId", seq, role, content, ui, "costUsd", meta) values ($1, $2, $3, $4, $5, $6, $7)`, [...values, JSON.stringify(m.meta)]);
       else await q.query(`insert into agent_message ("conversationId", seq, role, content, ui, "costUsd") values ($1, $2, $3, $4, $5, $6)`, values);
     }
     await q.query(`update agent_conversation set "costUsd" = "costUsd" + $2, "updatedAt" = now() where id = $1`, [conversationId, cost]);
   });
+  return seqs;
 }
 
 /* upTo: only the messages up to this one (a shared link's snapshot) */
 export async function loadMessages(q: Queryable, conversationId: string, upTo?: number): Promise<StoredMessage[]> {
-  const { rows } = await q.query<{ content: ChatMessage; ui: StepView[] | null; costUsd: number; meta?: MessageMeta | null }>(
+  const { rows } = await q.query<{ seq: number; content: ChatMessage; ui: StepView[] | null; costUsd: number; createdAt: Date; feedback?: Feedback | null; meta?: MessageMeta | null }>(
     upTo === undefined ? `select * from agent_message where "conversationId" = $1 order by seq` : `select * from agent_message where "conversationId" = $1 and seq <= $2 order by seq`,
     upTo === undefined ? [conversationId] : [conversationId, upTo],
   );
-  return rows.map((r) => ({ message: r.content, ui: r.ui, costUsd: Number(r.costUsd), ...(r.meta ? { meta: r.meta } : {}) }));
+  return rows.map((r) => ({
+    message: r.content,
+    ui: r.ui,
+    costUsd: Number(r.costUsd),
+    seq: Number(r.seq),
+    createdAt: iso(r.createdAt)!,
+    ...(r.feedback ? { feedback: r.feedback } : {}),
+    ...(r.meta ? { meta: r.meta } : {}),
+  }));
+}
+
+/* The user's thumbs up or down on one of their answers (null takes it back). */
+export async function setFeedback(q: Queryable, userId: string, conversationId: string, seq: number, feedback: Feedback | null): Promise<boolean> {
+  const { rowCount } = await q.query(
+    `update agent_message m set feedback = $4 from agent_conversation c
+     where c.id = m."conversationId" and c."userId" = $2 and m."conversationId" = $1 and m.seq = $3 and m.role = 'assistant'`,
+    [conversationId, userId, seq, feedback],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/* Try again: drop everything after the user's last message, so the answer to it can be asked for afresh. False when there is no such message. */
+export async function dropAfterLastUserMessage(q: Queryable, userId: string, conversationId: string): Promise<boolean> {
+  const { rows } = await q.query<{ last: number | null }>(
+    `select max(m.seq) as last from agent_message m join agent_conversation c on c.id = m."conversationId" where m."conversationId" = $1 and c."userId" = $2 and m.role = 'user'`,
+    [conversationId, userId],
+  );
+  const last = rows[0]?.last;
+  if (last == null) return false;
+  await q.query(`delete from agent_message where "conversationId" = $1 and seq > $2`, [conversationId, last]);
+  return true;
 }

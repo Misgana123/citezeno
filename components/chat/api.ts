@@ -89,6 +89,14 @@ export const startResearch = (body: { conversationId: string | null; text: strin
 export const answerQuestion = (body: { conversationId: string; callId: string; approve: boolean }, onEvent: (e: AgentEvent) => void, signal?: AbortSignal) =>
   streamReply('/api/agent/chat/confirm', body, onEvent, signal);
 
+/* Try again: the last answer is dropped and the last message answered afresh. */
+export const retryAnswer = (body: { conversationId: string; model: string | null; webSearch?: boolean }, onEvent: (e: AgentEvent) => void, signal?: AbortSignal) =>
+  streamReply('/api/agent/chat/retry', body, onEvent, signal);
+
+/* Thumbs up or down on an answer (null takes it back). */
+export const rateAnswer = (id: string, seq: number, feedback: 'up' | 'down' | null) =>
+  agentFetch(`/api/agent/conversations/${encodeURIComponent(id)}/messages/${seq}`, { method: 'PATCH', body: { feedback } });
+
 export const sendClientResult = (
   body: { conversationId: string; callId: string; outcome: { ok: true; sources: unknown[]; note?: string } | { ok: false; error: string } },
   onEvent: (e: AgentEvent) => void,

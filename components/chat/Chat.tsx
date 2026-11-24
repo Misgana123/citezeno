@@ -10,7 +10,8 @@ import { Icon, LogoMark, type IconName } from '../Icon';
 import { InlineName } from '../shelf/InlineName';
 import type { AttachmentView } from '@/lib/agent/view';
 import { ATTACH_MAX } from '@/lib/agent/attachments';
-import { answerQuestion, deleteChat, openChat, pinChat, renameChat, sendClientResult, sendMessage, startResearch } from './api';
+import { answerQuestion, deleteChat, openChat, pinChat, renameChat, retryAnswer, sendClientResult, sendMessage, startResearch } from './api';
+import { AnswerActions } from './AnswerActions';
 import { newAttachId, readAttachment, takeScreenshot, type AttachItem } from './attach';
 import { refreshChats, useChatIndex } from './chat-index';
 import { runClientTool } from './citations';
@@ -371,6 +372,25 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
     await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId, webSearch, ...(attachments.length ? { attachments } : {}) }, onEvent, signal));
   };
 
+  /* Try again: the last answer goes, the last message is answered afresh, then the chat is reloaded as saved. */
+  const retryLast = async () => {
+    if (busy || !activeId) return;
+    const id = activeId;
+    setWaiting(null);
+    setEntries((prev) => {
+      const at = prev.map((e) => e.kind).lastIndexOf('user');
+      return at < 0 ? prev : prev.slice(0, at + 1);
+    });
+    await run((onEvent, signal) => retryAnswer({ conversationId: id, model, webSearch }, onEvent, signal));
+    try {
+      const c = await openChat(id);
+      setEntries(c.entries);
+      setWaiting(c.waiting);
+    } catch {
+      /* the streamed answer stays as it is */
+    }
+  };
+
   const answer = async (approve: boolean) => {
     if (!waiting || !activeId || busy) return;
     const w = waiting;
@@ -504,14 +524,28 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
                     {!!t.user && <div className="ch-user">{t.user}</div>}
                     {t.parts.length > 0 && (
                       <div className="ch-ai">
-                        {segments(t.parts).map((seg) => {
+                        {segments(t.parts).map((seg, si, segs) => {
                           // the steps and the notes between them make one timeline; answers stay in view
                           if (seg.kind === 'work') return <Steps key={`w${seg.at}`} items={seg.items} turn={t.key} chatId={activeId} />;
                           const i = seg.at;
                           const p = t.parts[i];
+                          // the actions sit under the turn's final answer, once it is written
+                          const final = !segs.slice(si + 1).some((x) => x.kind === 'answer');
+                          const live = ti === turns.length - 1 && busy;
                           return p.kind === 'assistant' ? (
                             <div key={i} className="ch-answer">
                               <Markdown text={p.text} cite={cite} passage={passage} />
+                              {final && !live && (
+                                <AnswerActions
+                                  key={`${p.seq ?? i}-${p.feedback ?? ''}`}
+                                  chatId={activeId}
+                                  text={p.text}
+                                  seq={p.seq}
+                                  at={p.at}
+                                  feedback={p.feedback}
+                                  onRetry={ti === turns.length - 1 && !isReport(t, i) && !waiting ? retryLast : undefined}
+                                />
+                              )}
                               {isReport(t, i) && !busy && (
                                 <div className="ch-report-acts">
                                   <button type="button" className="ch-btn" onClick={() => send('Save the research report above as a Word document, with its sources.')}>

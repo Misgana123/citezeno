@@ -14,8 +14,8 @@ import { readingContext, webContext } from './prompt';
 import { research, RESEARCH_MS } from './research';
 import { codeRunner } from './sandbox';
 import { searchReservations } from './limits';
-import { answer, repairHistory, resume, resumeWithClientResult, type ClientOutcome, type LoopDeps } from './loop';
-import { claimRun, createConversation, getConversation, loadMessages, releaseRun, setModel, setPending, setWebSearch, titleFrom, appendMessages, type Conversation } from './store';
+import { answer, repairHistory, resume, resumeWithClientResult, retry, type ClientOutcome, type LoopDeps } from './loop';
+import { claimRun, createConversation, dropAfterLastUserMessage, getConversation, loadMessages, releaseRun, setModel, setPending, setWebSearch, titleFrom, appendMessages, type Conversation } from './store';
 import { offeredTools } from './tools';
 import { tally, type ToolDisplay } from './tools/types';
 import type { AgentEvent, Pending } from './types';
@@ -193,6 +193,34 @@ export function replyWithResearch(req: Request, userId: string, body: { conversa
     },
     body.model,
     RESEARCH_MS,
+  );
+}
+
+/* Try again: drop the last answer (and its steps) and answer the user's last message afresh. */
+export function replyToRetry(req: Request, userId: string, body: { conversationId: string; model?: string | null; webSearch?: boolean }) {
+  return streamReply(
+    userId,
+    req,
+    async () => {
+      let conversation = await getConversation(pool, userId, body.conversationId);
+      if (!conversation) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
+      if (conversation.pending) await setPending(pool, conversation.id, null);
+      if (!(await loadMessages(pool, conversation.id)).some((m) => m.message.role === 'user')) throw new AgentHttpError(409, 'There is no message to answer again.', 'bad_request');
+      if (body.webSearch !== undefined && body.webSearch !== conversation.webSearch) {
+        await setWebSearch(pool, userId, conversation.id, body.webSearch);
+        conversation = { ...conversation, webSearch: body.webSearch };
+      }
+      const id = conversation.id;
+      // dropped only once this reply holds the chat, so no other reply is writing to it
+      return {
+        conversation,
+        run: async (deps) => {
+          await dropAfterLastUserMessage(pool, userId, id);
+          await retry(deps, repairHistory((await loadMessages(pool, id)).map((m) => m.message)));
+        },
+      };
+    },
+    body.model,
   );
 }
 

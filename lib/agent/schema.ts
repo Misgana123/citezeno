@@ -45,6 +45,8 @@ create table if not exists agent_message (
   "createdAt"      timestamptz not null default now(),
   primary key ("conversationId", seq)
 );
+-- the user's thumbs up or down on an answer
+alter table agent_message add column if not exists feedback text check (feedback in ('up', 'down'));
 
 -- A file the assistant made for a conversation (a document, a chart…), kept in
 -- file storage. Deleted with its conversation or the account; the stored file

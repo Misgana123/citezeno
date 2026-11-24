@@ -50,16 +50,18 @@
 .ch-add-menu { top: auto; bottom: calc(100% + 6px); left: -6px; right: auto; width: 220px; }
 /* a switch in the + menu (web search): the label, then an on / off track */
 .ch-add-toggle .ch-switch { margin-left: auto; }
-.ch-add-toggle .ch-add-check { margin-left: auto; color: var(--thread); }
+.ch-add-toggle .ch-add-check { margin-left: auto; color: var(--ink); }
 .ch-switch { position: relative; flex: none; width: 28px; height: 16px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 18%, transparent); transition: background 0.15s; }
 .ch-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: transform 0.15s; }
-.ch-switch.is-on { background: var(--thread); }
+.ch-switch.is-on { background: var(--prussian); }
+[data-theme='dark'] .ch-switch.is-on { background: var(--wash); }
 .ch-switch.is-on::after { transform: translateX(12px); }
-/* what is switched on for the message (web search), beside the + button */
-.ch-chip { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 4px 0 9px; border-radius: 8px; background: color-mix(in srgb, var(--thread) 12%, transparent); color: var(--thread); font-size: 13px; font-weight: 650; }
+/* what is switched on for the message (web search), beside the + button: a soft blue, like a pressed pill */
+.ch-chip { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 4px 0 10px; border: 1px solid color-mix(in srgb, var(--prussian) 28%, var(--ch-input-line)); border-radius: 999px; background: color-mix(in srgb, var(--wash) 30%, transparent); color: var(--prussian); font-size: 13px; font-weight: 600; }
+[data-theme='dark'] .ch-chip { border-color: color-mix(in srgb, var(--wash) 40%, var(--ch-input-line)); background: color-mix(in srgb, var(--wash) 16%, transparent); color: var(--wash); }
 .ch-chip svg { width: 14px; height: 14px; }
-.ch-chip button { display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 6px; background: transparent; color: inherit; }
-.ch-chip button:hover { background: color-mix(in srgb, var(--thread) 16%, transparent); }
+.ch-chip button { display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 999px; background: transparent; color: inherit; }
+.ch-chip button:hover { background: color-mix(in srgb, var(--wash) 40%, transparent); }
 .ch-chip button svg { width: 12px; height: 12px; }
 
 /* files added to the message (and shown again on a sent message): square cards with a
@@ -104,7 +106,9 @@
 /* the vendor's mark before a model's name (on the button and in the list); full color, not the list's amber check */
 .ch-model-icon, .cz-opt .ch-model-icon { flex: none; width: 15px; height: 15px; color: var(--ink); stroke: none; }
 .ch-model.is-one { padding: 0 10px; color: var(--ink-3); }
-.ch-send { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: var(--thread); color: var(--thread-ink); }
+/* send: dark, so the amber accent stays for the few things that should catch the eye */
+.ch-send { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: var(--prussian-deep, var(--ink)); color: #fff; }
+[data-theme='dark'] .ch-send { background: var(--ink); color: var(--prussian-deep); }
 .ch-send svg { width: 16px; height: 16px; stroke-width: 2.2; }
 .ch-send:disabled { opacity: 0.4; cursor: not-allowed; }
 .ch-send.is-stop { background: var(--ink); color: var(--ch-bg); }
@@ -225,7 +229,8 @@ a.ch-ref-title:hover { text-decoration: underline; text-decoration-color: var(--
 .ch-cite-ref { margin: 0; font: 400 15.5px/1.55 var(--f-read); color: var(--ink); overflow-wrap: anywhere; }
 .ch-sources a { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-3); overflow-wrap: anywhere; }
 .ch-sources a svg { flex: none; width: 12px; height: 12px; }
-.ch-file { justify-self: start; display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--thread); color: var(--thread-ink); font-weight: 650; font-size: 13.5px; }
+.ch-file { justify-self: start; display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--prussian-deep); color: #fff; font-weight: 600; font-size: 13.5px; }
+[data-theme='dark'] .ch-file { background: var(--ink); color: var(--prussian-deep); }
 .ch-file svg { width: 15px; height: 15px; }
 a.ch-file { text-decoration: none; }
 .ch-file-size { font-weight: 500; opacity: 0.75; }
@@ -243,14 +248,22 @@ a.ch-file { text-decoration: none; }
 .ch-made-pic img { display: block; width: 100%; height: auto; }
 
 /* asking first */
-.ch-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 14px 16px; border: 1px solid var(--thread); border-radius: 14px; background: color-mix(in srgb, var(--thread-soft) 55%, var(--ch-card)); }
+.ch-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 14px; background: var(--ch-card); }
 .ch-ask p { flex: 1; min-width: 220px; margin: 0; font-size: 15px; font-weight: 650; line-height: 1.5; }
 .ch-ask-acts { display: flex; gap: 8px; }
 .ch-btn { height: 34px; padding: 0 16px; border-radius: 9px; border: 1px solid var(--ch-card-line); background: var(--ch-bg); font-weight: 650; font-size: 13.5px; color: var(--ink); }
-.ch-btn.is-go { background: var(--thread); border-color: var(--thread); color: var(--thread-ink); }
+.ch-btn.is-go { background: var(--prussian-deep); border-color: var(--prussian-deep); color: #fff; }
+[data-theme='dark'] .ch-btn.is-go { background: var(--ink); border-color: var(--ink); color: var(--prussian-deep); }
 .ch-btn:disabled { opacity: 0.55; }
 /* under a deep research report: keep it as a file */
 .ch-report-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+/* under an answer: copy, read aloud, thumbs, try again, and when */
+.ch-acts { display: flex; align-items: center; gap: 2px; margin: 10px 0 0 -7px; font-family: var(--f-ui); }
+.ch-act { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-3); cursor: pointer; }
+.ch-act:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); }
+.ch-act.is-on { color: var(--ink); }
+.ch-act svg { width: 16px; height: 16px; }
+.ch-act-time { margin-left: 8px; font-size: 12.5px; color: var(--ink-3); }
 .ch-report-acts .ch-btn { display: inline-flex; align-items: center; gap: 6px; }
 .ch-report-acts svg { width: 15px; height: 15px; }
 .ch-offer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-top: 14px; padding: 12px 14px; border: 1px solid var(--rule-2); border-radius: 14px; background: var(--ch-card); }

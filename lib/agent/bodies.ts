@@ -43,6 +43,12 @@ export const researchBody = z.object({
 
 export const confirmBody = z.object({ conversationId: ID, callId: z.string().trim().min(1).max(200), approve: z.boolean() });
 
+/* Try again: answer the chat's last message afresh. */
+export const retryBody = z.object({ conversationId: ID, model: z.string().trim().max(80).nullish(), webSearch: z.boolean().optional() });
+
+/* Thumbs up or down on an answer (null takes it back). */
+export const feedbackBody = z.object({ feedback: z.enum(['up', 'down']).nullable() });
+
 /* What the browser sends back for a tool it ran. Kept small: it becomes data the model reads. */
 export const clientResultBody = z.object({
   conversationId: ID,

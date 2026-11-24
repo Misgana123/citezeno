@@ -91,7 +91,7 @@ export function ShareChatDialog({ chatId, title, onClose }: { chatId: string; ti
           <>
             <div className="ch-share-link">
               <input className="input" readOnly value={share.url} aria-label="Link to this chat" onFocus={(e) => e.currentTarget.select()} />
-              <button type="button" className="btn btn-sm btn-thread" onClick={() => copy(share.url)}>
+              <button type="button" className="btn btn-sm" onClick={() => copy(share.url)}>
                 <Icon name="copy" /> Copy
               </button>
             </div>
@@ -122,12 +122,12 @@ export function ShareChatDialog({ chatId, title, onClose }: { chatId: string; ti
             {share?.shared ? 'Done' : 'Cancel'}
           </button>
           {share && !share.shared && (
-            <button type="button" className="btn btn-sm btn-thread" onClick={create} disabled={busy}>
+            <button type="button" className="btn btn-sm" onClick={create} disabled={busy}>
               <Icon name="link" /> {busy ? 'Creating…' : 'Create link'}
             </button>
           )}
           {share?.shared && share.behind && (
-            <button type="button" className="btn btn-sm btn-thread" onClick={create} disabled={busy}>
+            <button type="button" className="btn btn-sm" onClick={create} disabled={busy}>
               {busy ? 'Updating…' : 'Update link'}
             </button>
           )}
