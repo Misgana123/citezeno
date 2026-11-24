@@ -1,5 +1,6 @@
 'use client';
 
+import type { ChatShare } from '@/lib/agent/share';
 import type { AgentEvent } from '@/lib/agent/types';
 import type { ConversationView } from '@/lib/agent/view';
 import type { ModelInfo } from '@/lib/providers/chat/catalog';
@@ -38,6 +39,11 @@ export const openChat = (id: string) => agentFetch<ConversationView>(`/api/agent
 export const renameChat = (id: string, title: string) => agentFetch(`/api/agent/conversations/${encodeURIComponent(id)}`, { method: 'PATCH', body: { title } });
 export const pinChat = (id: string, pinned: boolean) => agentFetch(`/api/agent/conversations/${encodeURIComponent(id)}`, { method: 'PATCH', body: { pinned } });
 export const deleteChat = (id: string) => agentFetch(`/api/agent/conversations/${encodeURIComponent(id)}`, { method: 'DELETE' });
+/* the chat's read-only public link: whether it is shared, make or update it (it then shows every message so far), stop it */
+const shareUrl = (id: string) => `/api/agent/conversations/${encodeURIComponent(id)}/share`;
+export const getChatShare = (id: string) => agentFetch<ChatShare>(shareUrl(id));
+export const shareChat = (id: string) => agentFetch<ChatShare>(shareUrl(id), { method: 'POST' });
+export const stopSharingChat = (id: string) => agentFetch(shareUrl(id), { method: 'DELETE' });
 
 /* POST and read the reply as it streams: one JSON event per line. */
 export async function streamReply(url: string, body: unknown, onEvent: (e: AgentEvent) => void, signal?: AbortSignal): Promise<void> {

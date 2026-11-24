@@ -122,10 +122,11 @@ export async function appendMessages(db: Db, conversationId: string, messages: S
   });
 }
 
-export async function loadMessages(q: Queryable, conversationId: string): Promise<StoredMessage[]> {
+/* upTo: only the messages up to this one (a shared link's snapshot) */
+export async function loadMessages(q: Queryable, conversationId: string, upTo?: number): Promise<StoredMessage[]> {
   const { rows } = await q.query<{ content: ChatMessage; ui: StepView[] | null; costUsd: number; meta?: MessageMeta | null }>(
-    `select * from agent_message where "conversationId" = $1 order by seq`,
-    [conversationId],
+    upTo === undefined ? `select * from agent_message where "conversationId" = $1 order by seq` : `select * from agent_message where "conversationId" = $1 and seq <= $2 order by seq`,
+    upTo === undefined ? [conversationId] : [conversationId, upTo],
   );
   return rows.map((r) => ({ message: r.content, ui: r.ui, costUsd: Number(r.costUsd), ...(r.meta ? { meta: r.meta } : {}) }));
 }

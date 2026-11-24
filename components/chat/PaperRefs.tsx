@@ -42,7 +42,8 @@ function Row({ n, turn, paper, action, open = false }: { n?: number; turn: numbe
   );
 }
 
-export function PaperRefs({ papers, items, refs, turn, chatId = null }: { papers?: Paper[]; items?: ShelfItem[]; refs?: Record<string, number>; turn: number; chatId?: string | null }) {
+/* readOnly: a shared chat's public page, without Read, Save or the shelf (they need an account) */
+export function PaperRefs({ papers, items, refs, turn, chatId = null, readOnly = false }: { papers?: Paper[]; items?: ShelfItem[]; refs?: Record<string, number>; turn: number; chatId?: string | null; readOnly?: boolean }) {
   const [all, setAll] = useState(false);
   const panel = useFilePanel();
   /* Read opens the paper beside the chat (when the page has the panel) */
@@ -59,7 +60,7 @@ export function PaperRefs({ papers, items, refs, turn, chatId = null }: { papers
           paper={p}
           open={panel?.active === p.id}
           action={
-            <>
+            readOnly ? null : <>
               <ReadButton paperId={p.id} hasPdf={!!p.pdfUrl} chatId={chatId} {...read(p.id, p.title)} />
               <SaveButton paper={p} />
             </>
@@ -78,7 +79,7 @@ export function PaperRefs({ papers, items, refs, turn, chatId = null }: { papers
           paper={i.paper}
           open={panel?.active === i.paper.id}
           action={
-            <>
+            readOnly ? null : <>
               <ReadButton paperId={i.paper.id} hasPdf={(i.pdfs?.length ?? 0) > 0 || !!i.paper.pdfUrl} chatId={chatId} {...read(i.paper.id, i.paper.title)} />
               <Link className="ch-ref-open" href={`/app/shelf?item=${encodeURIComponent(i.id)}`}>
                 <Icon name="layers" /> On your shelf

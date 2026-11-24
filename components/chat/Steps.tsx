@@ -48,7 +48,8 @@ function download(file: TextFile) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-export function Steps({ items, turn, chatId = null }: { items: WorkItem[]; turn: number; chatId?: string | null }) {
+/* readOnly: a shared chat's public page */
+export function Steps({ items, turn, chatId = null, readOnly = false }: { items: WorkItem[]; turn: number; chatId?: string | null; readOnly?: boolean }) {
   const steps = items.flatMap((it) => (it.kind === 'step' && isShown(it.step) ? [it.step] : []));
   if (!steps.length) return null;
   const papers = steps.flatMap((s) => s.display?.papers ?? []);
@@ -66,7 +67,7 @@ export function Steps({ items, turn, chatId = null }: { items: WorkItem[]; turn:
     <div className="ch-turn-work">
       <Timeline items={items} />
 
-      <PaperRefs papers={uniquePapers} items={uniqueItems} refs={refs} turn={turn} chatId={chatId} />
+      <PaperRefs papers={uniquePapers} items={uniqueItems} refs={refs} turn={turn} chatId={chatId} readOnly={readOnly} />
 
       {sources.length > 0 && (
         <ul className="ch-sources">

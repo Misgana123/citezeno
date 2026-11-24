@@ -24,6 +24,14 @@ alter table agent_conversation add column if not exists pinned boolean not null 
 alter table agent_conversation add column if not exists "webSearch" boolean not null default false;
 -- the chat's code sandbox session (run_python), while it may still be open
 alter table agent_conversation add column if not exists "sandboxId" text;
+-- a read-only public link to the chat (/c/<token>). It shows the messages up
+-- to "shareSeq": a snapshot, so later messages stay private until the owner
+-- updates the link
+alter table agent_conversation add column if not exists "shareToken" text;
+alter table agent_conversation add column if not exists "shareSeq" integer;
+alter table agent_conversation add column if not exists "sharedAt" timestamptz;
+alter table agent_conversation add column if not exists "shareViews" integer not null default 0;
+create unique index if not exists agent_conversation_share on agent_conversation ("shareToken") where "shareToken" is not null;
 
 -- One message of a conversation, in the vendor-neutral chat format, with what
 -- the chat page shows for it (the steps of a tool turn).

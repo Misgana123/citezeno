@@ -4,7 +4,7 @@
    the light and dark themes. */
 
 /* Chat surfaces: the app colors (atelier.css) — a near-white page, gray cards, a white message box. */
-.ch { --ch-bg: var(--ground); --ch-card: var(--sheet); --ch-card-line: var(--rule-2); --ch-input: var(--cz-white); --ch-input-line: #d9dedf; }
+.ch, .ch-shared { --ch-bg: var(--ground); --ch-card: var(--sheet); --ch-card-line: var(--rule-2); --ch-input: var(--cz-white); --ch-input-line: #d9dedf; }
 [data-theme='dark'] .ch { --ch-input-line: #26476a; }
 
 .ch { flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--ch-bg); }
@@ -274,3 +274,30 @@ a.ch-file { text-decoration: none; }
   .ch-ref-row { grid-template-columns: 22px minmax(0, 1fr); }
   .ch-ref-act { grid-column: 2; justify-content: flex-start; }
 }
+
+/* a shared chat's public page: the conversation read-only, under its title */
+.ch-shared { max-width: 820px; margin: 0 auto; padding: 40px 0 64px; }
+.ch-shared-head { max-width: 740px; margin: 0 auto 8px; padding: 0 24px 18px; border-bottom: 1px solid var(--rule-2); }
+.ch-shared-head h1 { margin: 0 0 6px; font: 600 clamp(26px, 4vw, 34px)/1.15 var(--f-read); letter-spacing: -0.01em; color: var(--ink); }
+.ch-shared-head p { margin: 0; font-size: 13.5px; color: var(--ink-3); }
+.ch-shared-files { justify-self: end; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ch-shared-files li { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--rule-2); border-radius: 9px; font-size: 13px; color: var(--ink-2); }
+.ch-shared-files svg { width: 14px; height: 14px; color: var(--ink-3); }
+.ch-shared-foot { max-width: 740px; margin: 12px auto 0; padding: 18px 24px 0; border-top: 1px solid var(--rule-2); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.ch-shared-foot p { margin: 0; max-width: 480px; font-size: 13px; color: var(--ink-3); }
+
+/* Share: a quiet button at the right of the chat's header, and its dialog */
+.ch-share-btn { display: inline-flex; align-items: center; gap: 7px; height: 32px; margin-left: auto; padding: 0 12px; border: 1px solid var(--ch-card-line); border-radius: 9px; background: var(--cz-white, var(--sheet)); font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.ch-share-btn:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
+.ch-share-btn:disabled { opacity: 0.55; cursor: default; }
+.ch-share-btn svg { width: 15px; height: 15px; }
+.dialog.ch-share p.ch-share-title { margin: 0 0 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 15px var(--f-read); color: var(--ink-2); }
+.ch-share-notes { display: grid; gap: 6px; margin: 0; padding-left: 18px; font-size: 14px; color: var(--ink-2); }
+.ch-share-link { display: flex; gap: 8px; }
+.ch-share-link .input { flex: 1; min-width: 0; height: 36px; font: 13px var(--f-mono); }
+.ch-share-link .btn svg { width: 14px; height: 14px; }
+.dialog.ch-share p.ch-share-meta { margin: 8px 0 0; font-size: 13px; color: var(--ink-3); }
+.dialog.ch-share p.ch-share-behind { display: flex; align-items: center; gap: 7px; margin: 12px 0 0; padding: 9px 12px; border-radius: 10px; background: var(--thread-soft); font-size: 13.5px; color: var(--ink); }
+.ch-share-behind svg { flex: none; width: 15px; height: 15px; }
+.ch-share-stop { margin-right: auto; color: var(--warn); }
+@media (max-width: 560px) { .ch-share-btn { padding: 0 9px; } }
