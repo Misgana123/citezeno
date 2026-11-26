@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { CreditPack } from '@/lib/polar';
 import { PLANS, type Interval, type PlanKey, type PlanView } from '@/lib/plans';
+import { everyLabel, sizeLabel } from '@/lib/plan-lines';
 import { Icon, type IconName } from '../Icon';
 import { BuyButton } from './BuyButton';
 
@@ -14,8 +15,8 @@ const money = (cents: number, currency: string) =>
 
 const ICON: Record<string, IconName> = { starter: 'sparkle', scholar: 'book', lab: 'layers' };
 
-const size = (bytes: number) => (bytes >= 1024 ** 3 ? `${Math.round(bytes / 1024 ** 3)} GB` : `${Math.round(bytes / 1024 ** 2)} MB`);
-const every = (days: number | null) => (days == null ? null : days <= 1 ? 'daily' : days <= 7 ? 'weekly' : 'monthly');
+const size = sizeLabel;
+const every = everyLabel;
 
 function Feature({ children }: { children: React.ReactNode }) {
   return (

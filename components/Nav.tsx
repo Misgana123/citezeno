@@ -7,10 +7,11 @@ import { Icon, LogoMark } from './Icon';
 import { useSession } from '@/lib/auth-client';
 
 const LINKS = [
-  { href: '/styles', label: 'Citation styles' },
+  { href: '/#product', label: 'Product' },
+  { href: '/#deep', label: 'Deep research' },
   { href: '/#method', label: 'How it works' },
   { href: '/pricing', label: 'Pricing' },
-  { href: '/contact', label: 'Contact' },
+  { href: '/#faq', label: 'FAQ' },
 ];
 
 export function ThemeToggle() {
@@ -105,8 +106,14 @@ export function Nav({ onBlue = false }: { onBlue?: boolean }) {
 }
 
 const FOOT_COLS: [string, [string, string][]][] = [
-  ['Product', [['/app/citation', 'Citation'], ['/#method', 'How it works'], ['/pricing', 'Pricing']]],
-  ['Generators', [['/styles/apa', 'APA'], ['/styles/mla', 'MLA'], ['/styles/chicago', 'Chicago'], ['/styles/harvard', 'Harvard'], ['/styles/ieee', 'IEEE'], ['/styles/vancouver', 'Vancouver'], ['/styles', 'All styles']]],
+  ['Product', [['/app/chat', 'Research assistant'], ['/#deep', 'Deep research'], ['/app/papers', 'Find papers'], ['/app/read', 'Reader'], ['/app/shelf', 'Shelf'], ['/app/citation', 'Citation studio'], ['/pricing', 'Pricing']]],
+  [
+    'Citation guides',
+    [
+      ['/styles/apa', 'APA'], ['/styles/mla', 'MLA'], ['/styles/chicago', 'Chicago'], ['/styles/harvard', 'Harvard'], ['/styles/ieee', 'IEEE'], ['/styles/vancouver', 'Vancouver'],
+      ['/styles/ama', 'AMA'], ['/styles/asa', 'ASA'], ['/styles/acs', 'ACS'], ['/styles/cse', 'CSE'], ['/styles/turabian', 'Turabian'], ['/styles', 'All 12 styles'],
+    ],
+  ],
   ['Company', [['/contact', 'Contact'], ['/privacy', 'Privacy'], ['/terms', 'Terms']]],
 ];
 
@@ -118,12 +125,12 @@ export function Footer() {
       <div className="wrap">
         <div className="foot-top">
           <p className="foot-lead">
-            Every claim needs a source <em>that exists.</em>
+            Research with sources <em>that exist.</em>
           </p>
           {FOOT_COLS.map(([title, links]) => (
             <nav key={title} aria-label={title}>
               <h2>{title}</h2>
-              <ul>
+              <ul className={links.length > 8 ? 'foot-two' : undefined}>
                 {links.map(([href, label]) => (
                   <li key={href}>
                     <Link href={href}>{label}</Link>
@@ -137,8 +144,8 @@ export function Footer() {
           <p>
             Records from <a href="https://openalex.org" target="_blank" rel="noopener noreferrer">OpenAlex</a>,{' '}
             <a href="https://www.crossref.org" target="_blank" rel="noopener noreferrer">Crossref</a>,{' '}
-            <a href="https://openlibrary.org" target="_blank" rel="noopener noreferrer">Open Library</a> and{' '}
-            <a href="https://www.wikipedia.org" target="_blank" rel="noopener noreferrer">Wikipedia</a>. Check every source
+            <a href="https://openlibrary.org" target="_blank" rel="noopener noreferrer">Open Library</a>,{' '}
+            <a href="https://www.wikipedia.org" target="_blank" rel="noopener noreferrer">Wikipedia</a> and the open web. Check every source
             before you rely on it.
           </p>
           <span>© {new Date().getFullYear()} Citezeno</span>
