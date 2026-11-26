@@ -1,7 +1,17 @@
 'use client';
 
 import { forwardRef, useEffect, useRef, useState } from 'react';
+import type { ModelChoice } from '@/lib/agent/models';
 import type { ModelInfo } from '@/lib/providers/chat/catalog';
+
+/* A model as the picker gets it: with the plan's lock and about what a reply costs, when the server says */
+export type PickerModel = ModelInfo & Partial<Pick<ModelChoice, 'locked' | 'needs' | 'credits'>>;
+
+const cost = (m: PickerModel) => {
+  if (m.locked) return ` · needs ${m.needs ?? 'a higher plan'}`;
+  const r = m.credits?.reply;
+  return r ? ` · ≈${r.low === r.high ? r.low : `${r.low}–${r.high}`} credits` : '';
+};
 import { Icon } from '../Icon';
 import { Select, type SelectItems } from '../Select';
 import { ATTACH_ACCEPT, canScreenshot, type AttachItem } from './attach';
@@ -10,9 +20,10 @@ import { ModelIcon } from './ModelIcon';
 
 /* The model picker's list: the popular models first, then every model grouped
    by maker (A to Z) under "All". A short list stays as it is. */
-function modelOptions(models: ModelInfo[]): SelectItems {
-  const option = (m: ModelInfo) => ({ value: m.id, label: m.label, icon: <ModelIcon vendor={m.vendor} /> });
-  const groups = new Map<string, ModelInfo[]>();
+function modelOptions(models: PickerModel[]): SelectItems {
+  // locked models stay visible, with the plan that has them
+  const option = (m: PickerModel) => ({ value: m.id, label: `${m.label}${cost(m)}`, disabled: Boolean(m.locked), icon: <ModelIcon vendor={m.vendor} /> });
+  const groups = new Map<string, PickerModel[]>();
   for (const m of models) groups.set(m.vendorName, [...(groups.get(m.vendorName) ?? []), m]);
   if (groups.size < 2 && models.length <= 8) return models.map(option);
   const makers = [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([label, ms]) => ({ label, options: ms.map(option) }));
@@ -28,7 +39,7 @@ function modelOptions(models: ModelInfo[]): SelectItems {
 type Props = {
   text: string;
   onText(t: string): void;
-  models: ModelInfo[];
+  models: PickerModel[];
   model: string | null;
   onModel(id: string): void;
   busy: boolean;

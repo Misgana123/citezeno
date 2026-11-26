@@ -1,5 +1,6 @@
 import 'server-only';
 import { createMeter } from '@/lib/credits/meter';
+import { planLimits } from '@/lib/credits/limits';
 import { wallet } from '@/lib/credits/server';
 import { pool } from '@/lib/db';
 import { papersServer } from '@/lib/papers/server';
@@ -26,6 +27,16 @@ export function readerDeps(): ReaderDeps {
     maxPdfBytes: config.maxPdfBytes,
     // one action per text, so an upload is charged once however many runs it takes; re-embedding later is free
     embedMeter: (t) => createMeter(wallet(), { userId: t.userId, kind: 'reader.embed', actionId: `embed:${t.textId}`, ttlMs: 60 * 60 * 1000, meta: { paperId: t.paperId } }),
+    // uploads embedded this calendar month (UTC), against the plan; one already started (or embedded before) always goes ahead
+    embedAllowed: async (userId, textId) => {
+      const { rows } = await pool.query<{ mine: boolean; n: number }>(
+        `select exists (select 1 from credit_action where id = $2 and "userId" = $1) as mine,
+                (select count(*)::int from credit_action where "userId" = $1 and kind = 'reader.embed' and id <> $2 and (charged > 0 or status = 'held')
+                   and "createdAt" >= date_trunc('month', now() at time zone 'utc') at time zone 'utc') as n`,
+        [userId, `embed:${textId}`],
+      );
+      return Boolean(rows[0]?.mine) || (rows[0]?.n ?? 0) < (await planLimits(userId)).embedsPerMonth;
+    },
   };
 }
 

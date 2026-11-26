@@ -1,6 +1,7 @@
 import 'server-only';
 import { auth } from '@/lib/auth';
-import { InsufficientCredits } from '@/lib/credits/errors';
+import { InsufficientCredits, isCreditError } from '@/lib/credits/errors';
+import { papersConfigFor, shelfConfigFor } from '@/lib/credits/limits';
 import { billing, wallet } from '@/lib/credits/server';
 import { pool } from '@/lib/db';
 import { json, sameOrigin } from '@/lib/http';
@@ -16,6 +17,7 @@ import { agentFiles } from './files';
 import { readingContext, webContext } from './prompt';
 import { research, RESEARCH_MS } from './research';
 import { replyCredits, type ReplyCredits, type ReplyKind } from './credits';
+import { modelAccess, ModelLocked } from './models';
 import { codeRunner } from './sandbox';
 import { searchReservations } from './limits';
 import { answer, repairHistory, resume, resumeWithClientResult, retry, type ClientOutcome, type LoopDeps } from './loop';
@@ -66,8 +68,24 @@ export function agentRoute<P = Record<string, never>>(handler: (req: Request, us
   };
 }
 
-/* The models on offer, and whether web search is set up (new chats start with it on when it is). */
-export const agentModels = async () => ({ ...(await chatModelsFor()).info(), web: webSearchFor() != null });
+/* What the user's plan allows (no plan → the no-plan limits). */
+const limitsOf = async (userId: string) => (await billing().currentPlan(userId))?.limits ?? NO_PLAN;
+
+/* The models on offer for this user's plan (locked ones marked), and whether
+   web search is set up (new chats start with it on when it is). */
+export const agentModels = async (userId: string) => ({ ...modelAccess(await chatModelsFor(), await limitsOf(userId)).info(), web: webSearchFor() != null });
+
+/* The model a new chat starts with: the one asked for, if the plan allows it, else the plan's default. */
+async function newChatModel(userId: string, asked: string | null | undefined) {
+  try {
+    const model = modelAccess(await chatModelsFor(), await limitsOf(userId)).pick(asked);
+    if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
+    return model;
+  } catch (e) {
+    if (e instanceof ModelLocked) throw new AgentHttpError(403, e.message, 'model_locked');
+    throw e;
+  }
+}
 
 /* named: the chat was just made here, so the model titles it in its first reply */
 type Start = { conversation: Conversation; run(deps: LoopDeps, history: Parameters<typeof answer>[1]): Promise<void>; extraSystem?: string; named?: boolean };
@@ -75,7 +93,7 @@ type Start = { conversation: Conversation; run(deps: LoopDeps, history: Paramete
 /* A reply as a stream of events. The work happens while the stream is open. */
 async function streamReply(userId: string, req: Request, start: () => Promise<Start>, modelId: string | null | undefined, replyMs = REPLY_MS, kind: ReplyKind = 'assistant'): Promise<Response> {
   if (!(await allow(`agent:${userId}`, 60, PER_MINUTE))) throw new AgentHttpError(429, 'Too many messages. Please wait a moment.', 'busy');
-  const limits = (await billing().currentPlan(userId))?.limits ?? NO_PLAN;
+  const limits = await limitsOf(userId);
   if (kind === 'research' && limits.researchBudgetCap == null) throw new AgentHttpError(403, 'Deep research needs a plan. Choose one on the pricing page.', 'plan_required');
 
   // every provider call this reply makes is charged to its credits (set once the model is known)
@@ -84,13 +102,21 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
   const meter = newMeter(hooks);
   const models = await chatModelsFor(meter);
   const { conversation, run, extraSystem, named } = await start();
-  const model = models.pick(modelId ?? conversation.model);
+  let model;
+  try {
+    // a model the plan doesn't allow: refused when asked for, replaced by the plan's default when it's the chat's own
+    model = modelAccess(models, limits).pick(modelId, conversation.model);
+  } catch (e) {
+    if (e instanceof ModelLocked) throw new AgentHttpError(403, e.message, 'model_locked');
+    throw e;
+  }
   if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
   const reply = replyCredits(wallet(), { userId, kind, model, limits, ttlMs: replyMs + 5 * 60_000, meta: { conversationId: conversation.id } });
   try {
     await reply.start();
   } catch (e) {
     if (e instanceof InsufficientCredits) throw new AgentHttpError(402, `${e.message} Choose a plan or top up to continue.`, 'insufficient_credits');
+    if (isCreditError(e)) throw new AgentHttpError(429, e.message, e.code);
     throw e;
   }
   credits = reply;
@@ -101,15 +127,16 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
   if (model.id !== conversation.model) await setModel(pool, userId, conversation.id, model.id);
 
   const papers = papersServer();
-  const searches = searchReservations(papers.usage, userId, papers.config.dailySearchesPerUser);
+  const papersConfig = papersConfigFor(papers.config, limits);
+  const searches = searchReservations(papers.usage, userId, papersConfig.dailySearchesPerUser);
   let sources: ReturnType<typeof papers.sources> | null = null;
   let web: ReturnType<typeof webSearchFor> | undefined;
   const ctx: AgentContext = {
     userId,
     db: pool,
     sources: () => (sources ??= papers.sources(meter)),
-    papersConfig: papers.config,
-    shelfConfig: shelfConfig(),
+    papersConfig,
+    shelfConfig: shelfConfigFor(shelfConfig(), limits),
     reserveSearches: searches.reserve,
     webSearch: () => (web === undefined ? (web = webSearchFor(meter)) : web),
     webFiles: () => webFiles(process.env, meter),
@@ -119,7 +146,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
       const sandbox = codeSandboxFor(meter);
       return sandbox ? codeRunner(sandbox, pool, { userId, conversationId: conversation.id }) : null;
     },
-    files: agentFiles({ db: pool, store: fileStorage() }, { userId, conversationId: conversation.id }),
+    files: agentFiles({ db: pool, store: fileStorage(), maxTotalBytes: limits.agentFilesBytes }, { userId, conversationId: conversation.id }),
     credits: reply.meter,
     limits,
   };
@@ -201,8 +228,7 @@ export function replyToMessage(req: Request, userId: string, body: { conversatio
       let conversation = body.conversationId ? await getConversation(pool, userId, body.conversationId) : null;
       if (body.conversationId && !conversation) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
       if (!conversation) {
-        const model = (await chatModelsFor()).pick(body.model);
-        if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
+        const model = await newChatModel(userId, body.model);
         conversation = await createConversation(pool, userId, titleFrom(reading?.title ?? (body.text || body.attachments?.[0]?.name || '')), model.id, reading?.id ?? null);
         // a chat about the open paper keeps the paper's title; others are titled by the model
         named = !reading;
@@ -231,8 +257,7 @@ export function replyWithResearch(req: Request, userId: string, body: { conversa
       let conversation = body.conversationId ? await getConversation(pool, userId, body.conversationId) : null;
       if (body.conversationId && !conversation) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
       if (!conversation) {
-        const model = (await chatModelsFor()).pick(body.model);
-        if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
+        const model = await newChatModel(userId, body.model);
         conversation = await createConversation(pool, userId, titleFrom(body.text), model.id);
         named = true;
       }

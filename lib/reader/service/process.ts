@@ -5,7 +5,7 @@ import { getPdfRow } from '@/lib/shelf/store/pdfs';
 import type { ReaderDeps } from '../deps';
 import { logAiCall } from '../store/ai-log';
 import { passagesToEmbed, setEmbeddings } from '../store/passages';
-import { claimWork, markEmbedded, markFailed, markKeywordsOnly, markNoText, release, saveExtracted, setStored, type TextRow } from '../store/texts';
+import { claimWork, EMBED_LIMIT, markEmbedded, markFailed, markKeywordsOnly, markNoText, release, saveExtracted, setStored, type TextRow } from '../store/texts';
 import { processPages } from '../text';
 import { vectorSchema, vectorSql } from '../vector';
 import { mayStore } from './open';
@@ -100,6 +100,10 @@ async function embed(deps: ReaderDeps, t: TextRow, deadline: number): Promise<Wo
   // a user's own upload is charged (once); shared open-access papers are the owner's cost
   const meter = t.scope === 'user' && t.ownerId ? deps.embedMeter?.({ userId: t.ownerId, textId: t.id, paperId: t.paperId }) : undefined;
   let reserved = 0;
+  if (meter && deps.embedAllowed && !(await deps.embedAllowed(t.ownerId!, t.id))) {
+    await markKeywordsOnly(deps.db, t.id, EMBED_LIMIT);
+    return 'partial';
+  }
   for (;;) {
     if (now() > deadline - 5000) {
       await release(deps.db, t.id);

@@ -3,7 +3,7 @@
 import type { ChatShare } from '@/lib/agent/share';
 import type { AgentEvent } from '@/lib/agent/types';
 import type { ConversationView } from '@/lib/agent/view';
-import type { ModelInfo } from '@/lib/providers/chat/catalog';
+import type { PickerModel } from './Composer';
 import type { Attachment } from '@/lib/providers/chat/types';
 
 /* Browser-side calls to /api/agent. Only our own server is called. */
@@ -11,7 +11,7 @@ import type { Attachment } from '@/lib/providers/chat/types';
 /* paperId: a paper's own conversation, opened in the reader */
 export type ConversationSummary = { id: string; title: string; model: string; pinned: boolean; updatedAt: string; paperId?: string | null };
 /* web: web search is set up (new chats start with it on) */
-export type ChatList = { conversations: ConversationSummary[]; models: ModelInfo[]; defaultModel: string | null; web?: boolean };
+export type ChatList = { conversations: ConversationSummary[]; models: PickerModel[]; defaultModel: string | null; web?: boolean };
 
 async function readError(res: Response): Promise<Error> {
   const body = (await res.json().catch(() => ({}))) as { error?: string };

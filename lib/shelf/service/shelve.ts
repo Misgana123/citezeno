@@ -12,6 +12,16 @@ import type { AddedVia, ShelfItem, ShelfPaper } from '../types';
 
 export const alreadySaved = (itemId: string) => new ShelfError('duplicate', 'Already on your shelf.', { itemId });
 
+/* The plan's shelf size: a full shelf takes no more papers (nothing is ever removed for it). */
+export const shelfFull = (max: number) =>
+  new ShelfError('user_limit', `Your shelf holds ${max.toLocaleString('en-US')} papers, the most your plan keeps. Remove some papers or upgrade your plan to add more.`, { limit: max });
+
+export async function assertShelfRoom(q: Queryable, userId: string, max: number | undefined, adding = 1) {
+  if (max == null) return;
+  const { rows } = await q.query<{ n: number }>(`select count(*)::int as n from shelf_item where "userId" = $1`, [userId]);
+  if (rows[0].n + adding > max) throw shelfFull(max);
+}
+
 export async function shelve(
   db: Db,
   userId: string,
@@ -20,11 +30,13 @@ export async function shelve(
     paper: (q: Queryable) => Promise<ShelfPaper>;
     via: AddedVia;
     projectId?: string | null;
+    maxItems?: number;
   },
 ): Promise<ShelfItem> {
   return tx(db, async (q) => {
     const dup = await findExactDuplicate(q, userId, opts.keys);
     if (dup) throw alreadySaved(dup);
+    await assertShelfRoom(q, userId, opts.maxItems);
     if (opts.projectId && !(await ownsProject(q, userId, opts.projectId))) throw new ShelfError('not_found', 'That project no longer exists.');
     const paper = await opts.paper(q);
     const { item, created } = await addItem(q, userId, paper.id, opts.via);

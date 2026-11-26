@@ -53,9 +53,9 @@ export async function beginUpload(deps: PdfDeps, userId: string, f: { fileName: 
   if (f.itemId && !(await getItem(deps.db, userId, f.itemId))) throw new ShelfError('not_found', 'That paper is not on your shelf.');
   const used = await storageUsed(deps.db, userId);
   if (used + f.sizeBytes > deps.config.storageBytesPerUser) {
-    throw new ShelfError('storage_full', `Your PDF storage is full (${mb(deps.config.storageBytesPerUser)}). Remove some PDFs to upload more.`, { limit: deps.config.storageBytesPerUser });
+    throw new ShelfError('storage_full', `Your PDF storage is full (${mb(deps.config.storageBytesPerUser)}). Remove some PDFs or upgrade your plan to upload more.`, { limit: deps.config.storageBytesPerUser });
   }
-  if (!(await deps.allowUpload())) throw new ShelfError('user_limit', `You’ve reached today’s limit of ${deps.config.uploadsPerDay} PDF uploads. Try again tomorrow.`, { limit: deps.config.uploadsPerDay });
+  if (!(await deps.allowUpload())) throw new ShelfError('user_limit', `You’ve reached today’s limit of ${deps.config.uploadsPerDay} PDF uploads on your plan. Try again tomorrow, or upgrade for more.`, { limit: deps.config.uploadsPerDay });
   const row = await createPending(deps.db, userId, { fileName: cleanFileName(f.fileName), sizeBytes: f.sizeBytes, itemId: f.itemId });
   return { pdf: summary(row), upload: store.uploadTarget(row.storageKey) };
 }
@@ -136,17 +136,17 @@ export type ConfirmChoice = { paperId: string; projectId?: string | null } | { i
 
 /* Attach a matched PDF: to a paper found through a paper provider (saved if needed), to a paper
    already on the shelf, or to a paper typed in by hand. */
-export async function confirmUpload(deps: { db: Db; sources: () => PaperSources }, userId: string, pdfId: string, choice: ConfirmChoice): Promise<ShelfItem> {
+export async function confirmUpload(deps: { db: Db; sources: () => PaperSources; config?: { maxItems: number } }, userId: string, pdfId: string, choice: ConfirmChoice): Promise<ShelfItem> {
   const row = await getPdfRow(deps.db, userId, pdfId);
   if (!row || row.status !== 'ready') throw new ShelfError('not_found', 'That upload no longer exists. Please upload the file again.');
   if (row.itemId) throw new ShelfError('bad_request', 'This PDF is already attached to a paper.');
 
   let itemId: string;
   if ('itemId' in choice) itemId = choice.itemId;
-  else if ('details' in choice) itemId = (await saveManualPaper(deps.db, userId, choice.details, choice.projectId, 'upload')).id;
+  else if ('details' in choice) itemId = (await saveManualPaper(deps.db, userId, choice.details, choice.projectId, 'upload', deps.config?.maxItems)).id;
   else {
     try {
-      itemId = (await saveFoundPaper({ db: deps.db, sources: deps.sources() }, userId, { paperId: choice.paperId, via: 'upload', projectId: choice.projectId })).item.id;
+      itemId = (await saveFoundPaper({ db: deps.db, sources: deps.sources(), maxItems: deps.config?.maxItems }, userId, { paperId: choice.paperId, via: 'upload', projectId: choice.projectId })).item.id;
     } catch (e) {
       // already on the shelf: the PDF goes to that paper
       if ((e as ShelfError).code === 'duplicate' && (e as ShelfError).details.itemId) itemId = (e as ShelfError).details.itemId!;

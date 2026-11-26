@@ -114,8 +114,9 @@ export default function PrivacyPage() {
             <Sec n={3} id="credits" title="If you buy credits">
               <p>
                 Payments are handled by Polar, our merchant of record. Polar collects your payment details and billing
-                address; we never see your card number. We keep a record of your credit balance, each purchase (product,
-                amount and order number) and how many credits each trace used.
+                address; we never see your card number. We keep a record of your plan, your credits and when they end, each
+                purchase (product, amount and order number), and what each paid action used: its kind, the credits charged, and
+                what each step cost us (for example a model’s token counts). We don’t keep your questions in these records.
               </p>
               <p className="lg-aside">
                 <Icon name="lock" /> We never see or store your card number.

@@ -84,7 +84,7 @@ export const websiteLd = () => ({
   inLanguage: 'en',
 });
 
-export const appLd = (o: { freeCredits: number; lowPrice?: number; highPrice?: number; currency?: string }) => ({
+export const appLd = (o: { lowPrice?: number; highPrice?: number; currency?: string } = {}) => ({
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
   '@id': abs('/#app'),
@@ -103,8 +103,8 @@ export const appLd = (o: { freeCredits: number; lowPrice?: number; highPrice?: n
   ],
   offers:
     o.highPrice != null
-      ? { '@type': 'AggregateOffer', priceCurrency: (o.currency || 'usd').toUpperCase(), lowPrice: o.lowPrice ?? 0, highPrice: o.highPrice, offerCount: 2 }
-      : { '@type': 'Offer', price: 0, priceCurrency: 'USD', description: `${o.freeCredits} free credits every month` },
+      ? { '@type': 'AggregateOffer', priceCurrency: (o.currency || 'usd').toUpperCase(), lowPrice: o.lowPrice ?? 7, highPrice: o.highPrice, offerCount: 3 }
+      : { '@type': 'Offer', price: 7, priceCurrency: 'USD', description: 'Starter plan, 700 credits a month' },
   publisher: { '@id': abs('/#organization') },
 });
 

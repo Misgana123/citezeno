@@ -26,6 +26,17 @@ export function applyEvent(entries: Entry[], e: AgentEvent): Entry[] {
     if (last?.kind === 'steps') return [...entries.slice(0, -1), { kind: 'steps', steps: [...last.steps, e.step] }];
     return [...entries, { kind: 'steps', steps: [e.step] }];
   }
+  // the reply's bill: shown under its last answer
+  if (e.type === 'credits') {
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const en = entries[i];
+      if (en.kind === 'assistant') {
+        const next = [...entries];
+        next[i] = { ...en, credits: e.charged };
+        return next;
+      }
+    }
+  }
   return entries;
 }
 

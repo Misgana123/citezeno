@@ -20,8 +20,9 @@ export type { AppSection };
 export function CreditsPill({ need = 5 }: { need?: number }) {
   const credits = useCredits(true);
   if (!credits) return null;
-  const low = credits.total < Math.max(need, 5);
   const plan = credits.lots.find((l) => l.source === 'plan');
+  // low: not enough for what's on screen, or under 10% of this month's plan credits
+  const low = credits.total < Math.max(need, 5) || (plan != null && credits.total < plan.amount * 0.1);
   const title = credits.lots.map((l) => `${(l.remaining - l.held).toLocaleString()} ${l.label.toLowerCase()}${l.expiresAt ? ` · until ${new Date(l.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}`).join('\n') + (credits.held ? `\n${credits.held} on hold` : '');
   return (
     <Link href="/pricing" className={`at-credits${low ? ' low' : ''}`} title={title || 'No credits'}>

@@ -228,7 +228,8 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
     } catch {
       /* storage blocked */
     }
-    return models.some((m) => m.id === saved) ? saved : (index?.defaultModel ?? null);
+    // a model the plan no longer allows falls back to the plan's default
+    return models.some((m) => m.id === saved && !m.locked) ? saved : (index?.defaultModel ?? null);
   }, [models, index]);
 
   useEffect(() => {
@@ -341,8 +342,18 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
   };
 
   /* Deep research on a question: from the + menu, or the button under an answer that offered it. */
-  const research = (question: string) => {
+  const research = async (question: string) => {
     if (busy || noModels) return;
+    // deep research is the priciest action: say what it costs and ask first
+    const est = models.find((m) => m.id === model)?.credits;
+    if (est && !est.research) return setError('Deep research needs a plan. Choose one on the pricing page.');
+    const range = est?.research ? (est.research.low === est.research.high ? `${est.research.low}` : `${est.research.low}–${est.research.high}`) : null;
+    const ok = await confirmDialog({
+      title: 'Start deep research?',
+      body: `${range ? `This usually uses about ${range} credits` : 'This uses more credits than a normal answer'}, and takes a few minutes. You pay only for what it really uses.`,
+      confirmLabel: 'Start research',
+    });
+    if (!ok) return;
     setWaiting(null);
     setDeepResearch(false);
     setEntries((prev) => [...prev, { kind: 'user', text: question }]);
@@ -465,6 +476,12 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
           {error && (
             <p className="ch-error" role="alert">
               <Icon name="alert" /> {error}
+              {/credit|plan/i.test(error) && (
+                <>
+                  {' '}
+                  <a href="/pricing">See plans</a>
+                </>
+              )}
             </p>
           )}
         </div>
@@ -547,6 +564,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
                                   seq={p.seq}
                                   at={p.at}
                                   feedback={p.feedback}
+                                  credits={p.credits}
                                   onRetry={ti === turns.length - 1 && !isReport(t, i) && !waiting ? retryLast : undefined}
                                 />
                               )}
@@ -602,6 +620,12 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
               {error && (
                 <p className="ch-error" role="alert">
                   <Icon name="alert" /> {error}
+              {/credit|plan/i.test(error) && (
+                <>
+                  {' '}
+                  <a href="/pricing">See plans</a>
+                </>
+              )}
                 </p>
               )}
               <div ref={endRef} />

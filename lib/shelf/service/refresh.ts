@@ -18,7 +18,31 @@ export const REFRESH_BATCH = 50;
 
 export type DuePaper = { id: string; provider: string; isRetracted: boolean; title: string };
 
-export async function papersToRefresh(db: Db, providers: readonly string[], olderThanDays: number, limit: number): Promise<DuePaper[]> {
+/* Days between refreshes for each plan's shelves (lib/plans.ts); a paper is
+   due on the shortest schedule among the users who saved it. Shelves without
+   a plan aren't refreshed (records saved during an outage still are). */
+export type PlanRefresh = Record<string, number | null>;
+
+export async function papersToRefresh(db: Db, providers: readonly string[], olderThanDays: number, limit: number, byPlan?: PlanRefresh): Promise<DuePaper[]> {
+  if (byPlan) {
+    const plans = Object.entries(byPlan).filter((e): e is [string, number] => e[1] != null);
+    const { rows } = await db.query<DuePaper>(
+      `with plan_days (plan, days) as (select * from unnest($3::text[], $4::int[]))
+       select p.id, p.provider, p."isRetracted", p.title from shelf_paper p
+       where p."ownerId" is null and p.provider = any($2)
+         and (p."refreshDue" or exists (
+           select 1 from shelf_item i
+           join credit_plan c on c."userId" = i."userId"
+             and c.status not in ('revoked', 'unpaid', 'incomplete', 'incomplete_expired', 'ended')
+             and (c."periodEnd" is null or c."periodEnd" > now() - interval '3 days')
+           join plan_days d on d.plan = c.plan
+           where i."paperId" = p.id and (p."refreshedAt" is null or p."refreshedAt" < now() - make_interval(days => d.days))))
+       order by p."refreshDue" desc, p."refreshedAt" nulls first
+       limit $1`,
+      [limit, [...providers], plans.map((e) => e[0]), plans.map((e) => Math.max(1, Math.floor(e[1])))],
+    );
+    return rows;
+  }
   const { rows } = await db.query<DuePaper>(
     `select p.id, p.provider, p."isRetracted", p.title from shelf_paper p
      where p."ownerId" is null and p.provider = any($3)
@@ -87,11 +111,11 @@ export async function refreshBatch(db: Db, sources: PaperSources, papers: DuePap
   return report;
 }
 
-export async function refreshPapers(db: Db, sources: PaperSources, opts: { olderThanDays: number; batches: number; deadline: number; now?: () => number }): Promise<RefreshReport> {
+export async function refreshPapers(db: Db, sources: PaperSources, opts: { olderThanDays: number; batches: number; deadline: number; now?: () => number; byPlan?: PlanRefresh }): Promise<RefreshReport> {
   const now = opts.now ?? Date.now;
   const total: RefreshReport = { refreshed: 0, newlyRetracted: 0, notices: 0, missing: 0 };
   for (let b = 0; b < opts.batches && now() < opts.deadline; b++) {
-    const papers = await papersToRefresh(db, sources.all.map((s) => s.name), opts.olderThanDays, REFRESH_BATCH);
+    const papers = await papersToRefresh(db, sources.all.map((s) => s.name), opts.olderThanDays, REFRESH_BATCH, opts.byPlan);
     if (!papers.length) break;
     const r = await refreshBatch(db, sources, papers);
     for (const k of Object.keys(total) as (keyof RefreshReport)[]) total[k] += r[k];

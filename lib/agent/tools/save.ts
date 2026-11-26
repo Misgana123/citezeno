@@ -59,7 +59,7 @@ export const savePaper = defineTool({
   done: () => ({ did: 'Saved a paper to your shelf' }),
   run: (ctx, { paperId, projectId }) =>
     orAlreadySaved(ctx, async () => {
-      const { item, pending } = await saveFoundPaper({ db: ctx.db, sources: ctx.sources() }, ctx.userId, { paperId, via: 'search', projectId: projectId ?? null });
+      const { item, pending } = await saveFoundPaper({ db: ctx.db, sources: ctx.sources(), maxItems: ctx.shelfConfig.maxItems }, ctx.userId, { paperId, via: 'search', projectId: projectId ?? null });
       return saved(ctx, item, pending ? { note: 'Saved; its details will be refreshed once the paper database is reachable.' } : {});
     }),
 });
@@ -72,7 +72,7 @@ export const addPaperManually = defineTool({
   step: 'change',
   label: (i) => `Adding “${i.details.title.slice(0, 60)}” by hand`,
   done: (i) => ({ did: 'Added a paper by hand', about: i.details.title.slice(0, 80) }),
-  run: (ctx, { details, projectId }) => orAlreadySaved(ctx, async () => saved(ctx, await saveManualPaper(ctx.db, ctx.userId, details, projectId ?? null), {}, 'Added')),
+  run: (ctx, { details, projectId }) => orAlreadySaved(ctx, async () => saved(ctx, await saveManualPaper(ctx.db, ctx.userId, details, projectId ?? null, 'manual', ctx.shelfConfig.maxItems), {}, 'Added')),
 });
 
 export const SAVE_TOOLS = [lookupPaperTool, savePaper, addPaperManually];

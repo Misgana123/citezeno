@@ -20,7 +20,7 @@ import { alreadySaved, shelve } from './shelve';
    - If the provider can't be reached, the details the browser already showed
      are kept for now and the record is refreshed later ("pending"). */
 
-export type SaveDeps = { db: Db; sources: PaperSources };
+export type SaveDeps = { db: Db; sources: PaperSources; maxItems?: number };
 export type SaveFoundInput = { paperId: string; via?: Exclude<AddedVia, 'manual'>; paper?: unknown; projectId?: string | null };
 export type SaveResult = { item: ShelfItem; pending: boolean };
 
@@ -53,6 +53,7 @@ export async function saveFoundPaper(deps: SaveDeps, userId: string, input: Save
     keys: { paperId: id, doi: record?.doi ?? fresh?.doi },
     via: input.via ?? 'search',
     projectId: input.projectId,
+    maxItems: deps.maxItems,
     paper: async (q) => record ?? (pending ? ensureShared(q, fresh!) : putShared(q, fresh!)),
   });
   return { item, pending };

@@ -6,7 +6,8 @@ import { BillingPanel } from '@/components/billing/BillingPanel';
 import { AppShell, PageHead } from '@/components/app/AppShell';
 import { Icon } from '@/components/Icon';
 import { auth, enabledProviders } from '@/lib/auth';
-import { wallet } from '@/lib/credits/server';
+import { billing, wallet } from '@/lib/credits/server';
+import { usageFor } from '@/lib/credits/usage';
 import { pool } from '@/lib/db';
 import { polarEnabled } from '@/lib/polar';
 import { requireSession } from '@/lib/session';
@@ -19,7 +20,8 @@ export default async function AccountPage() {
   const session = await requireSession('/app/account');
   const h = await headers();
 
-  const [accounts, sessions, stats, balance, ledger] = await Promise.all([
+  const plan = await billing().currentPlan(session.user.id);
+  const [accounts, sessions, stats, balance, ledger, usage] = await Promise.all([
     auth.api.listUserAccounts({ headers: h }).catch(() => []),
     auth.api.listSessions({ headers: h }).catch(() => []),
     pool
@@ -31,6 +33,7 @@ export default async function AccountPage() {
       .catch(() => ({ n: '0', sources: '0', last: null })),
     wallet().balance(session.user.id),
     wallet().history(session.user.id, 15),
+    usageFor(pool, session.user.id, plan?.plan ?? null),
   ]);
 
   const u = session.user;
@@ -60,7 +63,15 @@ export default async function AccountPage() {
           createdAt: new Date(s.createdAt).getTime(),
           expiresAt: new Date(s.expiresAt).getTime(),
         }))}
-        billing={<BillingPanel initial={balance} history={ledger} polar={polarEnabled} />}
+        billing={
+          <BillingPanel
+            initial={balance}
+            history={ledger}
+            polar={polarEnabled}
+            plan={plan ? { name: usage.planName, interval: plan.interval, periodEnd: plan.periodEnd, cancelAtPeriodEnd: plan.cancelAtPeriodEnd } : null}
+            usage={usage.rows}
+          />
+        }
         stats={{ traces: Number(stats.n) || 0, sources: Number(stats.sources) || 0, last: stats.last ? new Date(stats.last).getTime() : null }}
       />
     </AppShell>

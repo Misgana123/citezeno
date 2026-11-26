@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation';
 import { Icon } from '@/components/Icon';
 import { JsonLd } from '@/components/JsonLd';
 import { Footer, Nav } from '@/components/Nav';
-import { FREE_MONTHLY_CREDITS } from '@/lib/pricing';
 import { STYLE_GUIDES } from '@/lib/style-guides';
 import { SPECIMENS, STYLES, STYLE_GROUPS, specimen } from '@/lib/styles';
 import { breadcrumbLd, faqLd, howToLd, pageMeta } from '@/lib/seo';
@@ -52,7 +51,7 @@ export default async function StylePage({ params }: Props) {
     ...g.faq,
     [
       `Can Citezeno find real sources and format them in ${g.label}?`,
-      `Yes. Paste your draft, choose ${st.name}, and Citezeno searches OpenAlex, Crossref, Open Library and Wikipedia for published works behind each claim, then formats every reference in ${g.label}. You get ${FREE_MONTHLY_CREDITS} free credits a month.`,
+      `Yes. Paste your draft, choose ${st.name}, and Citezeno searches OpenAlex, Crossref, Open Library and Wikipedia for published works behind each claim, then formats every reference in ${g.label}. Plans start at $7 a month.`,
     ],
   ];
 

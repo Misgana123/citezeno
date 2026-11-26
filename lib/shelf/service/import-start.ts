@@ -4,6 +4,7 @@ import { ShelfError } from '../errors';
 import { parseReferenceFile } from '../import/parse';
 import { createImport } from '../store/imports';
 import { findOrCreateProject, ownsProject } from '../store/projects';
+import { assertShelfRoom } from './shelve';
 
 /* Read an uploaded reference file and queue its entries. */
 export async function startImport(db: Db, config: ShelfConfig, userId: string, f: { fileName: string; text: string; projectId?: string | null; newProject?: string | null }): Promise<string> {
@@ -16,6 +17,8 @@ export async function startImport(db: Db, config: ShelfConfig, userId: string, f
   if (!total) throw new ShelfError('invalid_file', 'No references were found in this file.');
   if (total > config.importMaxEntries) throw new ShelfError('too_large', `This file has ${total.toLocaleString('en-US')} references; imports are limited to ${config.importMaxEntries.toLocaleString('en-US')}. Split it into smaller files.`);
   return tx(db, async (q) => {
+    // the whole file must fit on the shelf (entries already there are skipped, so this is on the safe side)
+    await assertShelfRoom(q, userId, config.maxItems, parsed.entries.length);
     let projectId = f.projectId ?? null;
     if (f.newProject) projectId = (await findOrCreateProject(q, userId, f.newProject)).id;
     else if (projectId && !(await ownsProject(q, userId, projectId))) throw new ShelfError('not_found', 'That project no longer exists.');

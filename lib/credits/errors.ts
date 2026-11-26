@@ -6,6 +6,7 @@ import type { Balance } from '@/lib/pricing';
 export type CreditErrorCode =
   | 'insufficient_credits' // the hold doesn't fit in what's available
   | 'budget_reached' // the action has used all it may (an assistant reply's budget)
+  | 'limit_reached' // a plan limit: paid actions at once, or credits spent today
   | 'not_found'; // no such action for this user
 
 export class CreditError extends Error {
@@ -38,5 +39,6 @@ export const isCreditError = (e: unknown): e is CreditError => (e as Error | nul
 export const CREDIT_STATUS: Record<CreditErrorCode, number> = {
   insufficient_credits: 402,
   budget_reached: 402,
+  limit_reached: 429,
   not_found: 404,
 };

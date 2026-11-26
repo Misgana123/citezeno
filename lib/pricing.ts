@@ -18,10 +18,6 @@ export function creditsForCost(usd: number): number {
   return Math.max(1, Math.ceil(usd / USD_PER_CREDIT_COST - 1e-9));
 }
 
-/* TEMPORARY: the old free monthly allowance, still named by marketing copy
-   until the plan pages are rewritten. Nothing grants it any more. */
-export const FREE_MONTHLY_CREDITS = 30;
-
 export type LotSource = 'plan' | 'pack' | 'promo' | 'legacy' | 'adjust';
 
 /* One grant of credits as the user sees it: what's left (on hold included) and when it ends. */
@@ -38,6 +34,13 @@ export const REASONS: Record<string, string> = {
   promo: 'Credits from the team',
   legacy: 'Credits carried over',
   'legacy-free': 'Last free monthly credits',
+  'action-refund': 'Credits returned by support',
+  assistant: 'Assistant answer',
+  research: 'Deep research',
+  'reader.summary': 'Paper summary',
+  'reader.ask': 'Question about a paper',
+  'reader.explain': 'Explanation',
+  'reader.embed': 'Your PDF prepared for questions',
   adjust: 'Adjustment',
   expire: 'Credits expired',
   refund: 'Payment refunded',

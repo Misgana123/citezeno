@@ -46,7 +46,8 @@ export const POST = readerRoute<P>(async (ctx, { paperId }) => {
         emit({ type: 'error', message: 'Something went wrong. Please try again.', code: 'unavailable' });
       }
     } finally {
-      await m.finish(ok);
+      const bill = await m.finish(ok);
+      if (bill != null && ok) emit({ type: 'credits', charged: bill });
       open = false;
       await writer.close().catch(() => {});
     }

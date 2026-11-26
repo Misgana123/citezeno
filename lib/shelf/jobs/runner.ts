@@ -1,3 +1,4 @@
+import { PLAN_KEYS, PLANS } from '@/lib/plans';
 import type { FileStore } from '@/lib/providers/storage/types';
 import type { PaperSources } from '@/lib/providers/papers/sources';
 import type { Db } from '../db';
@@ -37,7 +38,9 @@ export const storageStep: RunnerStep = async (deps) => {
 
 export const refreshStep: RunnerStep = async (deps, deadline) => {
   const config = shelfConfig();
-  const r = await refreshPapers(deps.db, deps.sources(), { olderThanDays: config.refreshDays, batches: config.refreshBatches, deadline, now: deps.now });
+  // how often depends on the plans of the people who saved each paper
+  const byPlan = Object.fromEntries(PLAN_KEYS.map((k) => [k, PLANS[k].limits.shelfRefreshDays]));
+  const r = await refreshPapers(deps.db, deps.sources(), { olderThanDays: config.refreshDays, batches: config.refreshBatches, deadline, now: deps.now, byPlan });
   return { papersRefreshed: r.refreshed, newlyRetracted: r.newlyRetracted, retractionNotices: r.notices, papersMissing: r.missing };
 };
 

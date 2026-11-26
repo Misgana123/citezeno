@@ -37,7 +37,7 @@ export type ReplyCredits = {
 
 export function replyCredits(wallet: Wallet, o: { userId: string; kind: ReplyKind; model: ChatModel; limits: Limits; ttlMs: number; meta?: Record<string, unknown> }): ReplyCredits {
   const cap = (o.kind === 'research' ? o.limits.researchBudgetCap : o.limits.replyBudgetCap) ?? 0;
-  const meter = createMeter(wallet, { userId: o.userId, kind: o.kind, maxCredits: cap, ttlMs: o.ttlMs, meta: { model: o.model.id, ...o.meta } });
+  const meter = createMeter(wallet, { userId: o.userId, kind: o.kind, maxCredits: cap, ttlMs: o.ttlMs, meta: { model: o.model.id, ...o.meta }, guard: { concurrent: o.limits.concurrentActions, dailySpend: o.limits.dailySpendCap } });
   const keep = creditsForCost(finalUsd(o.model));
   const toolLimit = Math.max(1, cap - keep);
   return {

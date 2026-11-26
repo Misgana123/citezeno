@@ -76,7 +76,7 @@ export async function getAgentFile(q: Queryable, userId: string, id: string): Pr
 
 /* Store a made file and list it under the conversation. */
 export async function saveAgentFile(
-  deps: { db: Db; store: FileStore | null },
+  deps: { db: Db; store: FileStore | null; maxTotalBytes?: number },
   owner: { userId: string; conversationId: string },
   f: { name: string; mime: string; bytes: Uint8Array },
 ): Promise<AgentFileRef> {
@@ -85,6 +85,12 @@ export async function saveAgentFile(
   const { rows } = await deps.db.query<{ n: number }>(`select count(*)::int as n from agent_file where "conversationId" = $1`, [owner.conversationId]);
   if (Number(rows[0].n) >= AGENT_FILES_PER_CONVERSATION)
     throw new ShelfError('user_limit', `This chat already has ${AGENT_FILES_PER_CONVERSATION} files. Start a new chat to make more.`, { limit: AGENT_FILES_PER_CONVERSATION });
+  // the plan's space for made files, across every chat
+  if (deps.maxTotalBytes != null) {
+    const used = await deps.db.query<{ n: string }>(`select coalesce(sum("sizeBytes"), 0) as n from agent_file where "userId" = $1`, [owner.userId]);
+    if (Number(used.rows[0].n) + f.bytes.byteLength > deps.maxTotalBytes)
+      throw new ShelfError('storage_full', `The space for files the assistant makes is full (${mb(deps.maxTotalBytes)} on your plan). Delete chats with files you no longer need, or upgrade your plan.`, { limit: deps.maxTotalBytes });
+  }
 
   const id = `af_${randomUUID()}`;
   const name = agentFileName(f.name, f.mime);
@@ -128,7 +134,7 @@ export async function readShelfPdf(deps: { db: Db; store: FileStore | null }, us
 }
 
 /* The file service one reply's tools use. */
-export const agentFiles = (deps: { db: Db; store: FileStore | null }, owner: { userId: string; conversationId: string }): AgentFiles => ({
+export const agentFiles = (deps: { db: Db; store: FileStore | null; maxTotalBytes?: number }, owner: { userId: string; conversationId: string }): AgentFiles => ({
   save: (f) => saveAgentFile(deps, owner, f),
   read: (id) => readAgentFile(deps, owner.userId, id),
   readShelfPdf: (pdfId) => readShelfPdf(deps, owner.userId, pdfId),

@@ -21,9 +21,9 @@ export const GET = shelfRoute(async ({ req, db, userId }) => {
 export const POST = shelfRoute(async (ctx) => {
   const body = await ctx.body(saveBody);
   if (body.via === 'manual') {
-    const item = await saveManualPaper(ctx.db, ctx.userId, body.details, body.projectId);
+    const item = await saveManualPaper(ctx.db, ctx.userId, body.details, body.projectId, 'manual', ctx.config.maxItems);
     return json(await savedResponse(ctx.db, ctx.userId, item), 201);
   }
-  const { item, pending } = await saveFoundPaper({ db: ctx.db, sources: ctx.sources() }, ctx.userId, body);
+  const { item, pending } = await saveFoundPaper({ db: ctx.db, sources: ctx.sources(), maxItems: ctx.config.maxItems }, ctx.userId, body);
   return json(await savedResponse(ctx.db, ctx.userId, item, pending), 201);
 });

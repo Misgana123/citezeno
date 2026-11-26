@@ -4,7 +4,6 @@ import { Footer, Nav } from '@/components/Nav';
 import { JsonLd } from '@/components/JsonLd';
 import { InView } from '@/components/landing/InView';
 import { StyleWall } from '@/components/landing/StyleWall';
-import { FREE_MONTHLY_CREDITS } from '@/lib/pricing';
 import { STYLE_GUIDES } from '@/lib/style-guides';
 import { STYLES, STYLE_GROUPS } from '@/lib/styles';
 import { SITE, appLd, faqLd, organizationLd, pageMeta, websiteLd } from '@/lib/seo';
@@ -29,8 +28,8 @@ const FAQ: [string, string][] = [
     'Twelve: APA 7, MLA 9, Chicago 17 (notes and author–date), Turabian 9, Harvard, ASA 7, IEEE, Vancouver, AMA 11, ACS and CSE 9, as in-text citations, footnotes, endnotes, a bibliography or an annotated bibliography.',
   ],
   [
-    'Is Citezeno free?',
-    `Yes, to start. Every account gets ${FREE_MONTHLY_CREDITS} free credits each month, and one credit finds sources for one claim. You can buy more credits if you need them; they never expire.`,
+    'How much does Citezeno cost?',
+    'Plans start at $7 a month (20% less billed yearly). One credit finds sources for one claim, and the same credits pay for the research assistant and the paper reader. Checking existing citations, exports and share links never cost credits.',
   ],
   [
     'Can I download the result as a Word document?',
@@ -124,7 +123,7 @@ export default function Home() {
     <>
       <JsonLd data={organizationLd()} />
       <JsonLd data={websiteLd()} />
-      <JsonLd data={appLd({ freeCredits: FREE_MONTHLY_CREDITS })} />
+      <JsonLd data={appLd()} />
       <JsonLd data={faqLd(FAQ)} />
       <Nav onBlue />
       <main>
@@ -381,7 +380,7 @@ export default function Home() {
               <ul className="cta-drop-points">
                 <li><Icon name="check" /> Every reference links to a real record</li>
                 <li><Icon name="check" /> 12 styles, Word and PDF downloads</li>
-                <li><Icon name="check" /> {FREE_MONTHLY_CREDITS} free credits every month</li>
+                <li><Icon name="check" /> Plans from $7 a month</li>
               </ul>
             </div>
             <Link className="cta-drop" href="/app/citation">

@@ -27,7 +27,9 @@ export type AskEvent =
   | { type: 'saved'; itemId: string }
   | { type: 'text'; delta: string }
   | { type: 'done'; text: string; passageIds: string[]; notInPaper: boolean; basedOn: 'full_text' | 'abstract' }
-  | { type: 'error'; message: string; code: string };
+  | { type: 'error'; message: string; code: string }
+  /* what the answer cost, once it's settled */
+  | { type: 'credits'; charged: number };
 
 export const SUGGESTED_QUESTIONS = ['What question does this paper try to answer?', 'What sample or data did they use?', 'What are the main findings?', 'What are the main limitations?'];
 

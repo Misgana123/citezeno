@@ -5,7 +5,6 @@ import { logActivity } from './activity';
 import { twoFactor } from 'better-auth/plugins';
 import { pool } from './db';
 import { deleteEmail, emailEnabled, resetEmail, sendEmail, verifyEmail, welcomeEmail } from './email';
-import { FREE_MONTHLY_CREDITS } from './pricing';
 import { billing as plans } from './credits/server';
 import { isPackProduct, isPlanProduct, polarPlugin } from './polar';
 import { siteURL } from './site';
@@ -23,7 +22,7 @@ const billing = polarPlugin();
 /* Never let a failed welcome email break sign-up. */
 async function welcome(user: { email: string; name: string }) {
   try {
-    await sendEmail({ to: user.email, ...welcomeEmail(user.name, FREE_MONTHLY_CREDITS, `${siteURL}/app/citation`) });
+    await sendEmail({ to: user.email, ...welcomeEmail(user.name, `${siteURL}/app/citation`, `${siteURL}/pricing`) });
   } catch (e) {
     console.warn('[citezeno] welcome email failed', e);
   }

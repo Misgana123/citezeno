@@ -11,9 +11,9 @@ import { rateAnswer } from './api';
    voice, nothing is sent anywhere), thumbs up or down, try again (the latest
    answer only), and when it was written. */
 
-type Props = { chatId: string | null; text: string; seq?: number; at?: string; feedback?: Feedback; onRetry?: () => void };
+type Props = { chatId: string | null; text: string; seq?: number; at?: string; feedback?: Feedback; credits?: number; onRetry?: () => void };
 
-export function AnswerActions({ chatId, text, seq, at, feedback, onRetry }: Props) {
+export function AnswerActions({ chatId, text, seq, at, feedback, credits, onRetry }: Props) {
   const [rating, setRating] = useState<Feedback | null>(feedback ?? null);
   const [speaking, setSpeaking] = useState(false);
   const [, tick] = useState(0);
@@ -88,6 +88,11 @@ export function AnswerActions({ chatId, text, seq, at, feedback, onRetry }: Prop
         <button type="button" className="ch-act" onClick={onRetry} aria-label="Try again" title="Try again">
           <Icon name="retry" />
         </button>
+      )}
+      {credits != null && (
+        <span className="ch-act-time" title="What this answer cost, with every search and step it took">
+          {credits === 0 ? 'No credits' : `${credits} credit${credits === 1 ? '' : 's'}`}
+        </span>
       )}
       {at && (
         <time className="ch-act-time" dateTime={at} title={new Date(at).toLocaleString()}>

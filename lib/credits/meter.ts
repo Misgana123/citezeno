@@ -1,6 +1,6 @@
 import { creditsForCost } from '@/lib/pricing';
 import type { ChatModel } from '@/lib/providers/chat/types';
-import type { Wallet } from './wallet';
+import type { Guard, Wallet } from './wallet';
 
 /* One paid action as the features see it: hold → record → settle.
 
@@ -45,6 +45,8 @@ export type MeterOptions = {
   headroom?: number;
   /* the most this action may be charged (an assistant reply's budget cap) */
   maxCredits?: number;
+  /* the plan's limits on actions at once and credits a day (looked up when the first hold is placed) */
+  guard?: Guard | (() => Promise<Guard>);
 };
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
@@ -63,6 +65,8 @@ export function createMeter(wallet: Wallet, o: MeterOptions): Meter {
   let settled = false;
   let adopted = false;
   let chain: Promise<unknown> = Promise.resolve();
+  let guard: Guard | undefined;
+  const getGuard = async () => (guard ??= typeof o.guard === 'function' ? await o.guard() : o.guard);
   // one wallet change at a time, in order (parallel tool calls share the meter)
   const serial = <T>(fn: () => Promise<T>): Promise<T> => {
     const run = chain.then(fn, fn);
@@ -91,13 +95,13 @@ export function createMeter(wallet: Wallet, o: MeterOptions): Meter {
       throw new BudgetReached(o.maxCredits ?? cap);
     }
     if (!actionId) {
-      const h = await wallet.hold({ userId: o.userId, kind: o.kind, amount: need, ttlMs: o.ttlMs ?? DEFAULT_TTL_MS, meta: o.meta, actionId: o.actionId });
+      const h = await wallet.hold({ userId: o.userId, kind: o.kind, amount: need, ttlMs: o.ttlMs ?? DEFAULT_TTL_MS, meta: o.meta, actionId: o.actionId, guard: await getGuard() });
       actionId = h.actionId;
       held = h.held;
       return;
     }
     if (need > held) {
-      const ok = await wallet.extend(o.userId, actionId, need - held, o.ttlMs ?? DEFAULT_TTL_MS);
+      const ok = await wallet.extend(o.userId, actionId, need - held, o.ttlMs ?? DEFAULT_TTL_MS, await getGuard());
       if (!ok) {
         const { InsufficientCredits } = await import('./errors');
         throw new InsufficientCredits(await wallet.balance(o.userId), need - held);
@@ -117,7 +121,7 @@ export function createMeter(wallet: Wallet, o: MeterOptions): Meter {
         await adopt();
         if (actionId || settled) return held;
         const want = Math.max(1, Math.min(Math.ceil(credits), o.maxCredits ?? Infinity));
-        const h = await wallet.hold({ userId: o.userId, kind: o.kind, amount: want, min: Math.min(want, Math.max(1, Math.ceil(min ?? want))), ttlMs: o.ttlMs ?? DEFAULT_TTL_MS, meta: o.meta, actionId: o.actionId });
+        const h = await wallet.hold({ userId: o.userId, kind: o.kind, amount: want, min: Math.min(want, Math.max(1, Math.ceil(min ?? want))), ttlMs: o.ttlMs ?? DEFAULT_TTL_MS, meta: o.meta, actionId: o.actionId, guard: await getGuard() });
         actionId = h.actionId;
         held = h.held;
         return held;

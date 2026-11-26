@@ -22,6 +22,8 @@ export type ShelfConfig = {
   importMaxEntries: number;
   refreshDays: number;
   refreshBatches: number;
+  /* Most papers one user's shelf may hold (set per plan; see lib/credits/limits.ts). */
+  maxItems: number;
 };
 
 const MB = 1024 * 1024;
@@ -40,5 +42,6 @@ export function shelfConfig(env: Env = process.env): ShelfConfig {
     importMaxEntries: Math.floor(positive(env.SHELF_IMPORT_MAX_ENTRIES, 10_000)),
     refreshDays: positive(env.SHELF_REFRESH_DAYS, 7),
     refreshBatches: Math.floor(positive(env.SHELF_REFRESH_BATCHES, 2)),
+    maxItems: 1_000_000,
   };
 }

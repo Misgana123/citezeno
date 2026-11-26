@@ -1,7 +1,7 @@
 import { CREDITS_PER_CLAIM } from '@/lib/pricing';
 import type { Db } from '@/lib/shelf/db';
 import { CreditError } from './errors';
-import type { Wallet } from './wallet';
+import type { Guard, Wallet } from './wallet';
 
 /* Studio traces and "Cite this claim": a fixed product price of one credit per
    claim, charged hold → settle. The search runs in the browser, so the server
@@ -15,8 +15,8 @@ export type ClaimKind = 'trace' | 'cite';
 export const CLAIM_HOLD_MS = 15 * 60 * 1000;
 export const SHORT_SETTLES_PER_DAY = 10;
 
-export function holdClaims(wallet: Wallet, userId: string, claims: number, kind: ClaimKind) {
-  return wallet.hold({ userId, kind, amount: claims * CREDITS_PER_CLAIM, ttlMs: CLAIM_HOLD_MS, onTimeout: 'full', meta: { claims } });
+export function holdClaims(wallet: Wallet, userId: string, claims: number, kind: ClaimKind, guard?: Guard) {
+  return wallet.hold({ userId, kind, amount: claims * CREDITS_PER_CLAIM, ttlMs: CLAIM_HOLD_MS, onTimeout: 'full', meta: { claims }, guard });
 }
 
 export async function settleClaims(db: Db, wallet: Wallet, userId: string, actionId: string, searched: number) {

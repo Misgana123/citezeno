@@ -25,6 +25,8 @@ export type ReaderDeps = {
   /* The one-time charge for embedding a user's own upload (made once per text,
      resumed across job runs). Absent → embedding is free (the owner's cost). */
   embedMeter?: (t: { userId: string; textId: string; paperId: string }) => Meter;
+  /* Whether the user's plan has room for embedding another upload this month. Absent → always. */
+  embedAllowed?: (userId: string, textId: string) => Promise<boolean>;
   /* Largest PDF the reader opens or processes, in bytes. */
   maxPdfBytes: number;
   now?: () => number;

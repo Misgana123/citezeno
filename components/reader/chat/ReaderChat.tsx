@@ -18,7 +18,7 @@ import type { PassageRef } from '../ai/usePassages';
      from the paper is labeled as coming from outside it. */
 
 export type Scope = 'paper' | 'assistant';
-type Msg = { id: string; role: 'user' | 'assistant'; text: string; meta: MessageMeta | null; streaming?: boolean; steps?: string[]; error?: boolean };
+type Msg = { id: string; role: 'user' | 'assistant'; text: string; meta: MessageMeta | null; streaming?: boolean; steps?: string[]; error?: boolean; credits?: number };
 
 export type ChatRequest = { kind: 'ask' | 'explain'; quote: string; page: number; key: number };
 
@@ -111,13 +111,14 @@ export function ReaderChat({
           readerUrl(paperId, `/ask${q}`),
           { ...body, chatId },
           (raw) => {
-            const e = raw as unknown as { type: string; chatId?: string; itemId?: string; delta?: string; text?: string; passageIds?: string[]; basedOn?: 'full_text' | 'abstract'; message?: string };
+            const e = raw as unknown as { type: string; chatId?: string; itemId?: string; delta?: string; text?: string; passageIds?: string[]; basedOn?: 'full_text' | 'abstract'; message?: string; charged?: number };
             if (e.type === 'chat' && e.chatId) {
               if (!chatId) void refreshChats();
               setChatId(e.chatId);
             } else if (e.type === 'saved' && e.itemId) onAutoSaved(e.itemId);
             else if (e.type === 'text') patchLast((m) => ({ ...m, text: m.text + (e.delta ?? '') }));
             else if (e.type === 'done') patchLast((m) => ({ ...m, text: e.text ?? m.text, streaming: false, meta: { scope: 'paper', kind: body.kind, passageIds: e.passageIds ?? [], basedOn: e.basedOn } }));
+            else if (e.type === 'credits' && e.charged != null) patchLast((m) => ({ ...m, credits: e.charged }));
             else if (e.type === 'error') patchLast((m) => ({ ...m, text: e.message ?? 'Something went wrong.', streaming: false, error: true }));
           },
           ctl.signal,
@@ -294,6 +295,7 @@ function Message({ m, passages, onCite, onSaveNote }: { m: Msg; passages: Map<st
           <>
             <Icon name="doc" /> {m.meta?.kind === 'explain' ? 'Explained from this paper' : 'From this paper'}
             {m.meta?.basedOn === 'abstract' && <em> · based on the abstract only</em>}
+            {m.credits != null && <em> · {m.credits === 0 ? 'no credits' : `${m.credits} credit${m.credits === 1 ? '' : 's'}`}</em>}
           </>
         )}
       </span>

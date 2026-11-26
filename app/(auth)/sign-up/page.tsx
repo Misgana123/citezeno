@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { SignUpForm } from '@/components/auth/SignUpForm';
 import { enabledProviders } from '@/lib/auth';
-import { FREE_MONTHLY_CREDITS } from '@/lib/pricing';
 import { safeNext } from '@/lib/safe-next';
 import { getSession } from '@/lib/session';
 import { pageMeta } from '@/lib/seo';
@@ -21,7 +20,7 @@ export default async function SignUpPage({ searchParams }: Props) {
   return (
     <div className="auth-card">
       <h1>Create your account</h1>
-      <p className="sub">{`Free to start, with ${FREE_MONTHLY_CREDITS} credits every month. Answers come only from real papers.`}</p>
+      <p className="sub">Answers come only from real papers. Choose a plan when you’re ready to trace.</p>
       <SignUpForm providers={enabledProviders} next={next} />
     </div>
   );

@@ -11,6 +11,26 @@ import { CreditError, InsufficientCredits } from './errors';
    soonest; lots that never expire go last. */
 
 export type Clock = () => Date;
+
+/* Plan limits a hold must respect: paid actions running at once, and credits
+   spent (charged, plus on hold) since midnight UTC. Background work (embedding
+   uploads) doesn't count toward actions at once. */
+export type Guard = { concurrent: number; dailySpend: number };
+const BACKGROUND = ['reader.embed'];
+
+async function checkGuard(q: Queryable, userId: string, g: Guard | undefined, adding: number, now: Date, newAction: boolean) {
+  if (!g) return;
+  const { rows } = await q.query<{ running: number; today: number }>(
+    `select count(*) filter (where status = 'held' and "expiresAt" > $2 and not (kind = any($3)))::int as running,
+            coalesce(sum(case when status = 'held' then held else charged end) filter (where "createdAt" >= date_trunc('day', $2::timestamptz at time zone 'utc') at time zone 'utc'), 0)::int as today
+     from credit_action where "userId" = $1 and ("createdAt" >= date_trunc('day', $2::timestamptz at time zone 'utc') at time zone 'utc' or status = 'held')`,
+    [userId, now, BACKGROUND],
+  );
+  if (newAction && rows[0].running >= g.concurrent)
+    throw new CreditError('limit_reached', `You already have ${g.concurrent} paid action${g.concurrent === 1 ? '' : 's'} running, the most your plan allows at once. Wait for one to finish, or upgrade your plan.`);
+  if (rows[0].today + adding > g.dailySpend)
+    throw new CreditError('limit_reached', `This would pass today’s limit of ${g.dailySpend.toLocaleString('en-US')} credits on your plan. It resets at midnight UTC.`);
+}
 const realClock: Clock = () => new Date();
 
 type LotRow = { id: string; source: LotSource; amount?: number; remaining: number; held: number; expiresAt: Date | null };
@@ -212,7 +232,7 @@ export function createWallet(db: Db, clock: Clock = realClock) {
     /* Put credits on hold for an action. With `min`, a smaller hold (down to
        min) is placed when the full amount doesn't fit. The same actionId
        twice returns the first hold. Throws InsufficientCredits. */
-    hold: (h: { userId: string; kind: string; amount: number; min?: number; actionId?: string; ttlMs: number; onTimeout?: 'full' | 'metered'; meta?: Record<string, unknown> }) =>
+    hold: (h: { userId: string; kind: string; amount: number; min?: number; actionId?: string; ttlMs: number; onTimeout?: 'full' | 'metered'; meta?: Record<string, unknown>; guard?: Guard }) =>
       inUser(h.userId, async (q, now) => {
         const id = h.actionId ?? randomUUID();
         const seen = await q.query<{ held: number; status: string }>(`select held, status from credit_action where id = $1 and "userId" = $2`, [id, h.userId]);
@@ -221,6 +241,7 @@ export function createWallet(db: Db, clock: Clock = realClock) {
         const floor = Math.max(1, Math.min(want, Math.ceil(h.min ?? want)));
         const before = await readBalance(q, h.userId, now);
         if (before.total < floor) throw new InsufficientCredits(before, want);
+        await checkGuard(q, h.userId, h.guard, floor, now, !BACKGROUND.includes(h.kind));
         await q.query(`insert into credit_action (id, "userId", kind, "onTimeout", meta, "createdAt", "expiresAt") values ($1, $2, $3, $4, $5, $6, $7)`, [
           id, h.userId, h.kind, h.onTimeout ?? 'metered', JSON.stringify(h.meta ?? {}), now, new Date(now.getTime() + h.ttlMs),
         ]);
@@ -228,14 +249,36 @@ export function createWallet(db: Db, clock: Clock = realClock) {
         return { actionId: id, held, balance: await readBalance(q, h.userId, now) };
       }),
 
+    /* Give back what a settled action was charged (support's refund), as a lot
+       that lasts `days`. Once per action; returns the credits given back. */
+    refundAction: (actionId: string, by: string, days = 90) =>
+      tx(db, async (q) => {
+        const { rows } = await q.query<{ userId: string; charged: number; status: string; kind: string }>(`select "userId", charged, status, kind from credit_action where id = $1`, [actionId]);
+        const a = rows[0];
+        if (!a) throw new CreditError('not_found', 'That action was not found.');
+        if (a.status !== 'settled' || a.charged <= 0) return 0;
+        await lockUser(q, a.userId);
+        const now = clock();
+        const ins = await q.query<{ id: string }>(
+          `insert into credit_lot ("userId", source, amount, remaining, "expiresAt", ref, meta, "createdAt") values ($1, 'adjust', $2, $2, $3, $4, $5, $6) on conflict (ref) do nothing returning id::text`,
+          [a.userId, a.charged, new Date(now.getTime() + days * 86_400_000), `refund-action:${actionId}`, JSON.stringify({ actionId, by }), now],
+        );
+        if (!ins.rows[0]) return 0;
+        await q.query(`insert into credit_entry ("userId", "createdAt", delta, kind, "lotId", "actionId", reason, ref, meta) values ($1, $2, $3, 'adjust', $4, $5, 'action-refund', $6, $7)`, [
+          a.userId, now, a.charged, ins.rows[0].id, actionId, `grant:refund-action:${actionId}`, JSON.stringify({ kind: a.kind, by }),
+        ]);
+        return a.charged;
+      }),
+
     /* Add to a running action's hold. Returns false (and holds nothing) when it doesn't fit. */
-    extend: (userId: string, actionId: string, more: number, ttlMs?: number) =>
+    extend: (userId: string, actionId: string, more: number, ttlMs?: number, guard?: Guard) =>
       inUser(userId, async (q, now) => {
         const a = await action(q, actionId, userId);
         if (a.status !== 'held') return false;
         const n = Math.ceil(more);
         if (n <= 0) return true;
         if ((await readBalance(q, userId, now)).total < n) return false;
+        await checkGuard(q, userId, guard, n, now, false);
         await allocate(q, userId, actionId, n, now);
         if (ttlMs) await q.query(`update credit_action set "expiresAt" = $2 where id = $1`, [actionId, new Date(now.getTime() + ttlMs)]);
         return true;

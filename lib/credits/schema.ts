@@ -114,6 +114,13 @@ create table if not exists credit_plan (
   "updatedAt"         timestamptz not null default now()
 );
 create index if not exists credit_plan_slices on credit_plan ("nextSliceAt") where "nextSliceAt" is not null;
+
+-- The daily credit checks, run once per UTC day (their findings, for the admin page).
+create table if not exists credit_check (
+  day         text        primary key,
+  "createdAt" timestamptz not null default now(),
+  findings    jsonb       not null default '{}'::jsonb
+);
 `;
 
 /* Carry balances over from the old two-number wallet (credit_balance): bought
@@ -147,3 +154,4 @@ begin
     on conflict (ref) do nothing;
 end $$;
 `;
+

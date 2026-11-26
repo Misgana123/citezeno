@@ -1,5 +1,6 @@
 import 'server-only';
 import { auth } from '@/lib/auth';
+import { papersConfigFor, planLimits } from '@/lib/credits/limits';
 import { allow } from '@/lib/ratelimit';
 import type { PapersConfig } from './config';
 import { PapersError } from './errors';
@@ -43,7 +44,8 @@ export function papersRoute<P = Record<string, never>>(handler: (ctx: PapersCont
         throw new PapersError('busy', 'Too many requests from this user.', { reason: 'user_rate', retryAfterS: 30 });
       }
       const server = papersServer();
-      const { config } = server;
+      // the plan's daily searches in place of the default
+      const config = papersConfigFor(server.config, await planLimits(s.user.id));
       const sources = server.sources(meter);
       const query = new URL(req.url).searchParams;
       return await handler(

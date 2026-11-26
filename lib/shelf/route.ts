@@ -1,6 +1,7 @@
 import 'server-only';
 import type { z } from 'zod';
 import { auth } from '@/lib/auth';
+import { planLimits, shelfConfigFor } from '@/lib/credits/limits';
 import { pool } from '@/lib/db';
 import { sameOrigin } from '@/lib/http';
 import { PapersError } from '@/lib/papers/errors';
@@ -47,16 +48,18 @@ export function shelfRoute<P = Record<string, never>>(handler: (ctx: ShelfContex
       if (!(await allow(`shelf:${s.user.id}`, 60, PER_MINUTE))) {
         throw new PapersError('busy', 'Too many requests from this user.', { reason: 'user_rate', retryAfterS: 30 });
       }
+      // the plan's limits (PDF size, storage, uploads, shelf size, searches) in place of the defaults
+      const limits = await planLimits(s.user.id);
       return await handler(
         {
           req,
           userId: s.user.id,
           db: pool,
-          config: shelfConfig(),
+          config: shelfConfigFor(shelfConfig(), limits),
           sources: () => (sources ??= papersServer().sources(meter)),
           reserveSearches: async (n) => {
             const server = papersServer();
-            reservation = await reserveSearches(server.usage, s.user.id, n, server.config.dailySearchesPerUser);
+            reservation = await reserveSearches(server.usage, s.user.id, n, limits.searchesPerDay);
           },
           body: async (schema) => {
             const raw = await req.json().catch(() => {

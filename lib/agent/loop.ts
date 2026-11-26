@@ -67,11 +67,28 @@ export function numberPapers(output: ToolOutput, refs: Map<string, number>): Too
    tool call is never separated from its result. */
 export const HISTORY_MAX = 60;
 
-export function trimHistory(messages: ChatMessage[], max = HISTORY_MAX): ChatMessage[] {
-  if (messages.length <= max) return messages;
-  let start = messages.length - max;
+export function trimHistory(messages: ChatMessage[], max = HISTORY_MAX, maxTokens?: number): ChatMessage[] {
+  let start = Math.max(0, messages.length - max);
+  // the plan's chat context: older messages go first (about 4 characters a token)
+  if (maxTokens != null) {
+    let tokens = 0;
+    for (let i = messages.length - 1; i >= start; i--) {
+      tokens += Math.ceil(JSON.stringify(messages[i]).length / 4);
+      if (tokens > maxTokens) {
+        start = i + 1;
+        break;
+      }
+    }
+  }
+  if (start === 0) return messages;
   while (start < messages.length && messages[start].role !== 'user') start++;
-  return start < messages.length ? messages.slice(start) : messages.slice(-1);
+  // always keep the latest user message and what followed it, even when that alone is over the limit
+  if (start >= messages.length) {
+    let last = messages.length - 1;
+    while (last > 0 && messages[last].role !== 'user') last--;
+    return messages.slice(last);
+  }
+  return messages.slice(start);
 }
 
 /* Images are sent again with every call, so only the latest few messages'
@@ -164,7 +181,7 @@ async function think(d: LoopDeps, history: ChatMessage[], turns: number): Promis
       res = await d.chat.complete({
         model: d.model,
         system: systemPrompt() + (d.extraSystem ?? '') + (d.naming ? TITLE_ASK : ''),
-        messages: dropOldImages(trimHistory(history)),
+        messages: dropOldImages(trimHistory(history, HISTORY_MAX, d.ctx.limits?.chatContextTokens)),
         tools,
         maxOutputTokens: d.maxOutputTokens ?? 2048,
       });

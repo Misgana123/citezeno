@@ -28,23 +28,23 @@ Without `RESEND_API_KEY`, emails (confirmation, password reset, contact messages
 
 Create an API key at [resend.com](https://resend.com) and verify your sending domain there. Until a domain is verified, Resend only delivers mail from `onboarding@resend.dev` to your own Resend account address. Set `EMAIL_FROM` to an address on the verified domain.
 
-### Credits and billing (Polar)
+### Plans, credits and billing (Polar)
 
-The studio needs an account, and searching costs **1 credit per claim**: every claim in a full trace, or the one passage in “Cite this claim”. The Trace button shows the cost first. Every account gets `NEXT_PUBLIC_FREE_MONTHLY_CREDITS` free credits (default 30) on the 1st of each month (UTC). Free credits don't roll over and are spent first; purchased credits never expire. If a trace is stopped or fails, its credits are returned (up to 10 times a day).
+There is no free plan. Three plans, **Starter** ($7), **Scholar** ($19) and **Lab** ($39), billed monthly or annually (20% less), plus one-off top-ups for plan members. One credit is worth $0.01 on every plan. The full design is in `docs/creditsystem.md`; the code is in `lib/credits/` and `lib/plans.ts`.
 
-Polar handles the payments. Citezeno keeps the balance in its own database (`credit_balance`, `credit_ledger`).
+- **What uses credits.** 1 per claim in the studio; the research assistant, deep research, the reader's AI and preparing your own PDFs cost what they really cost (real provider cost ÷ $0.003, rounded up, at least 1). Exports, styles, citation checks, share links and reading are free.
+- **Hold, then settle.** Every paid action sets credits aside first, records each step's real cost (through the provider gateway), then charges what it used and releases the rest. A failure that gave nothing costs nothing.
+- **Credits expire.** Each grant is a lot with an end date: plan credits end with the month, top-ups after 12 months. The soonest to end are spent first. The credits cron (`/api/credits/cron`, every 5 minutes) settles abandoned holds, expires lots, adds annual plans' monthly credits, warns a week before top-ups end and runs the owner's daily checks.
+- **Plan limits** (storage, shelf size, saved traces, searches a day, models, deep research…) are in `lib/plans.ts`.
 
-There are two paid plans, **Scholar** and **Lab**, each billed monthly or annually; the pricing page shows them with a Monthly / Annually switch and the annual saving (`components/billing/PlanPicker.tsx`, `lib/plans.ts`).
+To set up Polar:
 
-1. In Polar ([sandbox.polar.sh](https://sandbox.polar.sh) for testing), create four subscription products: Scholar monthly ($7), Scholar yearly ($67.20), Lab monthly ($19) and Lab yearly ($182.40). Prices are read from Polar, so change them there.
-2. Paste their IDs into `POLAR_SCHOLAR_MONTHLY_PRODUCT_ID`, `POLAR_SCHOLAR_ANNUAL_PRODUCT_ID`, `POLAR_LAB_MONTHLY_PRODUCT_ID` and `POLAR_LAB_ANNUAL_PRODUCT_ID`. Leave one empty to hide that option.
-3. Set the credits each payment adds: `SCHOLAR_MONTHLY_CREDITS` (200), `SCHOLAR_ANNUAL_CREDITS` (2400), `LAB_MONTHLY_CREDITS` (1000), `LAB_ANNUAL_CREDITS` (12000). Annual plans add the whole year's credits when the payment arrives. No product metadata is needed for the plans.
-4. Create an Organization Access Token and set `POLAR_ACCESS_TOKEN` and `POLAR_SERVER` (`sandbox` or `production`).
-5. Add a webhook pointing to `{BETTER_AUTH_URL}/api/auth/polar/webhooks` for the `order.paid` and `order.refunded` events, then set `POLAR_WEBHOOK_SECRET`.
+1. In Polar ([sandbox.polar.sh](https://sandbox.polar.sh) for testing), create six subscription products (Starter, Scholar and Lab, each monthly and yearly) and three one-time top-ups ($5, $10, $25). Prices are read from Polar.
+2. Paste their IDs into the `POLAR_*_PRODUCT_ID` variables in `.env.example`. Credit amounts can be changed there too.
+3. Create an Organization Access Token and set `POLAR_ACCESS_TOKEN` and `POLAR_SERVER` (`sandbox` or `production`).
+4. Add a webhook to `{BETTER_AUTH_URL}/api/auth/polar/webhooks` with the order and subscription events listed in `.env.example`, then set `POLAR_WEBHOOK_SECRET`.
 
-Any other active Polar product with a `credits` value in its metadata (e.g. a one-time top-up) still appears as its own card and adds that many credits.
-
-Credits are added when `order.paid` arrives (repeat deliveries are ignored), and refunds take back the matching share. Without `POLAR_ACCESS_TOKEN`, billing is off: the free allowance still applies and the pricing page shows no buy buttons.
+Without `POLAR_ACCESS_TOKEN`, billing is off and the pricing page shows the plans as "coming soon".
 
 ### Google and GitHub sign-in (optional)
 
@@ -62,8 +62,8 @@ Each button appears only when its keys are set. Register these callback URLs wit
 | `/styles` | Gallery of all 12 citation styles for an article, a book and a web page |
 | `/sign-in`, `/sign-up` | Email and password accounts, plus Google and GitHub when configured |
 | `/forgot-password`, `/reset-password`, `/verify-email` | Password reset and email confirmation |
-| `/account` | Credits and billing history, Polar receipts portal, profile, sign-in methods, change password, signed-in devices, delete account |
-| `/pricing` | Credit packs loaded live from Polar, plus the free tier |
+| `/account` | Plan, credits by end date, plan limits used, billing history, Polar receipts portal, profile, sign-in methods, change password, signed-in devices, delete account |
+| `/pricing` | Starter, Scholar and Lab plans and top-ups, priced live from Polar |
 | `/billing/success` | Shown after checkout while the credits arrive |
 | `/library` | Every saved trace: search, filter, sort, rename, share, delete, reopen in the studio |
 | `/papers` | Find Papers: search OpenAlex by keywords or meaning, preview papers and their references |
