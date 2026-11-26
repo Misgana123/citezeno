@@ -9,6 +9,8 @@ import { runReaderJobs } from '@/lib/reader/jobs/runner';
 import { isReusableLicense } from '@/lib/reader/license';
 import { openPaper } from '@/lib/reader/service/open';
 import { processNext } from '@/lib/reader/service/process';
+import { createMeter } from '@/lib/credits/meter';
+import { createWallet } from '@/lib/credits/wallet';
 import { readableText } from '@/lib/reader/service/text';
 import { checkFileLink, signFileLink } from '@/lib/reader/sign';
 import { listPassages } from '@/lib/reader/store/passages';
@@ -217,6 +219,37 @@ describe.skipIf(!TEST_DB_URL)('opening and processing papers (Postgres)', { time
     await db.pool.query(`delete from shelf_pdf where id = $1`, [pdf.id]);
     expect((await db.pool.query(`select count(*)::int n from reader_passage where "textId" = $1`, [uploadText.id])).rows[0].n).toBe(0);
   });
+
+  it('charges a user once for embedding their own upload, and uses keywords while they have no credits', async () => {
+    const wallet = createWallet(db.pool);
+    const payer = await db.addUser();
+    const charged = { ...deps, embedMeter: (t: { userId: string; textId: string; paperId: string }) => createMeter(wallet, { userId: t.userId, kind: 'reader.embed', actionId: `embed:${t.textId}` }) };
+    works.W9 = work('W9');
+    const shared = await putShared(db.pool, paper('openalex:W9', {}));
+    const { item } = await addItem(db.pool, payer, shared.id, 'search');
+    const pdf = await createPending(db.pool, payer, { fileName: 'own.pdf', sizeBytes: PAPER_PDF.byteLength, itemId: item.id });
+    await markReady(db.pool, payer, pdf.id, { sizeBytes: PAPER_PDF.byteLength, pageCount: 2, textStatus: 'done', text: null, found: { doi: null, title: null } });
+    store.put(pdf.storageKey, PAPER_PDF);
+
+    // no credits: the text is ready for keyword search, without vectors
+    let r = await openPaper(charged, payer, 'openalex:W9');
+    expect(await processNext(charged, { id: r.needsWork!, deadline: later() })).toBe('partial');
+    r = await openPaper(charged, payer, 'openalex:W9');
+    expect(r.view.text).toMatchObject({ status: 'ready', search: 'keywords' });
+
+    // with credits, opening it again embeds it, for one credit
+    await wallet.grant({ userId: payer, source: 'plan', amount: 5, expiresAt: new Date(Date.now() + 86_400_000), ref: `embed-test:${payer}` });
+    r = await openPaper(charged, payer, 'openalex:W9');
+    expect(r.needsWork).toBeTruthy();
+    expect(await processNext(charged, { id: r.needsWork!, deadline: later() })).toBe('embedded');
+    expect((await wallet.balance(payer)).total).toBe(4);
+
+    // embedding it again (after the owner changes the model) is the owner's cost
+    const own = (await readableText(charged, payer, 'openalex:W9')).text!;
+    await db.pool.query(`update reader_text set stage = 'embed', "embeddingModel" = null where id = $1`, [own.id]);
+    expect(await processNext(charged, { id: own.id, deadline: later() })).toBe('embedded');
+    expect((await wallet.balance(payer)).total).toBe(4);
+  }, 120_000);
 
   it('remembers where the user stopped and when they opened it', async () => {
     const r = await db.pool.query(`select "paperId", title from reader_position where "userId" = $1 order by "updatedAt" desc limit 1`, [user]);

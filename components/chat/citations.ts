@@ -5,12 +5,12 @@ import { traceClaim } from '@/lib/engine';
 import { plain, STYLES } from '@/lib/styles';
 import { analyse, topicTokens } from '@/lib/text';
 import { DEFAULT_PREFS, type ApiSettings, type Name, type Prefs, type Source } from '@/lib/types';
-import { OutOfCredits, refundCredits, spendCredits } from '../useCredits';
+import { holdCredits, OutOfCredits, settleCredits } from '../useCredits';
 
 /* The assistant's find_citations step, run here in the browser with the
    Studio's own citation search (unchanged): the user's Studio settings (which
    databases, years, how strict, their API settings), 1 credit per search as
-   "Cite selection" charges, refunded when nothing is found. */
+   "Cite selection" charges, released when nothing is found. */
 
 export type ClientRun = { ok: true; sources: CitedSource[]; note?: string } | { ok: false; error: string };
 
@@ -69,10 +69,10 @@ export async function runFindCitations(input: { text?: unknown; count?: unknown;
   const n = Math.min(5, Math.max(1, Math.floor(Number(input.count) || 3)));
   const style = typeof input.style === 'string' && STYLES[input.style.toLowerCase()] ? input.style.toLowerCase() : prefs.style;
 
-  let spendId: string | null = null;
+  let actionId: string | null = null;
   let kept = false;
   try {
-    spendId = await spendCredits(1, 'cite');
+    actionId = await holdCredits(1, 'cite');
     const found = await traceClaim(text, prefs, settings, n, new Set(), topicTokens(analyse(text)));
     const sources = found.ids.map((id) => found.db.get(id)).filter((s): s is Source => !!s).map((s) => toCited(s, style));
     if (!sources.length) return { ok: true, sources: [], note: 'No matching source was found (no credit was charged). A longer or more specific claim may work better.' };
@@ -82,7 +82,7 @@ export async function runFindCitations(input: { text?: unknown; count?: unknown;
     if (e instanceof OutOfCredits) return { ok: false, error: `The user is out of credits: finding sources needs 1 credit and they have ${e.have}.` };
     return { ok: false, error: (e as Error).message || 'The citation search failed.' };
   } finally {
-    if (spendId && !kept) refundCredits(spendId);
+    if (actionId) settleCredits(actionId, kept ? 1 : 0);
   }
 }
 

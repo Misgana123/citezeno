@@ -1,9 +1,12 @@
 import 'server-only';
 import { auth } from '@/lib/auth';
+import { InsufficientCredits } from '@/lib/credits/errors';
+import { billing, wallet } from '@/lib/credits/server';
 import { pool } from '@/lib/db';
 import { json, sameOrigin } from '@/lib/http';
 import { papersServer } from '@/lib/papers/server';
-import { newMeter } from '@/lib/providers/gateway/meter';
+import { NO_PLAN } from '@/lib/plans';
+import { newMeter, type CallCredits } from '@/lib/providers/gateway/meter';
 import type { Attachment } from '@/lib/providers/chat/types';
 import { chatModelsFor, codeSandboxFor, fileStorage, pdfTextReader, webFiles, webSearchFor } from '@/lib/providers/server';
 import { allow } from '@/lib/ratelimit';
@@ -12,10 +15,11 @@ import type { AgentContext } from './context';
 import { agentFiles } from './files';
 import { readingContext, webContext } from './prompt';
 import { research, RESEARCH_MS } from './research';
+import { replyCredits, type ReplyCredits, type ReplyKind } from './credits';
 import { codeRunner } from './sandbox';
 import { searchReservations } from './limits';
 import { answer, repairHistory, resume, resumeWithClientResult, retry, type ClientOutcome, type LoopDeps } from './loop';
-import { claimRun, createConversation, dropAfterLastUserMessage, renameConversation, getConversation, loadMessages, releaseRun, setModel, setPending, setWebSearch, titleFrom, appendMessages, type Conversation } from './store';
+import { claimRun, createConversation, dropAfterLastUserMessage, renameConversation, getConversation, loadMessages, noteCredits, releaseRun, setModel, setPending, setWebSearch, titleFrom, appendMessages, type Conversation } from './store';
 import { offeredTools } from './tools';
 import { tally, type ToolDisplay } from './tools/types';
 import type { AgentEvent, Pending } from './types';
@@ -69,15 +73,31 @@ export const agentModels = async () => ({ ...(await chatModelsFor()).info(), web
 type Start = { conversation: Conversation; run(deps: LoopDeps, history: Parameters<typeof answer>[1]): Promise<void>; extraSystem?: string; named?: boolean };
 
 /* A reply as a stream of events. The work happens while the stream is open. */
-async function streamReply(userId: string, req: Request, start: () => Promise<Start>, modelId: string | null | undefined, replyMs = REPLY_MS): Promise<Response> {
+async function streamReply(userId: string, req: Request, start: () => Promise<Start>, modelId: string | null | undefined, replyMs = REPLY_MS, kind: ReplyKind = 'assistant'): Promise<Response> {
   if (!(await allow(`agent:${userId}`, 60, PER_MINUTE))) throw new AgentHttpError(429, 'Too many messages. Please wait a moment.', 'busy');
+  const limits = (await billing().currentPlan(userId))?.limits ?? NO_PLAN;
+  if (kind === 'research' && limits.researchBudgetCap == null) throw new AgentHttpError(403, 'Deep research needs a plan. Choose one on the pricing page.', 'plan_required');
 
-  const meter = newMeter();
+  // every provider call this reply makes is charged to its credits (set once the model is known)
+  let credits: ReplyCredits | null = null;
+  const hooks: CallCredits = { before: async (p, usd) => credits?.calls.before(p, usd), after: async (c) => credits?.calls.after(c) };
+  const meter = newMeter(hooks);
   const models = await chatModelsFor(meter);
   const { conversation, run, extraSystem, named } = await start();
   const model = models.pick(modelId ?? conversation.model);
   if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
-  if (!(await claimRun(pool, userId, conversation.id, Math.ceil(replyMs / 1000) + 30))) throw new AgentHttpError(409, 'Still working on your last message.', 'busy');
+  const reply = replyCredits(wallet(), { userId, kind, model, limits, ttlMs: replyMs + 5 * 60_000, meta: { conversationId: conversation.id } });
+  try {
+    await reply.start();
+  } catch (e) {
+    if (e instanceof InsufficientCredits) throw new AgentHttpError(402, `${e.message} Choose a plan or top up to continue.`, 'insufficient_credits');
+    throw e;
+  }
+  credits = reply;
+  if (!(await claimRun(pool, userId, conversation.id, Math.ceil(replyMs / 1000) + 30))) {
+    await reply.finish({ outcome: 'busy', useful: false });
+    throw new AgentHttpError(409, 'Still working on your last message.', 'busy');
+  }
   if (model.id !== conversation.model) await setModel(pool, userId, conversation.id, model.id);
 
   const papers = papersServer();
@@ -100,13 +120,21 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
       return sandbox ? codeRunner(sandbox, pool, { userId, conversationId: conversation.id }) : null;
     },
     files: agentFiles({ db: pool, store: fileStorage() }, { userId, conversationId: conversation.id }),
+    credits: reply.meter,
+    limits,
   };
 
   const encoder = new TextEncoder();
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
   let open = true;
+  // how the reply went, for its bill: nothing is charged when it failed without giving anything
+  let gave = false;
+  let ended = 'finished';
   const emit = (e: AgentEvent) => {
+    if (e.type === 'text' || e.type === 'step_done' || e.type === 'confirm' || e.type === 'client_tool') gave = true;
+    if (e.type === 'error') ended = 'failed';
+    else if (e.type === 'done') ended = e.reason;
     if (open) writer.write(encoder.encode(`${JSON.stringify(e)}\n`)).catch(() => (open = false));
   };
   req.signal?.addEventListener('abort', () => (open = false));
@@ -142,6 +170,15 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
       console.error('[citezeno] agent: reply failed', e);
       emit({ type: 'error', message: 'Something went wrong. Please try again.' });
     } finally {
+      try {
+        const bill = await reply.finish({ outcome: ended, useful: gave });
+        if (bill) {
+          emit({ type: 'credits', charged: bill.charged });
+          await noteCredits(pool, conversation.id, { credits: bill.charged, actionId: reply.meter.actionId });
+        }
+      } catch (e) {
+        console.error('[citezeno] agent: settling credits failed', e);
+      }
       await searches.settle(meter.searches).catch((e) => console.warn('[citezeno] agent: settling searches failed', e));
       await releaseRun(pool, conversation.id).catch(() => {});
       open = false;
@@ -208,6 +245,7 @@ export function replyWithResearch(req: Request, userId: string, body: { conversa
     },
     body.model,
     RESEARCH_MS,
+    'research',
   );
 }
 

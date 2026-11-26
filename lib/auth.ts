@@ -1,12 +1,13 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
-import { createAuthMiddleware, isAPIError } from 'better-auth/api';
+import { APIError, createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth/api';
 import { nextCookies } from 'better-auth/next-js';
 import { logActivity } from './activity';
 import { twoFactor } from 'better-auth/plugins';
 import { pool } from './db';
 import { deleteEmail, emailEnabled, resetEmail, sendEmail, verifyEmail, welcomeEmail } from './email';
 import { FREE_MONTHLY_CREDITS } from './pricing';
-import { polarPlugin } from './polar';
+import { billing as plans } from './credits/server';
+import { isPackProduct, isPlanProduct, polarPlugin } from './polar';
 import { siteURL } from './site';
 
 /* Social sign-in is switched on only for providers whose keys are set. */
@@ -79,8 +80,21 @@ export const authOptions = {
     afterEmailVerification: async (user) => welcome(user),
   },
 
-  /* Security events for the history page. Errors (wrong password etc.) are skipped. */
   hooks: {
+    /* Checkout: top-ups are for plan members, and someone with a plan changes
+       it from the billing portal instead of buying a second one. */
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== '/checkout') return;
+      const raw = (ctx.body as { products?: unknown; slug?: unknown } | undefined)?.products;
+      const ids = (Array.isArray(raw) ? raw : [raw]).filter((x): x is string => typeof x === 'string');
+      if (!ids.length) return;
+      const session = await getSessionFromCtx(ctx);
+      if (!session) return;
+      const plan = await plans().currentPlan(session.user.id);
+      if (!plan && ids.some(isPackProduct)) throw new APIError('FORBIDDEN', { message: 'Top-ups are for plan members. Choose a plan first.' });
+      if (plan && ids.some(isPlanProduct)) throw new APIError('FORBIDDEN', { message: 'You already have a plan. Change it from Manage billing on your account page.' });
+    }),
+    /* Security events for the history page. Errors (wrong password etc.) are skipped. */
     after: createAuthMiddleware(async (ctx) => {
       if (isAPIError(ctx.context.returned)) return;
       const userId = ctx.context.session?.user.id || ctx.context.newSession?.user.id;

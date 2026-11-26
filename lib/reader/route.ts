@@ -1,6 +1,9 @@
 import 'server-only';
 import type { z } from 'zod';
 import { auth } from '@/lib/auth';
+import { CREDIT_STATUS, InsufficientCredits, isCreditError } from '@/lib/credits/errors';
+import { createMeter, type Meter } from '@/lib/credits/meter';
+import { wallet } from '@/lib/credits/server';
 import { json, sameOrigin } from '@/lib/http';
 import { PapersError } from '@/lib/papers/errors';
 import { errorResponse as papersErrorResponse } from '@/lib/papers/respond';
@@ -25,6 +28,8 @@ export type ReaderContext = {
 const PER_MINUTE = 240;
 
 export function readerErrorResponse(e: unknown): Response {
+  if (e instanceof InsufficientCredits) return json({ error: e.message, code: 'insufficient_credits', balance: e.balance, needed: e.needed }, 402);
+  if (isCreditError(e)) return json({ error: e.message, code: e.code }, CREDIT_STATUS[e.code]);
   if (isReaderError(e)) return json({ error: e.message, code: e.code, ...(e.details.reason ? { reason: e.details.reason } : {}) }, READER_STATUS[e.code]);
   if (isShelfError(e)) return json({ error: e.message, code: e.code }, SHELF_STATUS[e.code]);
   if (e instanceof PapersError || (e as Error)?.name === 'PapersError') {
@@ -66,6 +71,33 @@ export function readerRoute<P = Record<string, never>>(handler: (ctx: ReaderCont
       return readerErrorResponse(e);
     }
   };
+}
+
+/* One paid reader request (a summary, an answer, an explanation): the deps
+   carry its credit meter, and `finish` settles it at the real cost — nothing
+   when it failed, nothing when it turned out free (a saved summary). */
+export function metered(ctx: ReaderContext, kind: string, meta: Record<string, unknown> = {}): { deps: ReaderDeps; meter: Meter; finish(ok: boolean): Promise<void> } {
+  const meter = createMeter(wallet(), { userId: ctx.userId, kind, meta });
+  return {
+    deps: { ...ctx.deps, meter },
+    meter,
+    finish: async (ok) => {
+      await meter.finish({ outcome: ok ? 'finished' : 'failed', useful: ok }).catch((e) => console.error('[citezeno] reader: settling credits failed', e));
+    },
+  };
+}
+
+/* Run a paid reader request and settle its credits whatever happens. */
+export async function charged<T>(ctx: ReaderContext, kind: string, meta: Record<string, unknown>, run: (deps: ReaderDeps) => Promise<T>): Promise<T> {
+  const m = metered(ctx, kind, meta);
+  let ok = false;
+  try {
+    const out = await run(m.deps);
+    ok = true;
+    return out;
+  } finally {
+    await m.finish(ok);
+  }
 }
 
 /* "?pdf=" picks one of the user's own uploads of the paper. */

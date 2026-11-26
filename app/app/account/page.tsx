@@ -6,7 +6,7 @@ import { BillingPanel } from '@/components/billing/BillingPanel';
 import { AppShell, PageHead } from '@/components/app/AppShell';
 import { Icon } from '@/components/Icon';
 import { auth, enabledProviders } from '@/lib/auth';
-import { getBalance, history } from '@/lib/credits';
+import { wallet } from '@/lib/credits/server';
 import { pool } from '@/lib/db';
 import { polarEnabled } from '@/lib/polar';
 import { requireSession } from '@/lib/session';
@@ -29,8 +29,8 @@ export default async function AccountPage() {
       )
       .then((r) => r.rows[0])
       .catch(() => ({ n: '0', sources: '0', last: null })),
-    getBalance(session.user.id),
-    history(session.user.id, 15),
+    wallet().balance(session.user.id),
+    wallet().history(session.user.id, 15),
   ]);
 
   const u = session.user;

@@ -149,22 +149,21 @@ export function PlanPicker({ plans, packs, freeCredits }: { plans: PlanView[]; p
               </span>
               <h2>{p.name}</h2>
             </div>
-            <p className="pr-blurb">{p.description || (p.recurring ? 'Credits added every billing period.' : 'A one-time top-up.')}</p>
+            <p className="pr-blurb">A one-time top-up for plan members.</p>
             <div className="pr-price">
               <span className="pr-amount">{money(p.price, p.currency)}</span>
-              {p.recurring && <span className="pr-unit">/ {p.recurring}</span>}
             </div>
-            <p className="pr-bill">{p.recurring ? 'Cancel any time.' : 'One payment. No subscription.'}</p>
+            <p className="pr-bill">One payment. No subscription.</p>
             <div className="pr-credits">
-              <b>{p.credits.toLocaleString()}</b> credits{p.recurring ? ` every ${p.recurring}` : ''}
+              <b>{p.credits.toLocaleString()}</b> credits
               <small>{perClaim(p.price, p.credits, p.currency)}</small>
             </div>
             <ul className="pr-feats">
-              <Feature>Everything in Free</Feature>
-              <Feature>{p.recurring ? 'Unused credits roll over' : 'Credits never expire'}</Feature>
+              <Feature>Needs an active plan</Feature>
+              <Feature>Credits last 12 months</Feature>
             </ul>
             <div className="pr-cta">
-              <BuyButton productId={p.id} featured={false} label={p.recurring ? 'Subscribe' : `Buy ${p.credits.toLocaleString()} credits`} />
+              <BuyButton productId={p.id} featured={false} label={`Buy ${p.credits.toLocaleString()} credits`} />
             </div>
           </section>
         ))}

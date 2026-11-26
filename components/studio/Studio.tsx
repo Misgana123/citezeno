@@ -28,7 +28,7 @@ import { registerCommands, type Command } from '../CommandPalette';
 import { Icon } from '../Icon';
 import { toast } from '../toast';
 import { usePersistent } from '../usePersistent';
-import { OutOfCredits, refundCredits, spendCredits, useCredits } from '../useCredits';
+import { holdCredits, OutOfCredits, settleCredits, useCredits } from '../useCredits';
 import { CreditsDialog } from './CreditsDialog';
 import { CheckPanel, type CheckState } from './CheckPanel';
 import type { OriginalDoc } from './DocxPreview';
@@ -329,12 +329,12 @@ export function Studio() {
     setLog([]);
     setProgress(0);
     setTimeout(() => progressEl.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
-    let spendId: string | null = null;
-    let ok = false;
+    let actionId: string | null = null;
+    let searched = 0;
     try {
       const r = await trace(draft, prefs, settings, {
         charge: async (n) => {
-          spendId = await spendCredits(n, 'trace');
+          actionId = await holdCredits(n, 'trace');
         },
         step: (s: Step, state: StepState, msg: string) => token === runToken.current && setSteps((v) => ({ ...v, [s]: { state, msg } })),
         progress: (f) => token === runToken.current && setProgress(f),
@@ -342,7 +342,7 @@ export function Studio() {
         isCancelled: () => token !== runToken.current,
       }, picked);
       if (!r || token !== runToken.current) return;
-      ok = true;
+      searched = r.claims.length;
       annotations.current = {};
       tracedDraft.current = draft;
       setHist(emptyHistory());
@@ -368,8 +368,8 @@ export function Studio() {
       toast((e as Error).message, true);
     } finally {
       if (token === runToken.current) setRunning(false);
-      // stopped or failed after paying: give the credits back
-      if (spendId && !ok) refundCredits(spendId).then((back) => back && toast('Trace didn’t finish, so its credits were returned'));
+      // charge the claims that were searched; a stopped or failed trace releases its hold
+      if (actionId) settleCredits(actionId, searched).then((r) => r && !searched && toast('Trace didn’t finish, so its credits were returned'));
     }
   }, [running, draft, prefs, settings, doc.title, setDoc, picking, pickSet]);
 
@@ -437,10 +437,10 @@ export function Studio() {
         return false;
       }
       setCiting(true);
-      let spendId: string | null = null;
+      let actionId: string | null = null;
       let ok = false;
       try {
-        spendId = await spendCredits(1, 'cite');
+        actionId = await holdCredits(1, 'cite');
         const found = await traceClaim(text.trim(), prefs, settings, n, result ? citedSet(result) : new Set(), topicTokens(a));
         if (!found.ids.length) {
           toast('No matching source was found for that passage. Try selecting a longer or more specific claim.', true);
@@ -468,7 +468,7 @@ export function Studio() {
         return false;
       } finally {
         setCiting(false);
-        if (spendId && !ok) refundCredits(spendId);
+        if (actionId) settleCredits(actionId, ok ? 1 : 0);
       }
     },
     [citing, running, draft, prefs, settings, result, entryId, doc.title, setDoc],
@@ -967,7 +967,7 @@ export function Studio() {
         />
       )}
 
-      {outOf && <CreditsDialog needed={outOf.needed} have={outOf.have} resetsAt={credits?.resetsAt} onClose={() => setOutOf(null)} />}
+      {outOf && <CreditsDialog needed={outOf.needed} have={outOf.have} onClose={() => setOutOf(null)} />}
       {shareOpen && result && entryId && (
         <ShareDialog
           id={entryId}

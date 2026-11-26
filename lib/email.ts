@@ -96,3 +96,18 @@ You get ${freeCredits} free credits every month. One credit finds real sources f
 Open the studio: ${studioURL}`,
   };
 }
+
+export function creditsExpiringEmail(name: string, credits: number, endsOn: string, url: string) {
+  const first = (name || '').split(' ')[0] || 'there';
+  const n = credits.toLocaleString('en-US');
+  return {
+    subject: `${n} Citezeno credits end on ${endsOn}`,
+    html: layout(
+      `Your credits end soon, ${first}`,
+      [`<b style="color:#13213a">${n} credit${credits === 1 ? '' : 's'}</b> on your account end on <b style="color:#13213a">${esc(endsOn)}</b>. Credits that end soonest are always used first, so use them before then.`],
+      { label: 'Open Citezeno', url },
+      'You’re getting this because credits on your Citezeno account are about to end.',
+    ),
+    text: `Hi ${first},\n\n${n} credit${credits === 1 ? '' : 's'} on your Citezeno account end on ${endsOn}. Credits that end soonest are always used first.\n\n${url}`,
+  };
+}

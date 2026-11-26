@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { askPaper, type AskEvent } from '@/lib/reader/ai/ask';
 import { isReaderError } from '@/lib/reader/errors';
-import { pdfParam, readerRoute } from '@/lib/reader/route';
+import { InsufficientCredits } from '@/lib/credits/errors';
+import { metered, pdfParam, readerRoute } from '@/lib/reader/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,8 +20,11 @@ const body = z.object({
 
 /* Ask the paper (or Explain a selection): the answer streams back as one JSON
    event per line — chat, text pieces (each sentence already checked), done. */
-export const POST = readerRoute<P>(async ({ req, userId, deps, body: read }, { paperId }) => {
-  const input = await read(body);
+export const POST = readerRoute<P>(async (ctx, { paperId }) => {
+  const { req, userId } = ctx;
+  const input = await ctx.body(body);
+  const m = metered(ctx, input.kind === 'explain' ? 'reader.explain' : 'reader.ask', { paperId });
+  const deps = m.deps;
   const encoder = new TextEncoder();
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
@@ -30,15 +34,19 @@ export const POST = readerRoute<P>(async ({ req, userId, deps, body: read }, { p
     if (open) writer.write(encoder.encode(`${JSON.stringify(e)}\n`)).catch(() => (open = false));
   };
   void (async () => {
+    let ok = false;
     try {
       await askPaper(deps, userId, paperId, { ...input, pdfId: pdfParam(req) }, emit);
+      ok = true;
     } catch (e) {
-      if (isReaderError(e)) emit({ type: 'error', message: e.message, code: e.code });
+      if (e instanceof InsufficientCredits) emit({ type: 'error', message: e.message, code: 'insufficient_credits' });
+      else if (isReaderError(e)) emit({ type: 'error', message: e.message, code: e.code });
       else {
         console.error('[citezeno] reader: answer failed', e);
         emit({ type: 'error', message: 'Something went wrong. Please try again.', code: 'unavailable' });
       }
     } finally {
+      await m.finish(ok);
       open = false;
       await writer.close().catch(() => {});
     }

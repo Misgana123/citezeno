@@ -30,24 +30,25 @@ export class OutOfCredits extends Error {
   }
 }
 
-/* Reserve credits for a search. Resolves to an id used to give them back if the search doesn't happen. */
-export async function spendCredits(claims: number, kind: 'trace' | 'cite'): Promise<string> {
-  const res = await fetch('/api/credits/spend', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ claims, kind }) });
+/* Hold credits for a studio search. Resolves to the action id to settle it with. */
+export async function holdCredits(claims: number, kind: 'trace' | 'cite'): Promise<string> {
+  const res = await fetch('/api/credits/hold', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ claims, kind }) });
   const body = await res.json().catch(() => ({}));
   if (body.balance) set(body.balance);
   if (res.status === 402) throw new OutOfCredits(body.needed, body.balance?.total ?? 0);
   if (!res.ok) throw new Error(body.error || 'Couldn’t check your credits. Try again.');
-  return body.spendId;
+  return body.actionId;
 }
 
-export async function refundCredits(spendId: string, unusedClaims?: number) {
+/* Finish a studio search: `searched` claims are charged, the rest of the hold is released. */
+export async function settleCredits(actionId: string, searched: number): Promise<{ charged: number } | null> {
   try {
-    const res = await fetch('/api/credits/refund', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ spendId, unusedClaims }) });
+    const res = await fetch('/api/credits/settle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ actionId, searched }), keepalive: true });
     const body = await res.json().catch(() => ({}));
     if (body.balance) set(body.balance);
-    return Boolean(body.ok);
+    return body.ok ? { charged: body.charged } : null;
   } catch {
-    return false;
+    return null;
   }
 }
 

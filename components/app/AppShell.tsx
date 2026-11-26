@@ -16,18 +16,20 @@ import { openPalette, Sidebar } from './Sidebar';
 
 export type { AppSection };
 
-/* The credit balance, with a small meter of this month's free credits. `need` marks it low. */
+/* The credit balance, with a small meter of the current plan credits left. `need` marks it low. */
 export function CreditsPill({ need = 5 }: { need?: number }) {
   const credits = useCredits(true);
   if (!credits) return null;
   const low = credits.total < Math.max(need, 5);
+  const plan = credits.lots.find((l) => l.source === 'plan');
+  const title = credits.lots.map((l) => `${(l.remaining - l.held).toLocaleString()} ${l.label.toLowerCase()}${l.expiresAt ? ` · until ${new Date(l.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}`).join('\n') + (credits.held ? `\n${credits.held} on hold` : '');
   return (
-    <Link href="/pricing" className={`at-credits${low ? ' low' : ''}`} title={`${credits.free} free (resets monthly) + ${credits.paid} purchased`}>
+    <Link href="/pricing" className={`at-credits${low ? ' low' : ''}`} title={title || 'No credits'}>
       <Icon name="bolt" />
       <b>{credits.total.toLocaleString()}</b>
       <span className="at-credits-lbl">credit{credits.total === 1 ? '' : 's'}</span>
       <span className="at-credits-bar" aria-hidden="true">
-        <i style={{ width: `${Math.min(100, credits.freeMonthly ? (credits.free / credits.freeMonthly) * 100 : 0)}%` }} />
+        <i style={{ width: `${Math.min(100, plan ? ((plan.remaining - plan.held) / plan.amount) * 100 : 0)}%` }} />
       </span>
     </Link>
   );

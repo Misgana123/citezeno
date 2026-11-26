@@ -68,6 +68,7 @@ export function tavilyPolicy(env: Env): GatewayPolicy<TavilyRequest> {
     provider: PROVIDER,
     label: LABEL,
     describe: (req) => ({ search: false, cacheKey: createHash('sha256').update(JSON.stringify(req.body)).digest('hex'), cacheTtlS: CACHE_TTL_S }),
+    estimateUsd: (req) => req.usd,
     spend: { dailyAlertUsd: positive(env.WEB_DAILY_ALERT_USD, 2), dailyCapUsd: positive(env.WEB_DAILY_CAP_USD, 10), configHint: 'WEB_DAILY_ALERT_USD and WEB_DAILY_CAP_USD' },
     concurrency: 6,
     maxQueue: 40,

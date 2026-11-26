@@ -37,6 +37,9 @@ export type GatewayPolicy<Req> = {
   provider: string; // registry name, e.g. "openalex"
   label: string; // for logs and alerts, e.g. "OpenAlex"
   describe(req: Req): CallInfo;
+  /* The most one call may cost, in dollars, reserved from the user's credits
+     before it's made (default 0: only its real cost is recorded after). */
+  estimateUsd?(req: Req): number;
   /* Daily spending alert and hard cap; null for providers not billed per call. */
   spend: SpendLimits | null;
   /* Calls at once, and how many may wait, before callers get "busy". */

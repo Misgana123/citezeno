@@ -5,7 +5,7 @@ import { getPdfRow } from '@/lib/shelf/store/pdfs';
 import type { ReaderDeps } from '../deps';
 import { logAiCall } from '../store/ai-log';
 import { passagesToEmbed, setEmbeddings } from '../store/passages';
-import { claimWork, markEmbedded, markFailed, markNoText, release, saveExtracted, setStored, type TextRow } from '../store/texts';
+import { claimWork, markEmbedded, markFailed, markKeywordsOnly, markNoText, release, saveExtracted, setStored, type TextRow } from '../store/texts';
 import { processPages } from '../text';
 import { vectorSchema, vectorSql } from '../vector';
 import { mayStore } from './open';
@@ -97,6 +97,9 @@ async function embed(deps: ReaderDeps, t: TextRow, deadline: number): Promise<Wo
   }
   const now = deps.now ?? Date.now;
   const v = vectorSql(ns, embedder.dimensions);
+  // a user's own upload is charged (once); shared open-access papers are the owner's cost
+  const meter = t.scope === 'user' && t.ownerId ? deps.embedMeter?.({ userId: t.ownerId, textId: t.id, paperId: t.paperId }) : undefined;
+  let reserved = 0;
   for (;;) {
     if (now() > deadline - 5000) {
       await release(deps.db, t.id);
@@ -104,11 +107,22 @@ async function embed(deps: ReaderDeps, t: TextRow, deadline: number): Promise<Wo
     }
     const batch = await passagesToEmbed(deps.db, t.id, embedder.model.maxBatch);
     if (!batch.length) break;
+    if (meter) {
+      const chars = batch.reduce((n, p) => n + p.text.length + (p.section?.length ?? 0) + (t.title?.length ?? 0), 0);
+      reserved = ((chars / 4) * embedder.model.usdPerM) / 1_000_000;
+      if (!(await meter.tryReserve(reserved))) {
+        // not enough credits: questions about this upload use keyword search; it's tried again when the paper is next opened
+        await markKeywordsOnly(deps.db, t.id);
+        await meter.finish({ outcome: 'no_credits', useful: false });
+        return 'partial';
+      }
+    }
     try {
       // the paper's title and the section go in front, for context
       const res = await embedder.embed('document', batch.map((p) => ({ text: p.section ? `${p.section}\n${p.text}` : p.text, title: t.title })));
       await setEmbeddings(deps.db, t.id, v.cast, batch.map((p, i) => ({ id: p.id, vector: res.vectors[i] })));
       await logAiCall(deps.db, { userId: t.ownerId, paperId: t.paperId, action: 'embed', model: embedder.model.id, inputTokens: res.tokens, outputTokens: 0, costUsd: res.costUsd });
+      await meter?.record({ kind: 'embed', provider: embedder.model.provider, label: embedder.model.id, units: { tokens: res.tokens, passages: batch.length }, costUsd: res.costUsd, reservedUsd: reserved });
     } catch (e) {
       console.warn('[citezeno] reader: embedding failed, will retry later', (e as Error)?.message);
       await deps.db.query(`update reader_text set "lockedUntil" = now() + make_interval(mins => $2), attempts = 0 where id = $1`, [t.id, EMBED_RETRY_MIN]);
@@ -116,6 +130,7 @@ async function embed(deps: ReaderDeps, t: TextRow, deadline: number): Promise<Wo
     }
   }
   await markEmbedded(deps.db, t.id, embedder.model.id, embedder.dimensions);
+  await meter?.finish({ outcome: 'finished', useful: true });
   return 'embedded';
 }
 

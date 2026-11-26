@@ -5,6 +5,7 @@ import { getMigrations } from 'better-auth/db/migration';
 import { authOptions } from '../lib/auth';
 import { pool } from '../lib/db';
 import { AGENT_SQL } from '../lib/agent/schema';
+import { CREDITS_CARRY_OVER_SQL, CREDITS_SQL } from '../lib/credits/schema';
 import { embeddingSettings } from '../lib/providers/embeddings/embedder';
 import { PAPERS_LOCAL_SQL } from '../lib/papers/local/schema';
 import { READER_SQL } from '../lib/reader/schema';
@@ -39,8 +40,8 @@ create table if not exists contact_message (
 );
 create index if not exists contact_ip_time on contact_message (ip, "createdAt" desc);
 
--- Credits. "free" resets to the monthly allowance each calendar month (UTC) and
--- does not roll over; "paid" comes from Polar purchases and never expires.
+-- The old two-number wallet, kept only so its balances can be carried over into
+-- credit lots (lib/credits/schema.ts). Nothing writes to these any more.
 create table if not exists credit_balance (
   "userId"    text        primary key references "user"(id) on delete cascade,
   free        integer     not null default 0 check (free >= 0),
@@ -183,9 +184,11 @@ async function main() {
   await pool.query(SHELF_SQL);
   await pool.query(AGENT_SQL);
   await pool.query(READER_SQL);
+  await pool.query(CREDITS_SQL);
+  await pool.query(CREDITS_CARRY_OVER_SQL);
   await pool.query(PAPERS_LOCAL_SQL);
   const vectors = await enableVectors(pool, embeddingSettings(process.env).dimensions);
-  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity, papers, provider gateway, shelf, agent, reader, paper copy).');
+  console.log('App tables are up to date (trace, contact_message, credits, sharing, share access, activity, papers, provider gateway, shelf, agent, reader, paper copy).');
   console.log(vectors ? 'Reader: search by meaning is on (pgvector).' : 'Reader: pgvector is not available, so questions use keyword search only.');
 }
 

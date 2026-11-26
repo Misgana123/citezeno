@@ -24,6 +24,8 @@ export type ToolRun = { tool: AgentTool | ClientTool | null; input: unknown; lab
 export function failureMessage(e: unknown): { message: string; code?: string } {
   const err = e as { name?: string; code?: string; message?: string };
   if (err?.name === 'ShelfError' && typeof err.code === 'string') return { message: err.message ?? 'That didn’t work.', code: err.code };
+  // out of credits, or past this reply's budget: the step didn't run
+  if (err?.name === 'CreditError' && typeof err.code === 'string') return { message: `${err.message ?? 'Not enough credits.'} This step didn’t run.`, code: err.code };
   const papersCode = papersErrorCode(e);
   if (papersCode) {
     const pe = isPapersError(e) ? e : new PapersError(papersCode, err.message ?? '', (e as PapersError).details ?? {});

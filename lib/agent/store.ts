@@ -104,6 +104,15 @@ export async function setPending(q: Queryable, id: string, pending: Pending | nu
   await q.query(`update agent_conversation set pending = $2, "updatedAt" = now() where id = $1`, [id, pending ? JSON.stringify(pending) : null]);
 }
 
+/* Put a reply's bill on its last assistant message (merged into its meta). */
+export async function noteCredits(db: Db, conversationId: string, bill: { credits: number; actionId: string | null }): Promise<void> {
+  await db.query(
+    `update agent_message set meta = coalesce(meta, '{"scope":"assistant"}'::jsonb) || $2::jsonb
+     where "conversationId" = $1 and seq = (select max(seq) from agent_message where "conversationId" = $1 and role = 'assistant')`,
+    [conversationId, JSON.stringify(bill)],
+  );
+}
+
 /* Add messages at the end, and their cost to the conversation's total. Returns their numbers. */
 export async function appendMessages(db: Db, conversationId: string, messages: StoredMessage[]): Promise<number[]> {
   if (!messages.length) return [];

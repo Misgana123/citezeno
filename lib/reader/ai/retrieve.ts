@@ -42,8 +42,12 @@ async function vectorIds(deps: ReaderDeps, text: TextRow, question: string, who:
   const ns = await vectorSchema(deps.db);
   if (!ns) return null;
   try {
+    // embedding the question is part of the Ask's bill, not a charge of its own
+    const reserved = ((question.length / 4) * embedder.model.usdPerM) / 1_000_000;
+    await deps.meter?.reserve(reserved);
     const { vectors, tokens, costUsd } = await embedder.embed('query', [{ text: question }]);
     await logAiCall(deps.db, { userId: who.userId, paperId: text.paperId, action: 'embed', model: embedder.model.id, inputTokens: tokens, outputTokens: 0, costUsd });
+    await deps.meter?.record({ kind: 'embed', provider: embedder.model.provider, label: embedder.model.id, units: { tokens }, costUsd, reservedUsd: reserved });
     const v = vectorSql(ns, embedder.dimensions);
     const { rows } = await deps.db.query<{ id: string }>(
       `select id from reader_passage

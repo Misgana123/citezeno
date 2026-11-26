@@ -11,7 +11,7 @@ import type { Source } from '@/lib/types';
 
 /* The Studio's citation search and the credits API, as the browser would call them. */
 const trace = vi.hoisted(() => vi.fn());
-const credits = vi.hoisted(() => ({ spend: vi.fn(), refund: vi.fn() }));
+const credits = vi.hoisted(() => ({ hold: vi.fn(), settle: vi.fn() }));
 vi.mock('@/lib/engine', () => ({ traceClaim: trace }));
 vi.mock('@/components/useCredits', () => {
   class OutOfCredits extends Error {
@@ -22,7 +22,7 @@ vi.mock('@/components/useCredits', () => {
       super('out');
     }
   }
-  return { OutOfCredits, spendCredits: credits.spend, refundCredits: credits.refund };
+  return { OutOfCredits, holdCredits: credits.hold, settleCredits: credits.settle };
 });
 
 const { runFindCitations, studioPrefs, toCited } = await import('@/components/chat/citations');
@@ -49,8 +49,8 @@ function storage(values: Record<string, unknown>) {
 
 beforeEach(() => {
   trace.mockReset();
-  credits.spend.mockReset().mockResolvedValue('spend_1');
-  credits.refund.mockReset().mockResolvedValue(true);
+  credits.hold.mockReset().mockResolvedValue('action_1');
+  credits.settle.mockReset().mockResolvedValue({ charged: 1 });
   storage({});
 });
 
@@ -60,13 +60,13 @@ describe('the citation search in the browser', () => {
     trace.mockResolvedValue({ db: new Map([['s1', SOURCE]]), cands: [], ids: ['s1'] });
     const r = await runFindCitations({ text: 'Sleep helps consolidate memories.', count: 2 });
 
-    expect(credits.spend).toHaveBeenCalledWith(1, 'cite');
+    expect(credits.hold).toHaveBeenCalledWith(1, 'cite');
     const [text, prefs, settings, n] = trace.mock.calls[0];
     expect([text, n]).toEqual(['Sleep helps consolidate memories.', 2]);
     expect(prefs).toMatchObject({ style: 'mla', yearFrom: '2000', providers: { wikipedia: false, openalex: true } });
     expect(settings).toEqual({ email: 'me@example.org' });
     expect(r).toMatchObject({ ok: true, sources: [{ title: 'Sleep and memory consolidation', year: 2004, link: 'https://doi.org/10.1016/j.neuron.2004.08.031', authors: 'Matthew Walker, Robert Stickgold' }] });
-    expect(credits.refund).not.toHaveBeenCalled();
+    expect(credits.settle).toHaveBeenCalledWith('action_1', 1);
   });
 
   it('formats the reference in the asked style', () => {
@@ -75,18 +75,19 @@ describe('the citation search in the browser', () => {
     expect(toCited(SOURCE, 'nope').reference).toBe(toCited(SOURCE, 'apa').reference);
   });
 
-  it('refunds the credit when nothing is found or the search fails', async () => {
+  it('releases the hold when nothing is found or the search fails', async () => {
     trace.mockResolvedValueOnce({ db: new Map(), cands: [], ids: [] });
     expect(await runFindCitations({ text: 'An obscure claim' })).toMatchObject({ ok: true, sources: [], note: expect.stringContaining('no credit') });
-    expect(credits.refund).toHaveBeenCalledWith('spend_1');
+    expect(credits.settle).toHaveBeenCalledWith('action_1', 0);
 
     trace.mockRejectedValueOnce(new Error('The databases could not be reached.'));
     expect(await runFindCitations({ text: 'Another claim' })).toEqual({ ok: false, error: 'The databases could not be reached.' });
-    expect(credits.refund).toHaveBeenCalledTimes(2);
+    expect(credits.settle).toHaveBeenCalledTimes(2);
+    expect(credits.settle).toHaveBeenLastCalledWith('action_1', 0);
   });
 
   it('says so when the user is out of credits, without searching', async () => {
-    credits.spend.mockRejectedValueOnce(new OutOfCredits(1, 0));
+    credits.hold.mockRejectedValueOnce(new OutOfCredits(1, 0));
     expect(await runFindCitations({ text: 'A claim' })).toMatchObject({ ok: false, error: expect.stringContaining('out of credits') });
     expect(trace).not.toHaveBeenCalled();
   });

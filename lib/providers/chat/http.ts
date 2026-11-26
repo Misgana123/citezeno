@@ -146,6 +146,15 @@ function positive(v: string | undefined, fallback: number) {
   return v != null && v.trim() !== '' && Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+/* The most a chat call may cost: its whole request as prompt (about 4
+   characters a token) and every output token it allows (2048 when the
+   vendor's body doesn't say). */
+export function estimateChatRequest(r: ChatHttpRequest): number {
+  const json = JSON.stringify(r.body ?? '');
+  const max = Number(json.match(/"max_?(?:output_?|completion_?)?tokens"\s*:\s*(\d+)/i)?.[1]) || 2048;
+  return (Math.ceil(json.length / 4) * r.model.inputUsdPerM + max * r.model.outputUsdPerM) / 1_000_000;
+}
+
 /* Never cached (every turn differs); limited, retried and capped per provider.
      AI_DAILY_ALERT_USD   log and email once a provider's spending passes this (default 5)
      AI_DAILY_CAP_USD     stop calling a provider once its spending passes this (default 20) */
@@ -154,6 +163,7 @@ export function chatPolicy(provider: string, label: string, env: Env): GatewayPo
     provider,
     label,
     describe: () => ({ search: false, cacheKey: null, cacheTtlS: 0 }),
+    estimateUsd: estimateChatRequest,
     spend: { dailyAlertUsd: positive(env.AI_DAILY_ALERT_USD, 5), dailyCapUsd: positive(env.AI_DAILY_CAP_USD, 20), configHint: 'AI_DAILY_ALERT_USD and AI_DAILY_CAP_USD' },
     concurrency: 8,
     maxQueue: 40,

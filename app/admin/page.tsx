@@ -93,7 +93,7 @@ export default async function AdminPage({ searchParams }: Props) {
       .query<{ id: string; name: string; email: string; emailVerified: boolean; createdAt: Date; traces: string; total: number | null }>(
         `select u.id, u.name, u.email, u."emailVerified", u."createdAt",
            (select count(*) from trace t where t."userId" = u.id) as traces,
-           (select b.free + b.paid from credit_balance b where b."userId" = u.id) as total
+           (select coalesce(sum(l.remaining - l.held), 0)::int from credit_lot l where l."userId" = u.id and l."closedAt" is null and (l."expiresAt" is null or l."expiresAt" > now())) as total
          from "user" u
          where $1 = '' or u.email ilike '%' || $1 || '%' or u.name ilike '%' || $1 || '%'
          order by u."createdAt" desc limit 50`,

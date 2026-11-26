@@ -1,3 +1,4 @@
+import { estimateChatUsd } from '@/lib/credits/meter';
 import { isProviderError } from '@/lib/providers/errors';
 import { streamOrComplete, type ChatModel, type ChatResponse } from '@/lib/providers/chat/types';
 import { readerConfig, readerModels } from '../config';
@@ -8,8 +9,9 @@ import { logAiCall, type AiAction } from '../store/ai-log';
 /* The reader's AI calls: the main model (answers, summaries) and the fast one
    (Explain, follow-up rewriting, section notes), both from the chat model
    catalog and through the gateway (daily alert and hard cap). Every call is
-   logged with the user, paper, action, model, tokens and cost. Failures become
-   one plain message: "AI is temporarily unavailable." */
+   logged with the user, paper, action, model, tokens and cost, and charged to
+   the request's credit meter (held before the call, recorded after). Failures
+   become one plain message: "AI is temporarily unavailable." */
 
 export type ReaderAi = {
   main: ChatModel;
@@ -27,7 +29,10 @@ export async function readerAi(deps: ReaderDeps, who: { userId: string | null; p
   return {
     ...models,
     async ask({ model, action, system, user, maxOutputTokens, onText }) {
-      const call = (m: ChatModel) => {
+      let reserved = 0;
+      const call = async (m: ChatModel) => {
+        reserved = estimateChatUsd(m, system.length + user.length, maxOutputTokens);
+        await deps.meter?.reserve(reserved);
         const provider = chat.provider(m);
         const req = { model: m, system, messages: [{ role: 'user' as const, text: user }], tools: [], maxOutputTokens };
         return onText ? streamOrComplete(provider, req, onText) : provider.complete(req);
@@ -48,6 +53,7 @@ export async function readerAi(deps: ReaderDeps, who: { userId: string | null; p
         throw e;
       }
       await logAiCall(deps.db, { userId: who.userId, paperId: who.paperId, action, model: model.id, inputTokens: res.usage.inputTokens, outputTokens: res.usage.outputTokens, costUsd: res.costUsd });
+      await deps.meter?.record({ kind: 'model', provider: model.provider, label: model.id, units: { action, inputTokens: res.usage.inputTokens, outputTokens: res.usage.outputTokens }, costUsd: res.costUsd, reservedUsd: reserved });
       return res;
     },
   };

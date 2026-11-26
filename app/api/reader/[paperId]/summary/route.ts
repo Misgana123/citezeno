@@ -1,6 +1,6 @@
 import { json } from '@/lib/http';
 import { savedSummary, summarize } from '@/lib/reader/ai/summary';
-import { pdfParam, readerRoute } from '@/lib/reader/route';
+import { charged, pdfParam, readerRoute } from '@/lib/reader/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,5 +14,7 @@ export const GET = readerRoute<P>(async ({ req, userId, deps }, { paperId }) => 
   return json({ summary });
 });
 
-/* Get or make the summary (made once, then reused). */
-export const POST = readerRoute<P>(async ({ req, userId, deps }, { paperId }) => json(await summarize(deps, userId, paperId, { pdfId: pdfParam(req) })));
+/* Get or make the summary (made once, then reused: a saved one costs nothing). */
+export const POST = readerRoute<P>(async (ctx, { paperId }) =>
+  json(await charged(ctx, 'reader.summary', { paperId }, (deps) => summarize(deps, ctx.userId, paperId, { pdfId: pdfParam(ctx.req) }))),
+);

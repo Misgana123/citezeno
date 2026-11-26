@@ -100,7 +100,7 @@ export const runPython = defineTool({
     const runner = ctx.code();
     if (!runner) throw new ShelfError('unavailable', 'Running code isn’t set up yet.');
     const upload = await gather(ctx, i.inputs ?? []);
-    const out = await runner.run({ code: i.code, upload, download: i.downloads ?? [], timeoutMs: (i.timeoutSeconds ?? TIMEOUT_DEFAULT_S) * 1000 });
+    const out = await runner.run({ code: i.code, upload, download: i.downloads ?? [], timeoutMs: Math.min(i.timeoutSeconds ?? TIMEOUT_DEFAULT_S, ctx.limits?.pythonSecondsPerRun ?? TIMEOUT_MAX_S) * 1000 });
 
     const saved: AgentFileRef[] = [];
     for (const [n, o] of out.outputs

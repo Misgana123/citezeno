@@ -1,4 +1,6 @@
 import 'server-only';
+import { createMeter } from '@/lib/credits/meter';
+import { wallet } from '@/lib/credits/server';
 import { pool } from '@/lib/db';
 import { papersServer } from '@/lib/papers/server';
 import { newMeter } from '@/lib/providers/gateway/meter';
@@ -22,6 +24,8 @@ export function readerDeps(): ReaderDeps {
     sources: () => papersServer().sources(newMeter()),
     chat: () => chatModelsFor(),
     maxPdfBytes: config.maxPdfBytes,
+    // one action per text, so an upload is charged once however many runs it takes; re-embedding later is free
+    embedMeter: (t) => createMeter(wallet(), { userId: t.userId, kind: 'reader.embed', actionId: `embed:${t.textId}`, ttlMs: 60 * 60 * 1000, meta: { paperId: t.paperId } }),
   };
 }
 

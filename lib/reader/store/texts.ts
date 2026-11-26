@@ -151,13 +151,25 @@ export async function markEmbedded(q: Queryable, id: string, model: string, dims
   await q.query(`update reader_text set stage = 'done', "embeddingModel" = $2, "embeddingDims" = $3, attempts = 0, error = null, "lockedUntil" = null where id = $1`, [id, model, dims]);
 }
 
+/* Not enough credits to embed a user's upload: done without vectors (questions
+   use keyword search). Opening the paper again queues it once more. */
+export const NO_CREDITS = 'no_credits';
+export async function markKeywordsOnly(q: Queryable, id: string): Promise<void> {
+  await q.query(`update reader_text set stage = 'done', error = $2, attempts = 0, "lockedUntil" = null where id = $1`, [id, NO_CREDITS]);
+}
+
+export async function requeueKeywordsOnly(q: Queryable, id: string): Promise<boolean> {
+  const r = await q.query(`update reader_text set stage = 'embed', error = null where id = $1 and error = $2 and status = 'ready'`, [id, NO_CREDITS]);
+  return Boolean(r.rowCount);
+}
+
 /* Texts embedded with another model or size go back to the embedding step. Their
    old vectors are dropped, so until they are redone questions use keyword search. */
 export async function queueReembedding(db: Db, model: string, dims: number, limit = 50): Promise<number> {
   return tx(db, async (q) => {
     const { rows } = await q.query<{ id: string }>(
       `update reader_text set stage = 'embed', "embeddingModel" = null, "embeddingDims" = null, attempts = 0
-       where id in (select id from reader_text where stage = 'done' and status = 'ready' and ("embeddingModel" is distinct from $1 or "embeddingDims" is distinct from $2) limit $3)
+       where id in (select id from reader_text where stage = 'done' and status = 'ready' and error is distinct from 'no_credits' and ("embeddingModel" is distinct from $1 or "embeddingDims" is distinct from $2) limit $3)
        returning id`,
       [model, dims, limit],
     );

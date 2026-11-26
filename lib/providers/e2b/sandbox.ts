@@ -154,6 +154,8 @@ export function e2bPolicy(env: Env): GatewayPolicy<E2bRequest> {
     provider: PROVIDER,
     label: LABEL,
     describe: () => ({ search: false, cacheKey: null, cacheTtlS: 0 }),
+    // a run is billed by the second: at most its time limit
+    estimateUsd: (r) => (r.op === 'run' ? (r.req.timeoutMs / 1000) * positive(env.E2B_USD_PER_SECOND, 0.00003) : 0),
     spend: { dailyAlertUsd: positive(env.CODE_DAILY_ALERT_USD, 2), dailyCapUsd: positive(env.CODE_DAILY_CAP_USD, 10), configHint: 'CODE_DAILY_ALERT_USD and CODE_DAILY_CAP_USD' },
     concurrency: 10,
     maxQueue: 40,

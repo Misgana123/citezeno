@@ -5,7 +5,7 @@ import type { ReaderDeps } from '../deps';
 import { isReusableLicense } from '../license';
 import { signFileLink } from '../sign';
 import { getPosition, touchPosition } from '../store/positions';
-import { ensureSharedText, ensureUploadText, type TextRow, type TextStatus } from '../store/texts';
+import { ensureSharedText, ensureUploadText, NO_CREDITS, requeueKeywordsOnly, type TextRow, type TextStatus } from '../store/texts';
 import { loadPaper, type ReaderPaper } from './paper';
 
 /* Opening a paper in the reader: which PDF to show, through which short-lived
@@ -56,6 +56,8 @@ export async function openPaper(deps: ReaderDeps, userId: string, rawId: string,
     if (!deps.store) pdf = { kind: 'none', reason: 'storage_off' };
     else {
       text = await ensureUploadText(deps.db, { userId, pdfId: uploadRow.id, paperId: paper.id, title: paper.title });
+      // embedding stopped for want of credits: try again now the paper is open
+      if (text.error === NO_CREDITS && emb && (await requeueKeywordsOnly(deps.db, text.id))) text = { ...text, stage: 'embed', error: null };
       pdf = { kind: 'upload', key: `upload:${uploadRow.id}`, url: deps.store.downloadUrl(uploadRow.storageKey, { ttlS: LINK_TTL_S, inline: true, fileName: uploadRow.fileName }), fileName: uploadRow.fileName, stored: true };
     }
   } else if (paper.pdfUrl) {

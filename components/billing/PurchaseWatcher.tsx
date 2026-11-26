@@ -6,10 +6,10 @@ import { Icon } from '../Icon';
 import { refreshCredits, useCredits } from '../useCredits';
 
 /* Polls the balance until the webhook has added the purchased credits (up to a minute). */
-export function PurchaseWatcher({ startPaid }: { startPaid: number }) {
+export function PurchaseWatcher({ startTotal }: { startTotal: number }) {
   const b = useCredits();
   const [tries, setTries] = useState(0);
-  const arrived = b ? b.paid > startPaid : false;
+  const arrived = b ? b.total > startTotal : false;
 
   useEffect(() => {
     if (arrived || tries > 20) return;

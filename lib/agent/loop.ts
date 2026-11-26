@@ -1,5 +1,7 @@
 import type { Attachment, ChatMessage, ChatModel, ChatProvider, ToolCall, ToolResult } from '@/lib/providers/chat/types';
+import { isCreditError } from '@/lib/credits/errors';
 import type { AgentContext } from './context';
+import { creditStopText } from './credits';
 import { asData, systemPrompt } from './prompt';
 import { takeTitle, TITLE_ASK } from './title';
 import { toolSpecs } from './tools';
@@ -36,6 +38,8 @@ export type LoopDeps = {
   naming?: { onTitle(title: string): Promise<void> };
   /* the tools offered for this reply (all of them when not given); others are refused */
   tools?: readonly (AgentTool | ClientTool)[];
+  /* web searches made so far in this reply (capped by the plan) */
+  webSearches?: number;
 };
 
 /* Number the papers and saved items a step found, in the order they first
@@ -97,7 +101,8 @@ async function runCalls(d: LoopDeps, calls: ToolCall[], from: number, results: T
   for (let i = from; i < calls.length; i++) {
     const call = calls[i];
     let started = false;
-    const run = d.tools && !d.tools.some((t) => t.name === call.name) ? notOffered(call) : await runTool(d.ctx, call.name, call.input, {
+    const capped = call.name === 'web_search' && d.ctx.limits && (d.webSearches = (d.webSearches ?? 0) + 1) > d.ctx.limits.webSearchesPerReply;
+    const run = capped ? overCap(call, d.ctx.limits!.webSearchesPerReply) : d.tools && !d.tools.some((t) => t.name === call.name) ? notOffered(call) : await runTool(d.ctx, call.name, call.input, {
       confirmed: call.id === confirmed,
       onStart: (label, input) => {
         started = true;
@@ -128,6 +133,12 @@ async function runCalls(d: LoopDeps, calls: ToolCall[], from: number, results: T
   return { status: 'done', results, steps };
 }
 
+/* A web search past the plan's searches for one reply. */
+function overCap(call: ToolCall, cap: number): ToolRun {
+  const message = `This reply has used its ${cap} web search${cap === 1 ? '' : 'es'} (the plan's limit for one reply). Answer with what you found, or tell the user they can ask again to search more.`;
+  return { tool: null, input: call.input, label: call.name, outcome: { status: 'error', message, code: 'bad_request' } };
+}
+
 /* A call to a tool this reply doesn't offer (the web tools while web search is off). */
 function notOffered(call: ToolCall): ToolRun {
   const message = WEB_TOOL_NAMES.has(call.name) ? 'Web search is off in this chat. The user can turn it on from the + menu.' : `The tool "${call.name}" isn't available here.`;
@@ -148,13 +159,24 @@ async function think(d: LoopDeps, history: ChatMessage[], turns: number): Promis
       d.emit({ type: 'done', reason: limit });
       return;
     }
-    const res = await d.chat.complete({
-      model: d.model,
-      system: systemPrompt() + (d.extraSystem ?? '') + (d.naming ? TITLE_ASK : ''),
-      messages: dropOldImages(trimHistory(history)),
-      tools,
-      maxOutputTokens: d.maxOutputTokens ?? 2048,
-    });
+    let res;
+    try {
+      res = await d.chat.complete({
+        model: d.model,
+        system: systemPrompt() + (d.extraSystem ?? '') + (d.naming ? TITLE_ASK : ''),
+        messages: dropOldImages(trimHistory(history)),
+        tools,
+        maxOutputTokens: d.maxOutputTokens ?? 2048,
+      });
+    } catch (e) {
+      if (!isCreditError(e)) throw e;
+      // out of credits, or this reply's budget is used: stop, keeping what was done
+      const text = creditStopText(e);
+      const [seq] = (await d.save([{ message: { role: 'assistant', text, toolCalls: [] } }])) ?? [];
+      d.emit({ type: 'text', text, ...(seq != null ? { seq } : {}) });
+      d.emit({ type: 'done', reason: 'credits' });
+      return;
+    }
     turns++;
     // a title tag never reaches the user (the model may repeat one it saw earlier); a new chat is named by it
     const named = takeTitle(res.text);

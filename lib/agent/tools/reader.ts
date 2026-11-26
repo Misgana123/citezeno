@@ -7,10 +7,11 @@ import { defineTool, tally } from './types';
    reader's Summarize, Ask and Notes use (nothing is implemented twice). Text
    from papers comes back as data, with passage IDs like [p3-2]. */
 
-/* The reader's server pieces, with the assistant's paper sources (loaded only when a tool runs). */
+/* The reader's server pieces, with the assistant's paper sources (loaded only
+   when a tool runs). Their AI calls go on this reply's bill. */
 async function deps(ctx: AgentContext): Promise<ReaderDeps> {
   const { readerDeps } = await import('@/lib/reader/server');
-  return { ...readerDeps(), db: ctx.db, sources: ctx.sources };
+  return { ...readerDeps(), db: ctx.db, sources: ctx.sources, ...(ctx.credits ? { meter: ctx.credits } : {}) };
 }
 
 const paperId = z.string().min(1).max(300).describe('The paper’s ID, e.g. "openalex:W2741809807" (from search results, the shelf, or the paper the user has open).');

@@ -1,4 +1,6 @@
+import type { Meter } from '@/lib/credits/meter';
 import type { PapersConfig } from '@/lib/papers/config';
+import type { Limits } from '@/lib/plans';
 import type { Attachment } from '@/lib/providers/chat/types';
 import type { PaperSources } from '@/lib/providers/papers/sources';
 import type { PdfTextReader } from '@/lib/providers/pdf-text/types';
@@ -31,4 +33,9 @@ export type AgentContext = {
   code(): CodeRunner | null;
   /* Files the tools make for this conversation (documents, charts…). */
   files: AgentFiles;
+  /* This reply's credits: tools that call paid services outside the gateway
+     (the reader's AI) charge them here. Absent → not charged. */
+  credits?: Meter;
+  /* What the user's plan allows (web searches per reply, Python time…). */
+  limits?: Limits;
 };
