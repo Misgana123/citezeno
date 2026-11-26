@@ -36,14 +36,14 @@ const INCLUDED: [IconName, string, string][] = [
   ['globe', 'Share links', 'A read-only page for any trace, with an optional password.'],
 ];
 
-/* what uses credits (a guide: AI actions cost what they really cost, shown before and after) */
-const COSTS: [IconName, string, string][] = [
-  ['quote', `${CREDITS_PER_CLAIM} credit per claim`, 'Tracing sources in the studio, or “Cite this claim”.'],
-  ['sparkle', 'About 1–5 credits', 'One answer from the research assistant, with its searches and steps. The cheaper the model, the less it costs.'],
-  ['layers', 'About 20–60 credits', 'A deep research report. You see the estimate and confirm before it starts.'],
-  ['book', 'About 1–5 credits', 'A paper summary, a question about a paper, or an explanation. A summary that already exists is free.'],
-  ['upload', 'About 1–3 credits, once', 'Preparing one of your own PDFs so you can ask questions about it.'],
-  ['check', 'Free', 'Styles, editing, exports, imports, citation checks, share links, reading and highlighting.'],
+/* what credits pay for, in plain words; the app shows what an action will cost right before it runs */
+const BUYS: [IconName, string, string][] = [
+  ['spark', 'Answers from the assistant', 'Each answer with its searches and steps. Lighter models use fewer credits.'],
+  ['layers', 'Deep research reports', 'A full report with numbered sources. You see the estimate and confirm before it starts.'],
+  ['reader', 'Help with papers', 'Summaries, questions and explanations. A summary that already exists is free.'],
+  ['upload', 'Your own PDFs, ready to question', 'Each upload is prepared once so you can ask it anything.'],
+  ['quote', 'Sources for your claims', 'Tracing a draft in the studio, or “Cite this claim”. The cost is shown before you start.'],
+  ['check', 'Free, always', 'Styles, editing, exports, imports, citation checks, share links, reading and highlighting.'],
 ];
 
 const FAQ = [
@@ -77,8 +77,7 @@ export default async function PricingPage() {
             One credit, <em>one price.</em>
           </h1>
           <p>
-            A credit is worth the same on every plan. It finds sources for one claim, and pays for the research assistant and the
-            paper reader at what they really cost. Bigger plans add more credits, models and room.
+            One credit balance for every tool, at what each action really costs. Bigger plans add credits, models and room.
           </p>
           <ul className="pr-assure">
             <li><Icon name="check" /> From $7 a month</li>
@@ -114,15 +113,15 @@ export default async function PricingPage() {
           </div>
         </section>
 
-        <section className="pr-incl wrap" aria-labelledby="costs-title">
+        <section className="pr-incl wrap" aria-labelledby="buys-title">
           <div className="pr-sec-head">
-            <span className="kicker">What uses credits</span>
-            <h2 id="costs-title">
-              You pay for <em>what really runs.</em>
+            <span className="kicker">What your credits buy</span>
+            <h2 id="buys-title">
+              One balance, <em>every tool.</em>
             </h2>
           </div>
           <ul>
-            {COSTS.map(([icon, title, body]) => (
+            {BUYS.map(([icon, title, body]) => (
               <li key={body}>
                 <span className="pr-incl-ico">
                   <Icon name={icon} />

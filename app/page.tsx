@@ -5,8 +5,6 @@ import { JsonLd } from '@/components/JsonLd';
 import { InView } from '@/components/landing/InView';
 import { DeepRun } from '@/components/landing/DeepRun';
 import { PlanReceipt, type ReceiptPlan } from '@/components/landing/PlanReceipt';
-import { AssistantScreen, CitationScreen, DeepResearchScreen, PapersScreen, ReaderScreen, ShelfScreen } from '@/components/landing/ProductScreens';
-import { ProductTour, type TourItem } from '@/components/landing/ProductTour';
 import { receiptLines } from '@/lib/plan-lines';
 import { previewPlanViews } from '@/lib/plans';
 import { SITE, appLd, faqLd, organizationLd, pageMeta, websiteLd } from '@/lib/seo';
@@ -111,15 +109,6 @@ const STEPS = [
   },
 ];
 
-const TOUR: TourItem[] = [
-  { key: 'assistant', icon: 'spark', name: 'Research assistant', desc: 'Answers that cite papers, web pages and your PDFs, with every claim linked.', url: '/app/chat', cap: 'Every claim, linked.', screen: <AssistantScreen /> },
-  { key: 'deep', icon: 'layers', name: 'Deep research', desc: 'Plans its own searches across papers and the web, then writes a report with numbered sources.', url: '/app/chat', cap: 'A cited report in a few minutes.', screen: <DeepResearchScreen /> },
-  { key: 'papers', icon: 'search', name: 'Find papers', desc: 'Search 250M+ works, filter by year, field and open access, and save in one click.', url: '/app/papers', cap: '250M+ works, one search.', screen: <PapersScreen /> },
-  { key: 'reader', icon: 'reader', name: 'Reader', desc: 'Open a PDF and ask it questions. Each answer points to the passage and page it came from.', url: '/app/read', cap: 'Ask the PDF, get the page.', screen: <ReaderScreen /> },
-  { key: 'shelf', icon: 'shelf', name: 'Shelf', desc: 'Saved and uploaded papers in projects and folders, ready to export to BibTeX or RIS.', url: '/app/shelf', cap: 'Everything you keep.', screen: <ShelfScreen /> },
-  { key: 'cite', icon: 'quote', name: 'Citation studio', desc: 'Find real sources for a draft and format them in 12 styles for Word or PDF.', url: '/app/citation', cap: '12 styles, real records.', screen: <CitationScreen /> },
-];
-
 const BUILT_FOR = [
   {
     who: 'Students',
@@ -177,8 +166,8 @@ export default function Home() {
               <Link className="btn btn-thread" href="/app/chat">
                 Start researching <Icon name="arrow" />
               </Link>
-              <Link className="btn btn-on-blue" href="#product">
-                See what it does
+              <Link className="btn btn-on-blue" href="#method">
+                See how it works
               </Link>
             </div>
             <ul className="hero-facts rise">
@@ -244,21 +233,6 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </div>
-        </section>
-
-        <section className="section" id="product" aria-labelledby="product-title">
-          <div className="wrap">
-            <div className="section-head">
-              <div>
-                <span className="kicker">One research platform</span>
-                <h2 className="h2" id="product-title">
-                  Everything between a question <em className="h2-em">and a finished paper.</em>
-                </h2>
-              </div>
-              <p>Ask, search, read, save and cite without switching tools. One shelf of papers and one credit balance work across all of it.</p>
-            </div>
-            <ProductTour items={TOUR} />
           </div>
         </section>
 
@@ -340,8 +314,8 @@ export default function Home() {
         </section>
 
         <section className="section" id="deep" style={{ paddingTop: 0 }} aria-labelledby="deep-title">
-          <div className="wrap">
-            <div className="lp-dr">
+          <div className="lp-dr">
+            <div className="wrap lp-dr-in">
               <div>
                 <span className="kicker">Deep research</span>
                 <h2 id="deep-title">

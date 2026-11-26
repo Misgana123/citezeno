@@ -7,7 +7,6 @@ import { Icon, LogoMark } from './Icon';
 import { useSession } from '@/lib/auth-client';
 
 const LINKS = [
-  { href: '/#product', label: 'Product' },
   { href: '/#deep', label: 'Deep research' },
   { href: '/#method', label: 'How it works' },
   { href: '/pricing', label: 'Pricing' },

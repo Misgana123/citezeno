@@ -19,7 +19,7 @@ export function receiptLines(key: PlanKey, monthlyCredits: number): [string, str
   return [
     ['Credits / month', monthlyCredits.toLocaleString('en-US')],
     ['Models', modelsLabel(key)],
-    ['Deep research', l.researchBudgetCap ? `up to ${l.researchBudgetCap} credits a run` : 'not included'],
+    ['Deep research', l.researchBudgetCap ? 'included' : 'not included'],
     ['Web searches / reply', String(l.webSearchesPerReply)],
     ['Shelf', `${l.shelfPapers.toLocaleString('en-US')} papers`],
     ['PDF storage', sizeLabel(l.pdfStorageBytes)],

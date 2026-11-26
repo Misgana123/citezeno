@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { CreditPack } from '@/lib/polar';
 import { PLANS, type Interval, type PlanKey, type PlanView } from '@/lib/plans';
 import { everyLabel, sizeLabel } from '@/lib/plan-lines';
-import { Icon, type IconName } from '../Icon';
+import { Icon } from '../Icon';
 import { BuyButton } from './BuyButton';
 
 /* A rough guide for "what does this buy": a typical essay cites about this many claims */
@@ -13,7 +13,11 @@ export const CLAIMS_PER_ESSAY = 10;
 const money = (cents: number, currency: string) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase(), minimumFractionDigits: cents % 100 ? 2 : 0 }).format(cents / 100);
 
-const ICON: Record<string, IconName> = { starter: 'sparkle', scholar: 'book', lab: 'layers' };
+/* the currency sign and the number apart, so the sign can sit small beside a large figure */
+const moneyParts = (cents: number, currency: string) => {
+  const parts = new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase(), minimumFractionDigits: cents % 100 ? 2 : 0 }).formatToParts(cents / 100);
+  return { symbol: parts.filter((x) => x.type === 'currency').map((x) => x.value).join(''), amount: parts.filter((x) => x.type !== 'currency' && x.type !== 'literal').map((x) => x.value).join('') };
+};
 
 const size = sizeLabel;
 const every = everyLabel;
@@ -35,8 +39,9 @@ function features(key: PlanKey): string[] {
   const models = l.tiers.includes('premium') ? 'Every assistant model, Premium included' : 'Economy and Standard assistant models';
   return [
     models,
-    l.researchBudgetCap ? `Deep research, up to ${l.researchBudgetCap} credits a run` : 'No deep research',
-    `${size(l.pdfStorageBytes)} of PDFs, ${l.shelfPapers.toLocaleString()} papers on your shelf`,
+    l.researchBudgetCap ? 'Deep research reports' : 'No deep research',
+    `${l.shelfPapers.toLocaleString()} papers on your shelf`,
+    `${size(l.pdfStorageBytes)} of PDF storage`,
     `${l.searchesPerDay} paper searches a day${every(l.shelfRefreshDays) ? `, shelf refreshed ${every(l.shelfRefreshDays)}` : ''}`,
   ];
 }
@@ -48,6 +53,7 @@ export function PlanPicker({ plans, packs }: { plans: PlanView[]; packs: CreditP
   const hasMonth = plans.some((p) => p.month);
   const [interval, setInterval] = useState<Interval>(hasMonth ? 'month' : 'year');
   const save = Math.max(0, ...plans.map((p) => p.savePct));
+  const mostCredits = Math.max(1, ...plans.map((p) => p.monthlyCredits));
 
   return (
     <div className="pr-pick">
@@ -64,26 +70,27 @@ export function PlanPicker({ plans, packs }: { plans: PlanView[]; packs: CreditP
         </div>
       )}
 
-      <div className={`pr-plans n-${plans.length}`}>
-        {plans.map((p) => {
+      {/* the rate card: one sheet, a column per plan, the featured one lifted out */}
+      <div className={`pr-rate n-${plans.length}`}>
+        {plans.map((p, i) => {
           const x = p[interval] || p.month || p.year!;
           const yearly = x === p.year;
           const shown = yearly ? Math.round(x.price / 12) : x.price;
+          const { symbol, amount } = moneyParts(shown, x.currency);
           return (
-            <section key={p.key} className={`pr-card${p.featured ? ' is-featured' : ''}`}>
-              {p.featured && <span className="pr-flag">Most popular</span>}
-              <div className="pr-card-top">
-                <span className="pr-ico">
-                  <Icon name={ICON[p.key] || 'bolt'} />
-                </span>
+            <section key={p.key} className={`pr-rcol${p.featured ? ' is-featured' : ''}`}>
+              {p.featured && <span className="pr-rflag">Most popular</span>}
+              <div className="pr-rname">
                 <h2>{p.name}</h2>
+                <span aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
               </div>
-              <p className="pr-blurb">{p.blurb}</p>
-              <div className="pr-price" key={`${p.key}-${interval}`}>
-                <span className="pr-amount">{money(shown, x.currency)}</span>
-                <span className="pr-unit">/ month</span>
+              <p className="pr-rblurb">{p.blurb}</p>
+              <div className="pr-rprice" key={`${p.key}-${interval}`}>
+                <span className="pr-rcur">{symbol}</span>
+                <b>{amount}</b>
+                <span className="pr-rper">/ month</span>
               </div>
-              <p className="pr-bill">
+              <p className="pr-rbill">
                 {yearly ? (
                   <>
                     {money(x.price, x.currency)} billed yearly
@@ -97,13 +104,17 @@ export function PlanPicker({ plans, packs }: { plans: PlanView[]; packs: CreditP
                   'Billed monthly. Cancel any time.'
                 )}
               </p>
-              <div className="pr-credits">
-                <b>{p.monthlyCredits.toLocaleString()}</b> credits every month
-                <small>
-                  about {Math.round(p.monthlyCredits / CLAIMS_PER_ESSAY).toLocaleString()} essays traced · each month’s credits end with the month
-                </small>
+              <div className="pr-rcredits">
+                <div className="pr-rcredits-top">
+                  <b>{p.monthlyCredits.toLocaleString()}</b>
+                  <span>credits every month</span>
+                </div>
+                <div className="pr-rmeter" aria-hidden="true">
+                  <i style={{ width: `${(p.monthlyCredits / mostCredits) * 100}%` }} />
+                </div>
+                <small>about {Math.round(p.monthlyCredits / CLAIMS_PER_ESSAY).toLocaleString()} essays traced · each month’s credits end with the month</small>
               </div>
-              <ul className="pr-feats">
+              <ul className="pr-feats pr-rfeats">
                 {features(p.key).map((f) => (
                   <Feature key={f}>{f}</Feature>
                 ))}
