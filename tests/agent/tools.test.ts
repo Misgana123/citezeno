@@ -191,7 +191,7 @@ describe('web tools', () => {
   const web = (over: Partial<AgentContext> = {}): AgentContext => ({
     ...context('u1', null),
     webSearch: () => ({ name: 'fake', search: vi.fn(async () => [{ title: 'WHO', url: 'https://who.int/sleep', snippet: 'Adults need 7 hours', published: '2025-11-04' }]) }),
-    webFiles: () => ({ name: 'fake', fetchPdf: vi.fn(), fetchPage: vi.fn(async () => page) }),
+    webFiles: () => ({ name: 'fake', fetchFile: vi.fn(), fetchPdf: vi.fn(), fetchPage: vi.fn(async () => page) }),
     ...over,
   });
 
@@ -199,8 +199,31 @@ describe('web tools', () => {
     const names = (web: boolean) => offeredTools({ web }).map((t) => t.name);
     expect(names(false)).not.toContain('web_search');
     expect(names(false)).not.toContain('web_fetch');
+    expect(names(false)).not.toContain('download_file');
     expect(names(false)).toContain('search_papers');
-    expect(names(true)).toEqual(expect.arrayContaining(['web_search', 'web_fetch', 'search_papers', 'find_citations']));
+    expect(names(true)).toEqual(expect.arrayContaining(['web_search', 'web_fetch', 'download_file', 'search_papers', 'find_citations']));
+  });
+
+  it('downloads a file into the chat, named by the site or the user', async () => {
+    const saved: { name: string; mime: string; bytes: Uint8Array }[] = [];
+    const csv = { bytes: new TextEncoder().encode('a,b\n1,2'), name: 'data.csv', mime: 'text/csv', finalUrl: 'https://data.example/files/data.csv' };
+    const fetchFile = vi.fn(async () => csv);
+    const ctx = web({
+      webFiles: () => ({ name: 'fake', fetchFile, fetchPdf: vi.fn(), fetchPage: vi.fn() }),
+      files: { save: vi.fn(async (f) => (saved.push(f), { id: 'af_1', name: f.name, mime: f.mime, size: f.bytes.byteLength })), read: vi.fn(async () => null), readShelfPdf: vi.fn(async () => null) },
+    });
+    const r = await runTool(ctx, 'download_file', { url: 'https://data.example/get?id=7' });
+    expect(fetchFile).toHaveBeenCalledWith('https://data.example/get?id=7', { maxBytes: 20 * 1024 * 1024 });
+    expect(r.outcome).toMatchObject({ status: 'done', output: { result: { fileId: 'af_1', fileName: 'data.csv', mime: 'text/csv', url: 'https://data.example/files/data.csv' }, display: { file: { id: 'af_1' }, summary: 'Downloaded' } } });
+    await runTool(ctx, 'download_file', { url: 'https://data.example/get?id=7', filename: 'Survey 2024.xlsx' });
+    expect(saved.map((f) => f.name)).toEqual(['data.csv', 'Survey 2024.csv']);
+  });
+
+  it('explains a link that is a page or a kind of file it won’t keep', async () => {
+    for (const [reason, words] of [['is_page', 'web_fetch'], ['not_file', 'documents, spreadsheets'], ['too_large', 'too large']] as const) {
+      const ctx = web({ webFiles: () => ({ name: 'fake', fetchFile: vi.fn(async () => { throw new ProviderError('bad_request', 'x', { reason }); }), fetchPdf: vi.fn(), fetchPage: vi.fn() }) });
+      expect((await runTool(ctx, 'download_file', { url: 'https://a.example/x' })).outcome, reason).toMatchObject({ status: 'error', message: expect.stringContaining(words) });
+    }
   });
 
   it('searches the web and shows the pages found', async () => {
@@ -227,6 +250,7 @@ describe('web tools', () => {
     const ctx = web({
       webFiles: () => ({
         name: 'fake',
+        fetchFile: vi.fn(),
         fetchPage: vi.fn(async () => {
           throw new ProviderError('bad_request', 'pdf', { reason: 'is_pdf' });
         }),
@@ -242,6 +266,7 @@ describe('web tools', () => {
     const ctx = web({
       webFiles: () => ({
         name: 'fake',
+        fetchFile: vi.fn(),
         fetchPdf: vi.fn(),
         fetchPage: vi.fn(async () => {
           throw new ProviderError('bad_request', 'private', { reason: 'blocked' });

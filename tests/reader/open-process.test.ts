@@ -79,6 +79,7 @@ describe.skipIf(!TEST_DB_URL)('opening and processing papers (Postgres)', { time
   let embedder: Embedder | null = fakeEmbedder();
   const web: WebFiles = {
     name: 'fake-web',
+    fetchFile: vi.fn(),
     fetchPdf: vi.fn(async (url: string) => {
       const f = files[url];
       if (!f) throw new ProviderError('not_found', 'gone', { reason: 'not_found' });

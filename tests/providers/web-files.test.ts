@@ -120,6 +120,46 @@ describe('reading web pages', () => {
     await expect(files.fetchPage('https://a.example/missing', { maxBytes: 1000 })).rejects.toMatchObject({ code: 'not_found' });
   });
 
+  it('downloads a file, its kind from its bytes and its name from the site', async () => {
+    const zip = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3, 4]);
+    const files = directHttp({
+      fetch: respond({
+        'https://d.example/export?id=1': () => new Response('a,b\n1,2', { headers: { 'content-type': 'text/csv', 'content-disposition': 'attachment; filename="survey results.csv"' } }),
+        'https://d.example/go': () => new Response(null, { status: 302, headers: { location: '/files/archive.zip' } }),
+        'https://d.example/files/archive.zip': () => new Response(zip, { headers: { 'content-type': 'application/octet-stream' } }),
+        'https://d.example/report.xlsx': () => new Response(zip),
+        'https://d.example/paper': () => new Response(PDF, { headers: { 'content-type': 'application/octet-stream' } }),
+        'https://d.example/refs': () => new Response('@article{a, title={T}}', { headers: { 'content-type': 'application/x-bibtex', 'content-disposition': "attachment; filename*=UTF-8''my%20refs" } }),
+      }),
+      resolve: publicDns,
+    });
+    expect(await files.fetchFile('https://d.example/export?id=1', { maxBytes: 1000 })).toMatchObject({ name: 'survey results.csv', mime: 'text/csv', bytes: new TextEncoder().encode('a,b\n1,2') });
+    expect(await files.fetchFile('https://d.example/go', { maxBytes: 1000 })).toMatchObject({ name: 'archive.zip', mime: 'application/zip', finalUrl: 'https://d.example/files/archive.zip', bytes: zip });
+    expect(await files.fetchFile('https://d.example/report.xlsx', { maxBytes: 1000 })).toMatchObject({ name: 'report.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    expect(await files.fetchFile('https://d.example/paper', { maxBytes: 10_000 })).toMatchObject({ name: 'paper.pdf', mime: 'application/pdf' });
+    expect(await files.fetchFile('https://d.example/refs', { maxBytes: 1000 })).toMatchObject({ name: 'my refs.bib', mime: 'application/x-bibtex' });
+  });
+
+  it('refuses web pages, unknown binaries, big files and private links when downloading', async () => {
+    const files = directHttp({
+      fetch: respond({
+        'https://d.example/page': html('<!DOCTYPE html><html><body>Sign in</body></html>'),
+        'https://d.example/untyped-page': () => new Response('\n  <html><body>hi</body></html>'),
+        'https://d.example/app.exe': () => new Response(new Uint8Array([0x4d, 0x5a, 0x90, 0, 3, 0, 0, 0])),
+        'https://d.example/big.csv': () => new Response('x'.repeat(5000)),
+        'https://d.example/declared': () => new Response('x', { headers: { 'content-length': '999999' } }),
+      }),
+      resolve: async (h) => (h === 'inside.example' ? ['10.0.0.9'] : ['93.184.216.34']),
+    });
+    await expect(files.fetchFile('https://d.example/page', { maxBytes: 100_000 })).rejects.toMatchObject({ details: { reason: 'is_page' } });
+    await expect(files.fetchFile('https://d.example/untyped-page', { maxBytes: 100_000 })).rejects.toMatchObject({ details: { reason: 'is_page' } });
+    await expect(files.fetchFile('https://d.example/app.exe', { maxBytes: 100_000 })).rejects.toMatchObject({ details: { reason: 'not_file' } });
+    await expect(files.fetchFile('https://d.example/big.csv', { maxBytes: 2000 })).rejects.toMatchObject({ details: { reason: 'too_large' } });
+    await expect(files.fetchFile('https://d.example/declared', { maxBytes: 2000 })).rejects.toMatchObject({ details: { reason: 'too_large' } });
+    await expect(files.fetchFile('https://inside.example/a.zip', { maxBytes: 1000 })).rejects.toMatchObject({ details: { reason: 'blocked' } });
+    await expect(files.fetchFile('https://d.example/missing', { maxBytes: 1000 })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
   it('turns blocks into lines', () => {
     const { document } = parseHTML('<html><body><h2>Title</h2><p>One <b>two</b></p><table><tr><td>a</td><td>b</td></tr></table>x<br>y</body></html>');
     expect(blockText(document.body as never)).toBe('Title\n\nOne two\n\na | b |\n\nx\ny');
