@@ -53,11 +53,16 @@ export function describe(it: HistoryItem): { text: string; detail?: string } {
     case 'contact.sent':
       return { text: 'Sent a message to the team' };
     case 'credits.trace':
-      return { text: `Searched ${n(m.claims)} claim${n(m.claims) === 1 ? '' : 's'}`, detail: m.refunded ? 'credits returned' : undefined };
+      return { text: `Searched ${n(m.claims)} claim${n(m.claims) === 1 ? '' : 's'}`, detail: n(m.held) > Math.abs(n(it.delta)) ? 'unused credits returned' : undefined };
     case 'credits.cite':
-      return { text: 'Cited a single claim', detail: m.refunded ? 'credit returned' : undefined };
+      return { text: 'Cited a single claim' };
+    case 'credits.pack':
     case 'credits.purchase':
       return { text: `Bought credits${m.product ? `: ${String(m.product)}` : ''}` };
+    case 'credits.plan':
+      return { text: `Plan credits added${m.plan ? `: ${String(m.plan)}` : ''}` };
+    case 'credits.expire':
+      return { text: 'Credits expired' };
     case 'credits.refund':
       return { text: 'Payment refunded' };
     case 'credits.adjust':

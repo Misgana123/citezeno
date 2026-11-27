@@ -1,0 +1,429 @@
+{
+ "version": "6.9",
+ "hitCount": 82404,
+ "nextCursorMark": "AoIIQbMlsCg1NTQ5MzY4Mw==",
+ "nextPageUrl": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=crispr+off-target&cursorMark=AoIIQbMlsCg1NTQ5MzY4Mw%3D%3D&resultType=core&pageSize=2&format=json",
+ "request": {
+  "queryString": "crispr off-target",
+  "resultType": "core",
+  "cursorMark": "*",
+  "pageSize": 2,
+  "sort": "",
+  "synonym": false
+ },
+ "resultList": {
+  "result": [
+   {
+    "id": "42541388",
+    "source": "MED",
+    "pmid": "42541388",
+    "doi": "10.1177/10430342261466427",
+    "title": "Nonhuman Primate Genomes Have Limited Relevance for Evaluating Human CRISPR Off-Target Effects.",
+    "authorString": "Blaha L, Bosinger M, Bodian DL, Qu V, Warner JB, Borges CM, Mueller C.",
+    "authorList": {
+     "author": [
+      {
+       "fullName": "Blaha L",
+       "lastName": "Blaha",
+       "firstName": "Laura",
+       "initials": "L",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Genomic Medicine Unit, Sanofi, Waltham, Massachusetts, USA."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Bosinger M",
+       "lastName": "Bosinger",
+       "firstName": "Mia",
+       "initials": "M",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Diamond Age Data Science, Boston, Massachusetts, USA."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Bodian DL",
+       "lastName": "Bodian",
+       "firstName": "Dale L",
+       "initials": "DL",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Diamond Age Data Science, Boston, Massachusetts, USA."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Qu V",
+       "lastName": "Qu",
+       "firstName": "Victoria",
+       "initials": "V",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Genomic Medicine Unit, Sanofi, Waltham, Massachusetts, USA."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Warner JB",
+       "lastName": "Warner",
+       "firstName": "Jason B",
+       "initials": "JB",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Diamond Age Data Science, Boston, Massachusetts, USA."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Borges CM",
+       "lastName": "Borges",
+       "firstName": "Christopher M",
+       "initials": "CM",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Genomic Medicine Unit, Sanofi, Waltham, Massachusetts, USA."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Mueller C",
+       "lastName": "Mueller",
+       "firstName": "Christian",
+       "initials": "C",
+       "authorId": {
+        "type": "ORCID",
+        "value": "0000-0003-3589-8749"
+       },
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Genomic Medicine Unit, Sanofi, Waltham, Massachusetts, USA."
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "authorIdList": {
+     "authorId": [
+      {
+       "type": "ORCID",
+       "value": "0000-0003-3589-8749"
+      }
+     ]
+    },
+    "journalInfo": {
+     "journalIssueId": 4236307,
+     "dateOfPublication": "2026 Aug",
+     "monthOfPublication": 8,
+     "yearOfPublication": 2026,
+     "journal": {
+      "medlineAbbreviation": "Hum Gene Ther",
+      "title": "Human gene therapy",
+      "essn": "1557-7422",
+      "issn": "1043-0342",
+      "nlmid": "9008950",
+      "isoabbreviation": "Hum Gene Ther"
+     },
+     "printPublicationDate": "2026-08-01"
+    },
+    "pubYear": "2026",
+    "pageInfo": "10430342261466427",
+    "abstractText": "Clustered Regularly Interspaced Short Palindromic Repeats (CRISPR) technology has revolutionized genetic medicine by enabling precise genome editing for therapeutic benefit. CRISPR nucleases are programmed to target genomic sites with sequence complementarity to the spacer region of an associated guide RNA. However, these nucleases may target genomic loci with sequences similar to the target site, which can lead to unintended disruption of off-target genes. The risks associated with these off-target editing events are critical to assess as CRISPR-based <i>in\u00a0vivo</i> editing systems advance to clinical development. Nonhuman primates (NHPs) are common model species for evaluating the human safety of many therapeutic modalities, but their relevance for evaluating human CRISPR off-target activity has yet to be determined. In this study, 1,220,908 Cas12a and 6,159,066 Cas9 spacer sequences targeting human genes were designed, and off-target editing sites were computationally predicted in humans and five common NHP species. Of the 7,413 Cas12a and 570,754 Cas9 spacers meeting defined on- and off-target inclusion criteria, only 14-21% of Cas12a and 7-15% of Cas9 human off-targets per spacer are recapitulated in the genomes of NHPs commonly used in preclinical studies. These results highlight the limitations of NHPs for the study of human CRISPR spacer specificity and contextualize human risk informed by these studies.",
+    "affiliation": "Genomic Medicine Unit, Sanofi, Waltham, Massachusetts, USA.",
+    "publicationStatus": "aheadofprint",
+    "language": "eng",
+    "pubModel": "Print-Electronic",
+    "pubTypeList": {
+     "pubType": [
+      "Journal Article"
+     ]
+    },
+    "grantsList": {
+     "grant": [
+      {
+       "agency": "Sanofi",
+       "orderIn": 0
+      }
+     ]
+    },
+    "keywordList": {
+     "keyword": [
+      "Genome",
+      "Gene therapy",
+      "In silico",
+      "Animal Models",
+      "Preclinical Safety Testing",
+      "Off-target Prediction"
+     ]
+    },
+    "subsetList": {
+     "subset": [
+      {
+       "code": "IM",
+       "name": "Index Medicus"
+      }
+     ]
+    },
+    "fullTextUrlList": {
+     "fullTextUrl": [
+      {
+       "availability": "Subscription required",
+       "availabilityCode": "S",
+       "documentStyle": "doi",
+       "site": "DOI",
+       "url": "https://doi.org/10.1177/10430342261466427"
+      }
+     ]
+    },
+    "isOpenAccess": "N",
+    "inEPMC": "N",
+    "inPMC": "N",
+    "citedByCount": 0,
+    "hasReferences": "Y",
+    "hasTextMinedTerms": "Y",
+    "hasDbCrossReferences": "N",
+    "hasPDF": "N",
+    "hasBook": "N",
+    "hasSuppl": "N",
+    "hasLabsLinks": "N",
+    "hasData": "N",
+    "authMan": "N",
+    "epmcAuthMan": "N",
+    "nihAuthMan": "N",
+    "hasTMAccessionNumbers": "N",
+    "dateOfCreation": "2026-08-01",
+    "dateOfRevision": "2026-08-01",
+    "electronicPublicationDate": "2026-08-01",
+    "firstPublicationDate": "2026-08-01",
+    "firstIndexDate": "2026-08-03",
+    "hasEvaluations": "N"
+   },
+   {
+    "id": "42088116",
+    "source": "MED",
+    "pmid": "42088116",
+    "pmcid": "PMC13136712",
+    "fullTextIdList": {
+     "fullTextId": [
+      "PMC13136712"
+     ]
+    },
+    "doi": "10.3389/fbinf.2026.1800237",
+    "title": "Feature representation for explainable CRISPR off-target prediction and base editing efficiency.",
+    "authorString": "Hasin F, Minervini M, Mencar C, Ventrella G, Consiglio A, Orro A, Selmi T.",
+    "authorList": {
+     "author": [
+      {
+       "fullName": "Hasin F",
+       "lastName": "Hasin",
+       "firstName": "Faiza",
+       "initials": "F",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Computer Science, University of Bari Aldo Moro, Bari, Italy."
+         },
+         {
+          "affiliation": "Institute for Biomedical Technologies (Bari Unit), National Research Council (CNR), Bari, Italy."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Minervini M",
+       "lastName": "Minervini",
+       "firstName": "Michele",
+       "initials": "M",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Computer Science, University of Bari Aldo Moro, Bari, Italy."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Mencar C",
+       "lastName": "Mencar",
+       "firstName": "Corrado",
+       "initials": "C",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Computer Science, University of Bari Aldo Moro, Bari, Italy."
+         },
+         {
+          "affiliation": "Institute for Biomedical Technologies (Bari Unit), National Research Council (CNR), Bari, Italy."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Ventrella G",
+       "lastName": "Ventrella",
+       "firstName": "Giuseppe",
+       "initials": "G",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Computer Science, University of Bari Aldo Moro, Bari, Italy."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Consiglio A",
+       "lastName": "Consiglio",
+       "firstName": "Arianna",
+       "initials": "A",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Institute for Biomedical Technologies (Bari Unit), National Research Council (CNR), Bari, Italy."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Orro A",
+       "lastName": "Orro",
+       "firstName": "Alessandro",
+       "initials": "A",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Institute for Biomedical Technologies (Milan Unit), National Research Council (CNR), Milan, Italy."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Selmi T",
+       "lastName": "Selmi",
+       "firstName": "Tommaso",
+       "initials": "T",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Institute for Biomedical Technologies (Milan Unit), National Research Council (CNR), Milan, Italy."
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "dataLinksTagsList": {
+     "dataLinkstag": [
+      "altmetrics"
+     ]
+    },
+    "journalInfo": {
+     "volume": "6",
+     "journalIssueId": 4120075,
+     "dateOfPublication": "2026 ",
+     "monthOfPublication": 0,
+     "yearOfPublication": 2026,
+     "journal": {
+      "medlineAbbreviation": "Front Bioinform",
+      "title": "Frontiers in bioinformatics",
+      "essn": "2673-7647",
+      "issn": "2673-7647",
+      "nlmid": "9918227263306676",
+      "isoabbreviation": "Front Bioinform"
+     },
+     "printPublicationDate": "2026-01-01"
+    },
+    "pubYear": "2026",
+    "pageInfo": "1800237",
+    "abstractText": "<h4>Introduction</h4>The interaction between guide RNAs (gRNAs) and target DNA sequences is a critical factor in the effectiveness of CRISPR/Cas9 (Clustered Regularly Interspaced Short Palindromic Repeats/CRISPR-associated protein 9) gene editing. Predicting these interactions accurately necessitates models that offer biological knowledge in addition to high accuracy. This study analyzes the impact of feature representation on accuracy and interpretability in off-target prediction.<h4>Methods</h4>We address two CRISPR applications: gene knockout (KO) and base editing (BE) using distinct benchmark datasets. For the KO problem, we utilized CHANGE-seq and GUIDE-seq to evaluate paired sequence representations, while the Hanna screening dataset has been used for BE. We approached the prediction problem both as a classification and regression task using XGBoost models.<h4>Results</h4>In the case of KO, there is not a single universally optimal encoding. For both classification and regression, One-Hot and its variants (OH, OH5C) achieve the best results on GUIDE-seq (AUPR = 0.661, Pearson = 0.756), while the Bulges representation performs best on CHANGE-seq (AUPR = 0.612, Pearson = 0.602). In the case of BE, One-hot encoding consistently outperforms K-mer representation for predictive accuracy both as regression and classification (AUPR = 0.723, Pearson = 0.746).<h4>Discussion</h4>Our analysis demonstrates comparable predictive performance across both gene knockout and base editing tasks, confirming the robustness of the framework in distinct editing domains. Interpretability analysis using SHapley Additive exPlanations (SHAP) reveals that despite different mechanisms, the Protospacer Adjacent Motif (PAM)-proximal region remains a critical feature for prediction for both editing mechanisms.",
+    "affiliation": "Department of Computer Science, University of Bari Aldo Moro, Bari, Italy.",
+    "publicationStatus": "epublish",
+    "language": "eng",
+    "pubModel": "Electronic-eCollection",
+    "pubTypeList": {
+     "pubType": [
+      "research-article",
+      "Journal Article"
+     ]
+    },
+    "keywordList": {
+     "keyword": [
+      "Crispr/cas9",
+      "Off-target Prediction",
+      "Feature Representation",
+      "Shap",
+      "Base Editing",
+      "Xgboost",
+      "Explainability"
+     ]
+    },
+    "fullTextUrlList": {
+     "fullTextUrl": [
+      {
+       "availability": "Subscription required",
+       "availabilityCode": "S",
+       "documentStyle": "doi",
+       "site": "DOI",
+       "url": "https://doi.org/10.3389/fbinf.2026.1800237"
+      },
+      {
+       "availability": "Open access",
+       "availabilityCode": "OA",
+       "documentStyle": "html",
+       "site": "Europe_PMC",
+       "url": "https://europepmc.org/articles/PMC13136712"
+      },
+      {
+       "availability": "Open access",
+       "availabilityCode": "OA",
+       "documentStyle": "pdf",
+       "site": "Europe_PMC",
+       "url": "https://europepmc.org/articles/PMC13136712?pdf=render"
+      }
+     ]
+    },
+    "isOpenAccess": "Y",
+    "inEPMC": "Y",
+    "inPMC": "Y",
+    "citedByCount": 2,
+    "hasReferences": "Y",
+    "hasTextMinedTerms": "Y",
+    "hasDbCrossReferences": "N",
+    "hasPDF": "Y",
+    "hasBook": "N",
+    "hasSuppl": "N",
+    "hasLabsLinks": "Y",
+    "hasData": "N",
+    "license": "cc by",
+    "authMan": "N",
+    "epmcAuthMan": "N",
+    "nihAuthMan": "N",
+    "hasTMAccessionNumbers": "N",
+    "dateOfCompletion": "2026-05-06",
+    "dateOfCreation": "2026-05-06",
+    "dateOfRevision": "2026-08-13",
+    "electronicPublicationDate": "2026-04-20",
+    "firstPublicationDate": "2026-04-20",
+    "firstIndexDate": "2026-05-13",
+    "fullTextReceivedDate": "2026-05-20",
+    "hasEvaluations": "N"
+   }
+  ]
+ }
+}

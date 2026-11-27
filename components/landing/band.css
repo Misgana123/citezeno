@@ -1,0 +1,16 @@
+/* the dark blue full-width band (landing deep research, pricing "what your credits buy"); its content stays on the page grid */
+.lp-dr {
+  position: relative; padding: 112px 0; overflow: hidden;
+  color: var(--on-prussian); background: radial-gradient(1400px 800px at 85% 0%, #1e5185 0%, var(--prussian) 42%, var(--prussian-deep) 85%);
+}
+.lp-dr::before {
+  content: ''; position: absolute; inset: 0; background-size: 40px 40px; mask: linear-gradient(90deg, transparent, #000);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+}
+.lp-dr > * { position: relative; }
+.lp-dr .section-head h2 { margin: 16px 0 0; }
+.lp-dr .section-head p { color: var(--on-prussian-2); }
+.lp-dr .kicker { color: var(--thread); }
+.lp-dr h2 { margin: 18px 0; font-size: clamp(38px, 4.6vw, 58px); font-weight: 750; letter-spacing: -0.035em; line-height: 1; color: #fff; }
+.lp-dr h2 em { font: italic 400 1em var(--f-read); letter-spacing: -0.015em; color: var(--thread); }
+@media (max-width: 1000px) { .lp-dr { padding: 72px 0; } }

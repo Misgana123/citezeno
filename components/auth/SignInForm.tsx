@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { authMessage, signIn } from '@/lib/auth-client';
 import { Notice, OAuthButtons, PasswordField } from './bits';
+import { AFTER_SIGN_IN } from '@/lib/safe-next';
 
 export function SignInForm({ providers, next, error }: { providers: ('google' | 'github')[]; next: string; error?: string }) {
   const router = useRouter();
@@ -36,7 +37,7 @@ export function SignInForm({ providers, next, error }: { providers: ('google' | 
     router.refresh();
   };
 
-  const q = next !== '/studio' ? `?next=${encodeURIComponent(next)}` : '';
+  const q = next !== AFTER_SIGN_IN ? `?next=${encodeURIComponent(next)}` : '';
   return (
     <>
       <OAuthButtons providers={providers} next={next} verb="Continue" />

@@ -3,11 +3,11 @@ import type { HistoryFilter, HistoryItem } from './history-format';
 export { FILTERS, describe, type HistoryFilter, type HistoryItem } from './history-format';
 
 /* One timeline from two sources: the activity log (traces, sharing, security)
-   and the credit ledger (every credit spent, returned, bought or granted). */
+   and the credit entries (every credit charged, granted, expired or removed). */
 
 const KINDS: Record<Exclude<HistoryFilter, 'all'>, string[]> = {
-  traces: ['trace.created', 'trace.renamed', 'trace.deleted', 'credits.trace', 'credits.cite', 'credits.trace-refund'],
-  credits: ['credits.monthly', 'credits.purchase', 'credits.refund', 'credits.adjust', 'credits.trace', 'credits.cite', 'credits.trace-refund'],
+  traces: ['trace.created', 'trace.renamed', 'trace.deleted', 'credits.trace', 'credits.cite'],
+  credits: ['credits.*'],
   sharing: ['trace.shared', 'trace.unshared'],
   security: ['auth.signin', 'auth.password', 'auth.2fa-on', 'auth.2fa-off'],
 };
@@ -21,11 +21,11 @@ export async function loadHistory(userId: string, opts: { filter?: HistoryFilter
        select 'a' || id as id, "createdAt" as at, kind, "traceId", title, meta, null::int as delta
        from activity where "userId" = $1
        union all
-       select 'l' || id, "createdAt", 'credits.' || reason, null, null, meta || jsonb_build_object('refunded', refunded), "freeDelta" + "paidDelta"
-       from credit_ledger where "userId" = $1 and "freeDelta" + "paidDelta" <> 0
+       select 'l' || id, "createdAt", 'credits.' || case when kind = 'expire' then 'expire' else reason end, null, null, meta, delta
+       from credit_entry where "userId" = $1 and delta <> 0
      ) x
      left join trace t on t."userId" = $1 and t.id = x."traceId"
-     where ($2::timestamptz is null or x.at < $2) and ($3::text[] is null or x.kind = any($3))
+     where ($2::timestamptz is null or x.at < $2) and ($3::text[] is null or x.kind = any($3) or ('credits.*' = any($3) and x.kind like 'credits.%'))
      order by x.at desc, x.id desc
      limit $4`,
     [userId, before, filter, limit + 1],

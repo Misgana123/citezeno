@@ -5,7 +5,7 @@
 import { removeEntry, type Saved } from './library';
 
 /* Ids this browser has already uploaded. If one later disappears from the
-   account it was deleted elsewhere (say, on the library page), so the browser
+   account it was deleted elsewhere (say, on another device), so the browser
    copy is dropped instead of being uploaded again. */
 const SYNCED = 'cz:synced';
 function syncedIds(): Set<string> {
@@ -26,8 +26,17 @@ function markSynced(ids: string[]) {
 }
 
 /* A library row. Rows that only exist in the account arrive without `result`
-   (and with a short draft snippet) until they are opened. */
-export type LibItem = Omit<Saved, 'result'> & { result?: Saved['result'] };
+   (and with a short draft snippet) until they are opened. Account rows also
+   carry the trace's share link state and whether its title was set by hand. */
+export type LibItem = Omit<Saved, 'result'> & {
+  result?: Saved['result'];
+  shareToken?: string | null;
+  shareViews?: number;
+  /* ms since epoch, or null when the link never expires */
+  shareExpiresAt?: number | null;
+  shareLocked?: boolean;
+  titleLocked?: boolean;
+};
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { ...init, headers: { 'content-type': 'application/json', ...(init?.headers || {}) } });
@@ -64,8 +73,8 @@ export async function syncLibrary(local: Saved[]): Promise<LibItem[]> {
   markSynced(remote.map((r) => r.id));
   for (const l of keep) {
     const r = byId.get(l.id);
-    // the account's title wins: it may have been renamed on the library page
-    if (!r || r.savedAt <= l.savedAt) byId.set(l.id, r ? { ...l, title: r.title } : l);
+    // the account's title and share link win: it may have been renamed or shared elsewhere
+    if (!r || r.savedAt <= l.savedAt) byId.set(l.id, r ? { ...r, ...l, title: r.title } : l);
   }
   return [...byId.values()].sort((a, b) => b.savedAt - a.savedAt);
 }

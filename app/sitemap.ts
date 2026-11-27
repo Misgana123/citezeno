@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { siteURL } from '@/lib/site';
+import { DOC_ARTICLES } from '@/lib/docs';
 import { STYLE_GUIDES } from '@/lib/style-guides';
 
 /* Public, indexable pages only. Private pages (studio, account, library, history,
@@ -17,6 +18,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     page('/styles', 0.9, 'monthly'),
     ...Object.keys(STYLE_GUIDES).map((id) => page(`/styles/${id}`, 0.8, 'monthly')),
     page('/pricing', 0.7, 'monthly'),
+    page('/docs', 0.6, 'monthly'),
+    ...DOC_ARTICLES.map((d) => page(`/docs/${d.slug}`, 0.5, 'monthly')),
     page('/sign-up', 0.6, 'yearly'),
     page('/contact', 0.4, 'yearly'),
     page('/privacy', 0.2, 'yearly'),

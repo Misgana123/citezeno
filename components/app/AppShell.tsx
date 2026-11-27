@@ -1,114 +1,217 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
-import { Icon, LogoMark, type IconName } from '../Icon';
-import { ThemeToggle } from '../Nav';
-import { UserMenu } from '../UserMenu';
+import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { Icon } from '../Icon';
 import { useCredits } from '../useCredits';
+import { RAIL_EVENT } from '../chat/file/panel-state';
+import { type AppSection } from './sections';
+import { openPalette, Sidebar } from './Sidebar';
 
-/* The workspace frame shared by the studio and the signed-in pages around it
-   (library, history, account, admin): a navigation rail and a top bar, with the
-   page scrolling between them. Styles live in app/atelier.css. */
+/* The workspace frame shared by every signed-in page: the sidebar (New chat,
+   Search, the tools, the user's chats and account) and the page beside it,
+   either a scrolling page or, for the assistant, the whole window. On phones
+   the sidebar is a drawer opened from a slim top bar. Styles: app/atelier.css. */
 
-export type AppSection = 'library' | 'history' | 'account' | 'admin' | null;
+export type { AppSection };
 
-/* One destination in the rail. `short` is its caption when the rail is the phone's bottom bar. */
-export function RailLink({ href, icon, label, short, current, cls }: { href: string; icon: IconName; label: string; short?: string; current?: boolean; cls?: string }) {
-  return (
-    <Link className={`at-rb${cls ? ' ' + cls : ''}`} href={href} aria-label={label} aria-current={current ? 'page' : undefined}>
-      <Icon name={icon} />
-      <span className="at-rb-lbl" data-short={short}>
-        {label}
-      </span>
-    </Link>
-  );
-}
-
-/* The credit balance, with a small meter of this month's free credits. `need` marks it low. */
+/* The credit balance, with a small meter of the current plan credits left. `need` marks it low. */
 export function CreditsPill({ need = 5 }: { need?: number }) {
   const credits = useCredits(true);
   if (!credits) return null;
-  const low = credits.total < Math.max(need, 5);
+  const plan = credits.lots.find((l) => l.source === 'plan');
+  // low: not enough for what's on screen, or under 10% of this month's plan credits
+  const low = credits.total < Math.max(need, 5) || (plan != null && credits.total < plan.amount * 0.1);
+  const title = credits.lots.map((l) => `${(l.remaining - l.held).toLocaleString()} ${l.label.toLowerCase()}${l.expiresAt ? ` · until ${new Date(l.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}`).join('\n') + (credits.held ? `\n${credits.held} on hold` : '');
   return (
-    <Link href="/pricing" className={`at-credits${low ? ' low' : ''}`} title={`${credits.free} free (resets monthly) + ${credits.paid} purchased`}>
+    <Link href="/pricing" className={`at-credits${low ? ' low' : ''}`} title={title || 'No credits'}>
       <Icon name="bolt" />
       <b>{credits.total.toLocaleString()}</b>
       <span className="at-credits-lbl">credit{credits.total === 1 ? '' : 's'}</span>
       <span className="at-credits-bar" aria-hidden="true">
-        <i style={{ width: `${Math.min(100, credits.freeMonthly ? (credits.free / credits.freeMonthly) * 100 : 0)}%` }} />
+        <i style={{ width: `${Math.min(100, plan ? ((plan.remaining - plan.held) / plan.amount) * 100 : 0)}%` }} />
       </span>
     </Link>
   );
 }
 
-export const openPalette = () => window.dispatchEvent(new Event('citezeno:palette'));
+export { openPalette };
 
-export function AppShell({ current, title, children }: { current: AppSection; title: string; children: ReactNode }) {
+/* Whether the sidebar is folded to icons, remembered in this browser. A page
+   that needs the room (the reader) starts it folded without changing what is
+   remembered, so it opens out again on the next page. */
+function useCompactSidebar(rail = false): [boolean, (v: boolean) => void] {
+  const [compact, setCompact] = useState(rail);
+  useEffect(() => {
+    if (rail) return;
+    try {
+      setCompact(localStorage.getItem('cz:sidebar') === 'compact');
+    } catch {
+      /* storage blocked */
+    }
+  }, [rail]);
+  const set = (v: boolean) => {
+    setCompact(v);
+    if (rail) return;
+    try {
+      localStorage.setItem('cz:sidebar', v ? 'compact' : 'full');
+    } catch {
+      /* storage blocked */
+    }
+  };
+  return [compact, set];
+}
+
+/* The sidebar's width, dragged by its edge and remembered in this browser (null: the usual width). */
+const SIDE_MIN = 220;
+const SIDE_MAX = 420;
+const SIDE_KEY = 'cz:sidebar-width';
+const clampSide = (w: number) => Math.round(Math.min(SIDE_MAX, Math.max(SIDE_MIN, w)));
+
+function useSidebarWidth(): [number | null, (w: number | null) => void] {
+  const [width, setWidth] = useState<number | null>(null);
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem(SIDE_KEY));
+      if (saved) setWidth(clampSide(saved));
+    } catch {
+      /* storage blocked */
+    }
+  }, []);
+  const set = (w: number | null) => {
+    setWidth(w);
+    try {
+      if (w == null) localStorage.removeItem(SIDE_KEY);
+      else localStorage.setItem(SIDE_KEY, String(w));
+    } catch {
+      /* storage blocked */
+    }
+  };
+  return [width, set];
+}
+
+/* The handle on the sidebar's edge: drag it, or focus it and use the arrow keys; double-click resets. */
+function SidebarResizer({ width, onWidth, onDragging }: { width: number | null; onWidth(w: number | null): void; onDragging(on: boolean): void }) {
+  const start = useRef<{ x: number; w: number } | null>(null);
+  const current = () => width ?? (document.querySelector('.cz-side') as HTMLElement | null)?.offsetWidth ?? 264;
+  const down = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    start.current = { x: e.clientX, w: current() };
+    onDragging(true);
+  };
+  const move = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (start.current) onWidth(clampSide(start.current.w + e.clientX - start.current.x));
+  };
+  const up = () => {
+    start.current = null;
+    onDragging(false);
+  };
+  return (
+    <div
+      className="cz-resize"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Sidebar width"
+      aria-valuemin={SIDE_MIN}
+      aria-valuemax={SIDE_MAX}
+      aria-valuenow={Math.round(width ?? 264)}
+      tabIndex={0}
+      title="Drag to resize · double-click to reset"
+      onPointerDown={down}
+      onPointerMove={move}
+      onPointerUp={up}
+      onPointerCancel={up}
+      onDoubleClick={() => onWidth(null)}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          onWidth(clampSide(current() + (e.key === 'ArrowRight' ? 16 : -16)));
+        }
+      }}
+    />
+  );
+}
+
+const isPhone = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches;
+
+export function AppShell({
+  current,
+  title,
+  actions,
+  variant = 'page',
+  rail = false,
+  children,
+}: {
+  current: AppSection;
+  title: ReactNode;
+  /* buttons for the page's top bar (shown on phones, and beside the title on pages that have one) */
+  actions?: ReactNode;
+  /* page: one scrolling column with a footer; panel: the page fills the window (the assistant) */
+  variant?: 'page' | 'panel';
+  /* start with the sidebar folded to its icons (not remembered) */
+  rail?: boolean;
+  children: ReactNode;
+}) {
+  const [compact, setCompact] = useCompactSidebar(rail);
+  // folded for now by the page (a file open beside the assistant), not remembered
+  const [folded, setFolded] = useState(false);
+  useEffect(() => {
+    const on = (e: Event) => setFolded(!!(e as CustomEvent<boolean>).detail);
+    window.addEventListener(RAIL_EVENT, on);
+    return () => window.removeEventListener(RAIL_EVENT, on);
+  }, []);
+  const small = compact || folded;
+  const [sideWidth, setSideWidth] = useSidebarWidth();
+  const [resizing, setResizing] = useState(false);
+  const [drawer, setDrawer] = useState(false);
+  const path = usePathname();
+  useEffect(() => setDrawer(false), [path]);
+  useEffect(() => {
+    if (!drawer) return;
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setDrawer(false);
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [drawer]);
+
   return (
     <div className="at-frame">
-      <div className="at at-page">
-        <nav className="at-rail" aria-label="Workspace">
-          <Link className="at-logo" href="/" aria-label="Citezeno home">
-            <LogoMark className="at-logo-mark" />
-          </Link>
-          <div className="at-rail-main">
-            <RailLink href="/studio" icon="doc" label="Studio" />
-            <RailLink href="/library" icon="history" label="Library" current={current === 'library'} />
-            <RailLink href="/history" icon="clock" label="History" current={current === 'history'} />
-            <button className="at-rb at-only-phone" onClick={openPalette} aria-label="Commands">
-              <Icon name="search" />
-              <span className="at-rb-lbl" data-short="Search">
-                Commands
-              </span>
+      <div
+        className={`cz-app at-page${small ? ' is-compact' : ''}${drawer ? ' is-drawer' : ''}${resizing ? ' is-resizing' : ''}`}
+        style={!small && sideWidth ? ({ '--cz-side': `${sideWidth}px` } as CSSProperties) : undefined}
+      >
+        <Sidebar current={current} compact={small && !drawer} onToggle={() => (isPhone() ? setDrawer(false) : folded ? setFolded(false) : setCompact(!compact))} onNavigate={() => setDrawer(false)} />
+        {!small && <SidebarResizer width={sideWidth} onWidth={setSideWidth} onDragging={setResizing} />}
+        {drawer && <button type="button" className="cz-scrim" aria-label="Close the menu" onClick={() => setDrawer(false)} />}
+
+        <div className="cz-main">
+          <header className="cz-bar">
+            <button type="button" className="cz-ib" onClick={() => setDrawer(true)} aria-label="Open the menu" aria-expanded={drawer}>
+              <Icon name="menu" />
             </button>
-            {current === 'admin' && <RailLink href="/admin" icon="chart" label="Admin" current cls="at-hide-phone" />}
-          </div>
-          <div className="at-rail-end">
-            <RailLink href="/#method" icon="help" label="How it works" cls="at-hide-phone" />
-            <RailLink href="/account" icon="user" label="Account" current={current === 'account'} />
-          </div>
-        </nav>
+            <span className="cz-bar-title">{title}</span>
+            {actions && <div className="cz-bar-acts">{actions}</div>}
+          </header>
 
-        <header className="at-top">
-          <Link className="at-top-logo" href="/" aria-label="Citezeno home">
-            <LogoMark className="at-logo-mark" />
-          </Link>
-          <div className="at-doc">
-            <Link className="at-crumb" href="/studio">
-              Studio
-            </Link>
-            <span className="at-crumb-sep" aria-hidden="true">
-              /
-            </span>
-            <span className="at-here">{title}</span>
-          </div>
-          <button className="at-cmdk" onClick={openPalette} aria-label="Open the command menu">
-            <Icon name="search" />
-            <span>Search commands</span>
-            <span className="kbd">Ctrl K</span>
-          </button>
-          <CreditsPill />
-          <Link className="at-run at-run-link" href="/studio">
-            <Icon name="doc" /> <span className="at-run-lbl">Open the studio</span>
-          </Link>
-          <span className="at-top-sep" aria-hidden="true" />
-          <ThemeToggle />
-          <UserMenu />
-        </header>
-
-        <main className="at-main">
-          <div className="at-page-in">
-            {children}
-            <footer className="at-page-foot">
-              <span>© {new Date().getFullYear()} Citezeno</span>
-              <Link href="/pricing">Pricing</Link>
-              <Link href="/contact">Contact</Link>
-              <Link href="/privacy">Privacy</Link>
-              <Link href="/terms">Terms</Link>
-            </footer>
-          </div>
-        </main>
+          {variant === 'panel' ? (
+            <main className="cz-panel">{children}</main>
+          ) : (
+            <main className="cz-page">
+              <div className="at-page-in">
+                {children}
+                <footer className="at-page-foot">
+                  <span>© {new Date().getFullYear()} Citezeno</span>
+                  <Link href="/pricing">Pricing</Link>
+                  <Link href="/contact">Contact</Link>
+                  <Link href="/privacy">Privacy</Link>
+                  <Link href="/terms">Terms</Link>
+                </footer>
+              </div>
+            </main>
+          )}
+        </div>
       </div>
     </div>
   );

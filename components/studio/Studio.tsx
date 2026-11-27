@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useMediaQuery } from '../useMediaQuery';
 import { DEFAULT_DOC, suggestTitle, type DocOptions } from '@/lib/docmodel';
 import {
   MAX_CLAIMS, TraceError, addSource, attachClaim, attachToSentence, citedSet, importReferences, reattachDetached, removeDetached, removeMine, removeSource, render,
@@ -23,21 +23,19 @@ import { emptyHistory, isTextTarget, record, redo, undo, undoKey, type History }
 import { DEFAULT_PREFS, type ApiSettings, type Mode, type Prefs, type Result, type Source } from '@/lib/types';
 
 export type ClaimMode = 'auto' | 'pick';
-import { CreditsPill, RailLink, openPalette } from '../app/AppShell';
+import { CreditsPill } from '../app/AppShell';
 import { registerCommands, type Command } from '../CommandPalette';
-import { Icon, LogoMark, type IconName } from '../Icon';
-import { ThemeToggle } from '../Nav';
-import { UserMenu } from '../UserMenu';
+import { Icon } from '../Icon';
 import { toast } from '../toast';
 import { usePersistent } from '../usePersistent';
-import { OutOfCredits, refundCredits, spendCredits, useCredits } from '../useCredits';
+import { holdCredits, OutOfCredits, settleCredits, useCredits } from '../useCredits';
 import { CreditsDialog } from './CreditsDialog';
 import { CheckPanel, type CheckState } from './CheckPanel';
 import type { OriginalDoc } from './DocxPreview';
 import { EvictDialog } from './EvictDialog';
 import { Controls, MODES } from './Controls';
 import { Editor, type EditorApi } from './Editor';
-import { LibraryDrawer } from './LibraryDrawer';
+import { LibraryDialog } from './LibraryDialog';
 import { SidePanel, type OutlineClaim, type SideTab } from './SidePanel';
 import { Progress, type StepView } from './Progress';
 import { Results, type SourceEdits, type Tab } from './Results';
@@ -131,8 +129,8 @@ export function Studio() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   /* on narrow screens the side panels open as drawers */
-  const [drawer, setDrawer] = useState<'' | 'nav' | 'insp'>('');
-  const [sideTab, setSideTab] = usePersistent<SideTab>('side-tab', 'style');
+  const [drawer, setDrawer] = useState<'' | 'insp'>('');
+  const [sideTab, setSideTab] = usePersistent<SideTab>('panel-tab', 'settings');
   const editorApi = useRef<EditorApi | null>(null);
   const [doc, setDocRaw] = usePersistent<DocOptions>('doc', DEFAULT_DOC, (d) => ({ ...DEFAULT_DOC, ...d }));
   const [library, setLibrary] = useState<LibItem[]>([]);
@@ -161,6 +159,20 @@ export function Studio() {
   const progressEl = useRef<HTMLDivElement>(null);
   const resultsEl = useRef<HTMLDivElement>(null);
   const mainEl = useRef<HTMLDivElement>(null);
+  /* The top bar's own width (not the window's: the app sidebar takes a share),
+     so it can drop labels before its buttons run out of room. */
+  const topEl = useRef<HTMLElement>(null);
+  const [topFit, setTopFit] = useState('');
+  useEffect(() => {
+    const el = topEl.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => {
+      const w = e.contentRect.width;
+      setTopFit(w < 560 ? ' fit-md fit-sm fit-xs' : w < 700 ? ' fit-md fit-sm' : w < 860 ? ' fit-md' : '');
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const [scroll, setScroll] = useState({ y: 0, p: 0 });
   const onMainScroll = useCallback(() => {
     const el = mainEl.current;
@@ -207,7 +219,12 @@ export function Studio() {
       const local = upsert(entry);
       if (!userId) return setLibrary(local);
       // the account keeps its newest ACCOUNT_MAX traces
-      setLibrary((prev) => [entry, ...prev.filter((x) => x.id !== entry.id)].sort((a, b) => b.savedAt - a.savedAt).slice(0, ACCOUNT_MAX));
+      // a title set by hand and the share link stay as they are
+      setLibrary((prev) => {
+        const was = prev.find((x) => x.id === entry.id);
+        const next: LibItem = was ? { ...was, ...entry, title: was.titleLocked ? was.title : entry.title } : entry;
+        return [next, ...prev.filter((x) => x.id !== entry.id)].sort((a, b) => b.savedAt - a.savedAt).slice(0, ACCOUNT_MAX);
+      });
       if (isNew && accountKnown.current && lib.length + 1 >= ACCOUNT_NOTICE && !nearFullTold.current) {
         nearFullTold.current = true;
         toast(`Your library holds ${Math.min(lib.length + 1, ACCOUNT_MAX)} of ${ACCOUNT_MAX} traces. Download or delete old ones to make room.`);
@@ -312,12 +329,12 @@ export function Studio() {
     setLog([]);
     setProgress(0);
     setTimeout(() => progressEl.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
-    let spendId: string | null = null;
-    let ok = false;
+    let actionId: string | null = null;
+    let searched = 0;
     try {
       const r = await trace(draft, prefs, settings, {
         charge: async (n) => {
-          spendId = await spendCredits(n, 'trace');
+          actionId = await holdCredits(n, 'trace');
         },
         step: (s: Step, state: StepState, msg: string) => token === runToken.current && setSteps((v) => ({ ...v, [s]: { state, msg } })),
         progress: (f) => token === runToken.current && setProgress(f),
@@ -325,7 +342,7 @@ export function Studio() {
         isCancelled: () => token !== runToken.current,
       }, picked);
       if (!r || token !== runToken.current) return;
-      ok = true;
+      searched = r.claims.length;
       annotations.current = {};
       tracedDraft.current = draft;
       setHist(emptyHistory());
@@ -351,8 +368,8 @@ export function Studio() {
       toast((e as Error).message, true);
     } finally {
       if (token === runToken.current) setRunning(false);
-      // stopped or failed after paying: give the credits back
-      if (spendId && !ok) refundCredits(spendId).then((back) => back && toast('Trace didn’t finish, so its credits were returned'));
+      // charge the claims that were searched; a stopped or failed trace releases its hold
+      if (actionId) settleCredits(actionId, searched).then((r) => r && !searched && toast('Trace didn’t finish, so its credits were returned'));
     }
   }, [running, draft, prefs, settings, doc.title, setDoc, picking, pickSet]);
 
@@ -395,6 +412,13 @@ export function Studio() {
     setTimeout(() => editorApi.current?.select(c.start, c.end), 40);
   }, []);
 
+  /* the panel is a drawer below this width (keep in step with atelier.css);
+     close it when the screen grows and the panel docks again */
+  const panelDocked = useMediaQuery('(min-width: 1280px)');
+  useEffect(() => {
+    if (panelDocked) setDrawer('');
+  }, [panelDocked]);
+
   useEffect(() => {
     if (!drawer) return;
     const k = (e: KeyboardEvent) => e.key === 'Escape' && setDrawer('');
@@ -413,10 +437,10 @@ export function Studio() {
         return false;
       }
       setCiting(true);
-      let spendId: string | null = null;
+      let actionId: string | null = null;
       let ok = false;
       try {
-        spendId = await spendCredits(1, 'cite');
+        actionId = await holdCredits(1, 'cite');
         const found = await traceClaim(text.trim(), prefs, settings, n, result ? citedSet(result) : new Set(), topicTokens(a));
         if (!found.ids.length) {
           toast('No matching source was found for that passage. Try selecting a longer or more specific claim.', true);
@@ -444,7 +468,7 @@ export function Studio() {
         return false;
       } finally {
         setCiting(false);
-        if (spendId && !ok) refundCredits(spendId);
+        if (actionId) settleCredits(actionId, ok ? 1 : 0);
       }
     },
     [citing, running, draft, prefs, settings, result, entryId, doc.title, setDoc],
@@ -550,12 +574,12 @@ export function Studio() {
   /* command palette entries for this page */
   useEffect(() => {
     const cmds: Command[] = [
-      { id: 'run', group: 'Studio', label: 'Trace sources', icon: 'search', meta: 'Ctrl Enter', run: () => run() },
-      { id: 'settings', group: 'Studio', label: 'Database settings', icon: 'gear', run: () => setSettingsOpen(true) },
-      { id: 'check', group: 'Studio', label: 'Check existing citations', icon: 'shield', keywords: 'verify fake references doi bibliography retracted', run: () => runCheck() },
-      { id: 'library', group: 'Studio', label: 'Open the library of recent traces', icon: 'history', keywords: 'history recent saved', run: () => setLibOpen(true) },
+      { id: 'run', group: 'Citation', label: 'Trace sources', icon: 'search', meta: 'Ctrl Enter', run: () => run() },
+      { id: 'settings', group: 'Citation', label: 'Database settings', icon: 'gear', run: () => setSettingsOpen(true) },
+      { id: 'check', group: 'Citation', label: 'Check existing citations', icon: 'shield', keywords: 'verify fake references doi bibliography retracted', run: () => runCheck() },
+      { id: 'library', group: 'Citation', label: 'Open the library of recent traces', icon: 'history', keywords: 'history recent saved', run: () => setLibOpen(true) },
       ...Object.entries(SAMPLES).map(([k, s]) => ({
-        id: 'sample-' + k, group: 'Studio', label: `Load the sample “${s.label}”`, icon: 'doc' as const, run: () => setDraft(s.text),
+        id: 'sample-' + k, group: 'Citation', label: `Load the sample “${s.label}”`, icon: 'doc' as const, run: () => setDraft(s.text),
       })),
       ...STYLE_GROUPS.flatMap(([g, ids]) =>
         ids.map((id) => ({
@@ -625,6 +649,11 @@ export function Studio() {
     setShowProgress(false);
     setTimeout(() => resultsEl.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   };
+  /* a renamed or (un)shared trace from the library or share dialogs; renaming the open trace renames its document too */
+  const patchEntry = (id: string, p: Partial<LibItem>) => {
+    setLibrary((prev) => prev.map((x) => (x.id === id ? { ...x, ...p } : x)));
+    if (p.title && id === entryId) setDoc({ title: p.title });
+  };
   /* the share dialog: pick a design, preview the public page, then create the link */
   const openShare = () => {
     if (!result || !entryId) return toast('Trace your draft first, then share it.', true);
@@ -632,12 +661,12 @@ export function Studio() {
     setShareOpen(true);
   };
 
-  /* /studio?open=<id> (from the library page) opens that trace */
+  /* /app/citation?open=<id> (from search, history or the assistant) opens that trace */
   useEffect(() => {
     if (!userId) return;
     const id = new URLSearchParams(window.location.search).get('open');
     if (!id) return;
-    window.history.replaceState(null, '', '/studio');
+    window.history.replaceState(null, '', '/app/citation');
     const local = loadLibrary().find((x) => x.id === id);
     openEntry(local ?? ({ id } as LibItem));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -694,41 +723,27 @@ export function Studio() {
   const st = STYLES[prefs.style];
   const dbsOn = Object.values(prefs.providers).filter(Boolean).length;
   /* `short` is the caption under the icon when the rail is the phone's bottom bar */
-  const rail = (icon: IconName, label: string, onClick: () => void, opts: { badge?: number; cls?: string; current?: boolean; short?: string } = {}) => (
-    <button className={`at-rb${opts.cls ? ' ' + opts.cls : ''}`} onClick={onClick} aria-label={label} aria-current={opts.current ? 'page' : undefined}>
-      <Icon name={icon} />
-      {opts.badge ? <span className="at-rb-badge">{opts.badge > 99 ? '99+' : opts.badge}</span> : null}
-      <span className="at-rb-lbl" data-short={opts.short}>{label}</span>
+  /* Trace (or Stop), with the choice of who picks the claims. In the panel's
+     foot on wide screens, in the top bar when the panel is a drawer. */
+  const runControl = running ? (
+    <button className="at-run stop" onClick={cancel}>
+      <Icon name="stop" /> <span>Stop</span>
     </button>
+  ) : (
+    <div className={`at-run-group${picking ? ' is-pick' : ''}`}>
+      <button className="at-run" onClick={run} title={picking ? 'Trace only the sentences you picked' : 'Let Citezeno choose the claims to trace'}>
+        <Icon name="search" /> <span className="at-run-lbl">{picking ? 'Trace selected' : 'Trace all claims'}</span>
+        {cost > 0 && <span className="at-run-cost">{cost} credit{cost === 1 ? '' : 's'}</span>}
+        <span className="kbd">Ctrl ↵</span>
+      </button>
+      <RunModeMenu mode={claimMode} setMode={setClaimMode} />
+    </div>
   );
 
   return (
-    <div className={`at${drawer === 'nav' ? ' is-nav' : ''}${drawer === 'insp' ? ' is-insp' : ''}`}>
-      <nav className="at-rail" aria-label="Studio navigation">
-        <Link className="at-logo" href="/" aria-label="Citezeno home">
-          <LogoMark className="at-logo-mark" />
-        </Link>
-        <div className="at-rail-main">
-          {rail('doc', 'Studio', () => mainEl.current?.scrollTo({ top: 0, behavior: 'smooth' }), { current: true, cls: 'at-hide-phone' })}
-          {rail('history', 'Library', () => setLibOpen(true), { badge: library.length })}
-          {rail('quote', 'Style and claims', () => setDrawer('nav'), { cls: 'at-only-compact', short: 'Style' })}
-          {rail('sliders', 'Trace settings', () => setDrawer('insp'), { cls: 'at-only-compact', short: 'Settings' })}
-          {rail('search', 'Commands', openPalette, { cls: 'at-only-phone', short: 'Search' })}
-          <RailLink href="/history" icon="clock" label="History" cls="at-hide-phone" />
-        </div>
-        <div className="at-rail-end">
-          <RailLink href="/#method" icon="help" label="How it works" cls="at-hide-phone" />
-          {rail('gear', 'Database settings', () => setSettingsOpen(true), { short: 'Databases' })}
-        </div>
-      </nav>
-
-      <header className="at-top">
-        <Link className="at-top-logo" href="/" aria-label="Citezeno home">
-          <LogoMark className="at-logo-mark" />
-        </Link>
+    <div className={`at studio-app${drawer === 'insp' ? ' is-insp' : ''}`}>
+      <header className={`at-top${topFit}`} ref={topEl}>
         <div className="at-doc">
-          <span className="at-crumb">Studio</span>
-          <span className="at-crumb-sep" aria-hidden="true">/</span>
           <input value={doc.title} onChange={(e) => setDoc({ title: e.target.value })} placeholder="Untitled draft" aria-label="Document title" spellCheck={false} />
           {entryId && unsaved === entryId ? (
             <button className="at-saved is-off" onClick={() => setUnsaved(null)} title="This trace isn’t in your library. Click to save it.">
@@ -736,39 +751,34 @@ export function Studio() {
             </button>
           ) : (
             <span className="at-saved" title={userId ? 'Saved to your account' : 'Saved in this browser'}>
-              <Icon name="check" /> <span>{userId ? 'Saved to your account' : 'Saved in this browser'}</span>
+              <Icon name="check" /> <span>Saved</span>
             </span>
           )}
         </div>
-        <button className="at-cmdk" onClick={openPalette} aria-label="Open the command menu">
-          <Icon name="search" />
-          <span>Search commands</span>
-          <span className="kbd">Ctrl K</span>
+        <button className="at-tbtn" onClick={() => setLibOpen(true)} title="Your recent traces">
+          <Icon name="history" />
+          <span>Library</span>
+          {library.length > 0 && <span className="at-tbtn-n">{library.length > 99 ? '99+' : library.length}</span>}
         </button>
-        <CreditsPill need={cost} />
         {userId && result && (
           <button className="at-tbtn" onClick={openShare} title="Share a read-only link to this trace">
             <Icon name="globe" />
             <span>Share</span>
           </button>
         )}
-        {running ? (
-          <button className="at-run stop" onClick={cancel}>
-            <Icon name="stop" /> <span>Stop</span>
-          </button>
-        ) : (
-          <div className={`at-run-group${picking ? ' is-pick' : ''}`}>
-            <button className="at-run" onClick={run} title={picking ? 'Trace only the sentences you picked' : 'Let Citezeno choose the claims to trace'}>
-              <Icon name="search" /> <span className="at-run-lbl">{picking ? 'Trace selected' : 'Trace all claims'}</span>
-              {cost > 0 && <span className="at-run-cost">{cost} credit{cost === 1 ? '' : 's'}</span>}
-              <span className="kbd">Ctrl ↵</span>
-            </button>
-            <RunModeMenu mode={claimMode} setMode={setClaimMode} />
-          </div>
-        )}
-        <span className="at-top-sep" aria-hidden="true" />
-        <ThemeToggle />
-        <UserMenu />
+        <CreditsPill need={cost} />
+        <div className="at-run-top">{runControl}</div>
+        <button
+          className="at-tbtn at-panel-btn"
+          onClick={() => setDrawer((d) => (d ? '' : 'insp'))}
+          aria-expanded={drawer === 'insp'}
+          aria-controls="at-insp"
+          aria-label={drawer === 'insp' ? 'Hide style, settings and claims' : 'Show style, settings and claims'}
+          title="Style, settings and claims"
+        >
+          <Icon name="panel" />
+          {outline.length > 0 && <span className="at-tbtn-n">{outline.length}</span>}
+        </button>
       </header>
 
       <SidePanel
@@ -780,6 +790,8 @@ export function Studio() {
         onJump={jumpTo}
         hasDraft={Boolean(draft.trim())}
         onClose={() => setDrawer('')}
+        settings={<Controls prefs={prefs} set={setPrefs} analysis={analysis} cost={cost} claimMode={claimMode} setClaimMode={setClaimMode} picked={pickedCount} onSettings={() => setSettingsOpen(true)} />}
+        foot={runControl}
       />
 
       <div className={`at-main${scroll.y > 4 ? ' is-scrolled' : ''}`} ref={mainEl} onScroll={onMainScroll}>
@@ -788,7 +800,7 @@ export function Studio() {
         </div>
         <div className="at-main-in">
           <div className="at-context">
-            <button onClick={() => { setSideTab('style'); setDrawer('nav'); }}>
+            <button onClick={() => { setSideTab('settings'); setDrawer('insp'); }}>
               <Icon name="quote" />
               <span>
                 <small>Style</small>
@@ -796,7 +808,7 @@ export function Studio() {
               </span>
               <Icon name="chevron" className="at-context-chev" />
             </button>
-            <button onClick={() => setDrawer('insp')}>
+            <button onClick={() => { setSideTab('settings'); setDrawer('insp'); }}>
               <Icon name="sliders" />
               <span>
                 <small>Trace settings</small>
@@ -805,7 +817,7 @@ export function Studio() {
               <Icon name="chevron" className="at-context-chev" />
             </button>
             {outline.length > 0 && (
-              <button className="at-context-claims" onClick={() => { setSideTab('claims'); setDrawer('nav'); }}>
+              <button className="at-context-claims" onClick={() => { setSideTab('claims'); setDrawer('insp'); }}>
                 <Icon name="thread" />
                 <span>
                   <small>Claims</small>
@@ -897,15 +909,14 @@ export function Studio() {
         </div>
       </div>
 
-      <Controls prefs={prefs} set={setPrefs} analysis={analysis} cost={cost} claimMode={claimMode} setClaimMode={setClaimMode} picked={pickedCount} onSettings={() => setSettingsOpen(true)} onClose={() => setDrawer('')} />
-
       {drawer && <div className="at-scrim" onClick={() => setDrawer('')} aria-hidden="true" />}
 
       {libOpen && (
-        <LibraryDrawer
+        <LibraryDialog
           items={library}
           signedIn={Boolean(userId)}
           currentId={entryId}
+          owner={session?.user.name || ''}
           onOpen={openEntry}
           onDelete={(id) => {
             const local = removeEntry(id);
@@ -916,6 +927,7 @@ export function Studio() {
             if (id === entryId) setEntryId(null);
             toast('Deleted from the library');
           }}
+          onPatch={patchEntry}
           onClose={() => setLibOpen(false)}
         />
       )}
@@ -955,14 +967,17 @@ export function Studio() {
         />
       )}
 
-      {outOf && <CreditsDialog needed={outOf.needed} have={outOf.have} resetsAt={credits?.resetsAt} onClose={() => setOutOf(null)} />}
+      {outOf && <CreditsDialog needed={outOf.needed} have={outOf.have} onClose={() => setOutOf(null)} />}
       {shareOpen && result && entryId && (
         <ShareDialog
           id={entryId}
-          title={suggestTitle(tracedDraft.current)}
+          title={library.find((x) => x.id === entryId)?.title || suggestTitle(tracedDraft.current)}
           owner={session?.user.name || ''}
           saved={toSaved(entryId, suggestTitle(tracedDraft.current), tracedDraft.current, prefs.style, prefs.mode, result)}
           onClose={() => setShareOpen(false)}
+          onChange={(st) =>
+            patchEntry(entryId, { shareToken: st?.token ?? null, shareViews: st?.views ?? 0, shareExpiresAt: st?.expiresAt ? Date.parse(st.expiresAt) : null, shareLocked: Boolean(st?.hasPassword) })
+          }
         />
       )}
 

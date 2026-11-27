@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { SPECIMENS, STYLES, STYLE_GROUPS, plain, specimen } from '@/lib/styles';
 import { Icon } from '../Icon';
 
@@ -23,14 +23,13 @@ export type OutlineClaim = {
   sources: number;
 };
 
-export type SideTab = 'style' | 'claims';
-
-/* Short mark for a style's tile: the name when it is an acronym, else its first two letters. */
-const monogram = (name: string) => (name.length <= 4 ? name.toUpperCase() : name.slice(0, 2));
+export type SideTab = 'settings' | 'claims';
 
 const LEVEL = ['', 'Possible claim', 'Clear claim', 'Strong claim'];
 
-/* Left panel of the studio: the citation style list and an outline of the draft's claims. */
+/* Right panel of the studio. Settings: the citation style and everything that
+   shapes a trace (`settings`). Claims: an outline of the draft's citable
+   sentences. `foot` holds the Trace button. */
 export function SidePanel({
   tab,
   setTab,
@@ -40,6 +39,8 @@ export function SidePanel({
   onJump,
   hasDraft,
   onClose,
+  settings,
+  foot,
 }: {
   tab: SideTab;
   setTab: (t: SideTab) => void;
@@ -49,6 +50,8 @@ export function SidePanel({
   onJump: (c: OutlineClaim) => void;
   hasDraft: boolean;
   onClose: () => void;
+  settings: ReactNode;
+  foot: ReactNode;
 }) {
   const example = useMemo(() => {
     const sp = specimen(style, SPECIMENS.article);
@@ -63,11 +66,11 @@ export function SidePanel({
   const pct = claims.length ? Math.round((cited / claims.length) * 100) : 0;
 
   return (
-    <aside className="at-left" aria-label="Citation style and claims">
+    <aside id="at-insp" className="at-insp" aria-label="Trace settings and claims">
       <div className="at-panel-head">
-        <div className="at-seg" role="tablist" aria-label="Left panel">
-          <button role="tab" aria-selected={tab === 'style'} onClick={() => setTab('style')}>
-            <Icon name="quote" /> Style
+        <div className="at-seg" role="tablist" aria-label="Panel">
+          <button role="tab" aria-selected={tab === 'settings'} onClick={() => setTab('settings')}>
+            <Icon name="sliders" /> Settings
           </button>
           <button role="tab" aria-selected={tab === 'claims'} onClick={() => setTab('claims')}>
             <Icon name="thread" /> Claims
@@ -79,45 +82,37 @@ export function SidePanel({
         </button>
       </div>
 
-      {tab === 'style' ? (
+      {tab === 'settings' ? (
         <div className="at-panel-body" role="tabpanel">
-          <div className="at-now">
-            <span className="at-now-mark serif">{monogram(STYLES[style].name)}</span>
-            <span>
-              <small>Citing in</small>
-              <b>
+          <section className="at-sec at-styles">
+            <div className="at-row">
+              <h3 className="at-h">Citation style</h3>
+              <span className="at-hint">
                 {STYLES[style].name}, {STYLES[style].edition}
-              </b>
-            </span>
-          </div>
-          {STYLE_GROUPS.map(([g, ids]) => (
-            <div className="at-group" key={g}>
-              <h3>
-                {g}
-                <span>{GROUP_NOTE[g]}</span>
-              </h3>
-              <ul>
-                {ids.map((id) => (
-                  <li key={id}>
-                    <button className="at-style" aria-current={id === style ? 'true' : undefined} onClick={() => onStyle(id)}>
-                      <span className={`at-style-mark serif${STYLES[id].name.length > 3 && STYLES[id].name.length <= 4 ? ' sm' : ''}`}>{monogram(STYLES[id].name)}</span>
-                      <span className="at-style-txt">
-                        <b>{STYLES[id].name}</b>
-                        <small>{STYLES[id].edition}</small>
-                      </span>
-                      <Icon name="check" className="at-style-tick" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              </span>
             </div>
-          ))}
-          <div className="at-specimen">
-            <span>{example.label}</span>
-            <p className="serif">{example.inText}</p>
-            <span>Reference</span>
-            <p className="serif at-specimen-ref" dangerouslySetInnerHTML={{ __html: example.entry }} />
-          </div>
+            {STYLE_GROUPS.map(([g, ids]) => (
+              <div className="at-group" key={g}>
+                <h4 title={GROUP_NOTE[g]}>{g}</h4>
+                <ul>
+                  {ids.map((id) => (
+                    <li key={id}>
+                      <button className="at-style" aria-current={id === style ? 'true' : undefined} onClick={() => onStyle(id)} title={`${STYLES[id].name}, ${STYLES[id].edition}`}>
+                        {STYLES[id].name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            <div className="at-specimen">
+              <span>{example.label}</span>
+              <p className="serif">{example.inText}</p>
+              <span>Reference</span>
+              <p className="serif at-specimen-ref" dangerouslySetInnerHTML={{ __html: example.entry }} />
+            </div>
+          </section>
+          {settings}
         </div>
       ) : (
         <div className="at-panel-body" role="tabpanel">
@@ -178,6 +173,7 @@ export function SidePanel({
           )}
         </div>
       )}
+      <div className="at-panel-foot">{foot}</div>
     </aside>
   );
 }

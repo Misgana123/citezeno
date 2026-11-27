@@ -73,19 +73,16 @@ export function UserMenu() {
               </span>
             )}
           </div>
-          <Link href="/account" role="menuitem">
+          <Link href="/app/account" role="menuitem">
             <Icon name="user" /> Account
           </Link>
           <Link href="/pricing" role="menuitem">
             <Icon name="bolt" /> Pricing and credits
           </Link>
-          <Link href="/studio" role="menuitem">
-            <Icon name="doc" /> Studio
+          <Link href="/app/citation" role="menuitem">
+            <Icon name="doc" /> Citation
           </Link>
-          <Link href="/library" role="menuitem">
-            <Icon name="list" /> Library
-          </Link>
-          <Link href="/history" role="menuitem">
+          <Link href="/app/history" role="menuitem">
             <Icon name="history" /> History
           </Link>
           <Link href="/contact" role="menuitem">

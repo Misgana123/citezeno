@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { ContactForm } from '@/components/ContactForm';
-import { Icon } from '@/components/Icon';
 import { Footer, Nav } from '@/components/Nav';
 import { pageMeta } from '@/lib/seo';
 
@@ -18,37 +16,15 @@ export default async function ContactPage({ searchParams }: Props) {
   return (
     <>
       <Nav />
-      <main className="wrap page">
-        <header className="page-head">
-          <h1 className="h2">Get in touch</h1>
-          <p className="lede">Found a source that doesn’t match, a style that’s formatted wrong, or have an idea? Tell us. A person reads every message.</p>
+      <main className="wrap page letter-page">
+        <header className="letter-head">
+          <span className="letter-k">Contact</span>
+          <h1>
+            Dear Citezeno, <em>a note…</em>
+          </h1>
+          <p>Write to us the way you’d write to a colleague. A person reads every letter and replies by email, usually within two working days.</p>
         </header>
-        <div className="contact">
-          <ContactForm initialTopic={typeof topic === 'string' ? topic : undefined} />
-          <aside className="contact-aside">
-            <div className="contact-card">
-              <h3>
-                <Icon name="clock" /> Reply time
-              </h3>
-              <p>We usually answer within two working days.</p>
-            </div>
-            <div className="contact-card">
-              <h3>
-                <Icon name="alert" /> Reporting a wrong citation
-              </h3>
-              <p>Paste the sentence, the style you chose and the reference Citezeno gave. A DOI or link helps us find it fast.</p>
-            </div>
-            <div className="contact-card">
-              <h3>
-                <Icon name="user" /> Account trouble
-              </h3>
-              <p>
-                Locked out? Try <Link href="/forgot-password">resetting your password</Link> first. If that doesn’t work, choose
-                “Account help” and use the email on your account.
-              </p>
-            </div>
-          </aside>
-        </div>
+        <ContactForm initialTopic={typeof topic === 'string' ? topic : undefined} />
       </main>
       <Footer />
     </>

@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { monthKey, nextReset } from '@/lib/pricing';
+import { creditsForCost } from '@/lib/pricing';
 
-describe('credit months', () => {
-  it('resets on the first of next month, UTC', () => {
-    expect(nextReset(new Date('2026-11-05T09:00:00Z'))).toBe('2026-12-01T00:00:00.000Z');
-    expect(nextReset(new Date('2026-12-31T23:59:59Z'))).toBe('2027-01-01T00:00:00.000Z');
+describe('cost to credits', () => {
+  it('charges nothing for nothing', () => {
+    expect(creditsForCost(0)).toBe(0);
+    expect(creditsForCost(-1)).toBe(0);
+    expect(creditsForCost(Number.NaN)).toBe(0);
   });
-  it('keys months as YYYY-MM', () => {
-    expect(monthKey(new Date('2026-02-28T12:00:00Z'))).toBe('2026-02');
+  it('charges at least one credit for anything that cost money', () => {
+    expect(creditsForCost(0.000001)).toBe(1);
+    expect(creditsForCost(0.003)).toBe(1);
+  });
+  it('rounds up at $0.003 a credit, ignoring floating-point noise', () => {
+    expect(creditsForCost(0.0030001)).toBe(2);
+    expect(creditsForCost(0.006000000000001)).toBe(2);
+    expect(creditsForCost(0.008)).toBe(3);
+    expect(creditsForCost(0.1)).toBe(34);
   });
 });

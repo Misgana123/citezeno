@@ -4,6 +4,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { STYLES, STYLE_GROUPS } from '@/lib/styles';
 import { Icon } from '../Icon';
 import { toast } from '../toast';
+import { Select } from '../Select';
+
+const STYLE_OPTIONS = STYLE_GROUPS.map(([g, ids]) => ({ label: g, options: ids.map((id) => ({ value: id, label: `${STYLES[id].name}, ${STYLES[id].edition}` })) }));
 
 /* What a design needs to show its viewer controls. On the public page the
    style switch navigates (the server re-renders); in the share dialog's
@@ -36,20 +39,9 @@ export function ShareControls({ style, bib, preview, onStyle, variant = 'light' 
   const btn = variant === 'glass' ? 'btn btn-on-blue btn-sm' : 'btn btn-ghost btn-sm';
   return (
     <div className={`sh-tools sh-tools-${variant}`}>
-      <label className="sh-sel">
-        <span className="sr-only">Citation style</span>
-        <select value={style} onChange={(e) => change(e.target.value)}>
-          {STYLE_GROUPS.map(([g, ids]) => (
-            <optgroup key={g} label={g}>
-              {ids.map((id) => (
-                <option key={id} value={id}>
-                  {STYLES[id].name}, {STYLES[id].edition}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-      </label>
+      <span className="sh-sel">
+        <Select className="sh-sel-btn" value={style} onChange={change} options={STYLE_OPTIONS} aria-label="Citation style" />
+      </span>
       <button type="button" className={btn} onClick={download} tabIndex={preview ? -1 : 0}>
         <Icon name="download" /> BibTeX
         {variant === 'bare' && <span className="sh-hint">.bib</span>}

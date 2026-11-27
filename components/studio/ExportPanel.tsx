@@ -5,6 +5,7 @@ import type { DocOptions } from '@/lib/docmodel';
 import { EXPORTS, exportText, type ExportFormat, type Rendered } from '@/lib/engine';
 import { Icon } from '../Icon';
 import { copyText } from '../Specimens';
+import { Select } from '../Select';
 
 export function ExportPanel({
   rendered,
@@ -68,25 +69,37 @@ export function ExportPanel({
             </label>
             <label className="field">
               Paper
-              <select className="select" value={doc.paper} onChange={(e) => setDoc({ paper: e.target.value as DocOptions['paper'] })}>
-                <option value="a4">A4</option>
-                <option value="letter">US Letter</option>
-              </select>
+              <Select<DocOptions['paper']>
+                value={doc.paper}
+                onChange={(paper) => setDoc({ paper })}
+                options={[
+                  { value: 'a4', label: 'A4' },
+                  { value: 'letter', label: 'US Letter' },
+                ]}
+              />
             </label>
             <label className="field">
               Text size
-              <select className="select" value={doc.fontSize} onChange={(e) => setDoc({ fontSize: +e.target.value as DocOptions['fontSize'] })}>
-                <option value={11}>11 pt</option>
-                <option value={12}>12 pt</option>
-              </select>
+              <Select<DocOptions['fontSize']>
+                value={doc.fontSize}
+                onChange={(fontSize) => setDoc({ fontSize })}
+                options={[
+                  { value: 11, label: '11 pt' },
+                  { value: 12, label: '12 pt' },
+                ]}
+              />
             </label>
             <label className="field">
               Line spacing
-              <select className="select" value={doc.spacing} onChange={(e) => setDoc({ spacing: +e.target.value as DocOptions['spacing'] })}>
-                <option value={1}>Single</option>
-                <option value={1.5}>1.5 lines</option>
-                <option value={2}>Double</option>
-              </select>
+              <Select<DocOptions['spacing']>
+                value={doc.spacing}
+                onChange={(spacing) => setDoc({ spacing })}
+                options={[
+                  { value: 1, label: 'Single' },
+                  { value: 1.5, label: '1.5 lines' },
+                  { value: 2, label: 'Double' },
+                ]}
+              />
             </label>
             <label className="check" style={{ alignSelf: 'end', paddingBottom: 10 }}>
               <input type="checkbox" checked={doc.titleBlock} onChange={(e) => setDoc({ titleBlock: e.target.checked })} />

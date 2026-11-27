@@ -7,6 +7,7 @@ import { copyText } from '../Specimens';
 import { crossrefDOI, openlibraryISBN } from '@/lib/sources';
 import type { Result, Source } from '@/lib/types';
 import { Icon } from '../Icon';
+import { Select } from '../Select';
 
 export const PROVIDER_COLOR: Record<string, string> = {
   OpenAlex: '#2f6f9f',
@@ -92,14 +93,12 @@ export function SourceCards({
           <small>Paste a DOI or ISBN. The record is fetched from Crossref or Open Library.</small>
         </div>
         <input className="input" value={val} onChange={(e) => setVal(e.target.value)} placeholder="10.1038/nature14539 or 978-0374533557" aria-label="DOI or ISBN" />
-        <select className="select" value={ci} onChange={(e) => setCi(+e.target.value)} aria-label="Attach to">
-          <option value={-1}>Reference list only</option>
-          {result.claims.map((c, i) => (
-            <option key={i} value={i}>
-              Claim {i + 1}: {shorten(c.text, 7)}
-            </option>
-          ))}
-        </select>
+        <Select<number>
+          value={ci}
+          onChange={setCi}
+          aria-label="Attach to"
+          options={[{ value: -1, label: 'Reference list only' }, ...result.claims.map((c, i) => ({ value: i, label: `Claim ${i + 1}: ${shorten(c.text, 7)}` }))]}
+        />
         <button className="btn btn-sm" type="submit" disabled={busy}>
           {busy ? 'Fetching…' : 'Add source'}
         </button>

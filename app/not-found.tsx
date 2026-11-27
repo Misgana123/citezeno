@@ -11,7 +11,7 @@ export default function NotFound() {
           <h1>This page has no source</h1>
           <p>The address may be mistyped, or the page has moved.</p>
           <div className="row">
-            <Link className="btn btn-thread" href="/studio">
+            <Link className="btn btn-thread" href="/app/citation">
               Open the studio
             </Link>
             <Link className="btn btn-ghost" href="/">

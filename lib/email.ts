@@ -76,14 +76,14 @@ export function contactNotice(m: { name: string; email: string; topic: string; m
 }
 
 
-export function welcomeEmail(name: string, freeCredits: number, studioURL: string) {
+export function welcomeEmail(name: string, studioURL: string, pricingURL: string) {
   const first = (name || '').split(' ')[0] || 'there';
   return {
     subject: 'Welcome to Citezeno',
     html: layout(
       `Welcome, ${first}`,
       [
-        `Your account is ready, with <b style="color:#13213a">${freeCredits} free credits</b> every month. One credit finds real sources for one claim.`,
+        `Your account is ready. Choose a plan (from $7 a month) to start tracing: one credit finds real sources for one claim, and the same credits run the research assistant and the paper reader. <a href="${esc(pricingURL)}" style="color:#133a63">See the plans</a>.`,
         'Paste a draft into the studio and choose <b style="color:#13213a">Trace all claims</b>, or select one sentence and choose <b style="color:#13213a">Cite this claim</b>. Every reference links to a record you can open and check.',
       ],
       { label: 'Open the studio', url: studioURL },
@@ -91,8 +91,24 @@ export function welcomeEmail(name: string, freeCredits: number, studioURL: strin
     ),
     text: `Welcome to Citezeno, ${first}.
 
-You get ${freeCredits} free credits every month. One credit finds real sources for one claim.
+Choose a plan (from $7 a month) to start tracing: ${pricingURL}
+One credit finds real sources for one claim.
 
 Open the studio: ${studioURL}`,
+  };
+}
+
+export function creditsExpiringEmail(name: string, credits: number, endsOn: string, url: string) {
+  const first = (name || '').split(' ')[0] || 'there';
+  const n = credits.toLocaleString('en-US');
+  return {
+    subject: `${n} Citezeno credits end on ${endsOn}`,
+    html: layout(
+      `Your credits end soon, ${first}`,
+      [`<b style="color:#13213a">${n} credit${credits === 1 ? '' : 's'}</b> on your account end on <b style="color:#13213a">${esc(endsOn)}</b>. Credits that end soonest are always used first, so use them before then.`],
+      { label: 'Open Citezeno', url },
+      'You’re getting this because credits on your Citezeno account are about to end.',
+    ),
+    text: `Hi ${first},\n\n${n} credit${credits === 1 ? '' : 's'} on your Citezeno account end on ${endsOn}. Credits that end soonest are always used first.\n\n${url}`,
   };
 }

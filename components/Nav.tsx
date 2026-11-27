@@ -7,10 +7,11 @@ import { Icon, LogoMark } from './Icon';
 import { useSession } from '@/lib/auth-client';
 
 const LINKS = [
-  { href: '/styles', label: 'Citation styles' },
+  { href: '/#deep', label: 'Deep research' },
   { href: '/#method', label: 'How it works' },
   { href: '/pricing', label: 'Pricing' },
-  { href: '/contact', label: 'Contact' },
+  { href: '/docs', label: 'Docs' },
+  { href: '/#faq', label: 'FAQ' },
 ];
 
 export function ThemeToggle() {
@@ -65,22 +66,23 @@ export function Nav({ onBlue = false }: { onBlue?: boolean }) {
         </Link>
         <nav className="nav-links" aria-label="Main">
           {LINKS.map((l) => (
-            <Link key={l.href} href={l.href} aria-current={path === l.href ? 'page' : undefined}>
+            <Link key={l.href} href={l.href} aria-current={path === l.href || (l.href === '/docs' && path?.startsWith('/docs/')) ? 'page' : undefined}>
               {l.label}
             </Link>
           ))}
         </nav>
         <div className="nav-end">
-          {/* no theme switch or profile here: signed-out visitors get "Sign in", everyone gets the studio */}
+          {/* signed out: "Sign in" and "Get started" (both land in the app after);
+              signed in: straight into the app */}
           {!signedIn && !isPending && (
             <Link className="nav-signin" href="/sign-in">
               Sign in
             </Link>
           )}
-          {path !== '/studio' && (
-            <Link className="btn btn-thread nav-cta" href="/studio">
-              <span className="nav-cta-long">Open the studio</span>
-              <span className="nav-cta-short">Studio</span>
+          {!isPending && (
+            <Link className="btn btn-thread nav-cta" href={signedIn ? '/app/chat' : '/sign-up'}>
+              <span className="nav-cta-long">{signedIn ? 'Open the app' : 'Get started'}</span>
+              <span className="nav-cta-short">{signedIn ? 'Open app' : 'Start'}</span>
               <Icon name="arrow" />
             </Link>
           )}
@@ -92,7 +94,7 @@ export function Nav({ onBlue = false }: { onBlue?: boolean }) {
       <div className="nav-sheet" id="nav-sheet" hidden={!open}>
         <nav aria-label="Main">
           {LINKS.map((l) => (
-            <Link key={l.href} href={l.href} aria-current={path === l.href ? 'page' : undefined} onClick={() => setOpen(false)}>
+            <Link key={l.href} href={l.href} aria-current={path === l.href || (l.href === '/docs' && path?.startsWith('/docs/')) ? 'page' : undefined} onClick={() => setOpen(false)}>
               {l.label}
               <Icon name="chevron" />
             </Link>
@@ -104,9 +106,15 @@ export function Nav({ onBlue = false }: { onBlue?: boolean }) {
 }
 
 const FOOT_COLS: [string, [string, string][]][] = [
-  ['Product', [['/studio', 'Studio'], ['/#method', 'How it works'], ['/pricing', 'Pricing']]],
-  ['Generators', [['/styles/apa', 'APA'], ['/styles/mla', 'MLA'], ['/styles/chicago', 'Chicago'], ['/styles/harvard', 'Harvard'], ['/styles/ieee', 'IEEE'], ['/styles/vancouver', 'Vancouver'], ['/styles', 'All styles']]],
-  ['Company', [['/contact', 'Contact'], ['/privacy', 'Privacy'], ['/terms', 'Terms']]],
+  ['Product', [['/app/chat', 'Research assistant'], ['/#deep', 'Deep research'], ['/app/papers', 'Find papers'], ['/app/read', 'Reader'], ['/app/shelf', 'Shelf'], ['/app/citation', 'Citation studio'], ['/pricing', 'Pricing']]],
+  [
+    'Citation guides',
+    [
+      ['/styles/apa', 'APA'], ['/styles/mla', 'MLA'], ['/styles/chicago', 'Chicago'], ['/styles/harvard', 'Harvard'], ['/styles/ieee', 'IEEE'], ['/styles/vancouver', 'Vancouver'],
+      ['/styles/ama', 'AMA'], ['/styles/asa', 'ASA'], ['/styles/acs', 'ACS'], ['/styles/cse', 'CSE'], ['/styles/turabian', 'Turabian'], ['/styles', 'All 12 styles'],
+    ],
+  ],
+  ['Company', [['/docs', 'Docs'], ['/contact', 'Contact'], ['/privacy', 'Privacy'], ['/terms', 'Terms']]],
 ];
 
 /* "Signature": a short promise, three link columns, the data credit and a
@@ -117,12 +125,12 @@ export function Footer() {
       <div className="wrap">
         <div className="foot-top">
           <p className="foot-lead">
-            Every claim needs a source <em>that exists.</em>
+            Research with sources <em>that exist.</em>
           </p>
           {FOOT_COLS.map(([title, links]) => (
             <nav key={title} aria-label={title}>
               <h2>{title}</h2>
-              <ul>
+              <ul className={links.length > 8 ? 'foot-two' : undefined}>
                 {links.map(([href, label]) => (
                   <li key={href}>
                     <Link href={href}>{label}</Link>
@@ -136,8 +144,8 @@ export function Footer() {
           <p>
             Records from <a href="https://openalex.org" target="_blank" rel="noopener noreferrer">OpenAlex</a>,{' '}
             <a href="https://www.crossref.org" target="_blank" rel="noopener noreferrer">Crossref</a>,{' '}
-            <a href="https://openlibrary.org" target="_blank" rel="noopener noreferrer">Open Library</a> and{' '}
-            <a href="https://www.wikipedia.org" target="_blank" rel="noopener noreferrer">Wikipedia</a>. Check every source
+            <a href="https://openlibrary.org" target="_blank" rel="noopener noreferrer">Open Library</a>,{' '}
+            <a href="https://www.wikipedia.org" target="_blank" rel="noopener noreferrer">Wikipedia</a> and the open web. Check every source
             before you rely on it.
           </p>
           <span>© {new Date().getFullYear()} Citezeno</span>

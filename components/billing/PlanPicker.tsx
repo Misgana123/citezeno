@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import type { CreditPack } from '@/lib/polar';
-import type { Interval, PlanView } from '@/lib/plans';
-import { CREDITS_PER_CLAIM } from '@/lib/pricing';
-import { Icon, type IconName } from '../Icon';
-import { BuyButton, FreePlanButton } from './BuyButton';
+import { PLANS, type Interval, type PlanKey, type PlanView } from '@/lib/plans';
+import { everyLabel, sizeLabel } from '@/lib/plan-lines';
+import { Icon } from '../Icon';
+import { BuyButton } from './BuyButton';
 
 /* A rough guide for "what does this buy": a typical essay cites about this many claims */
 export const CLAIMS_PER_ESSAY = 10;
@@ -13,10 +13,14 @@ export const CLAIMS_PER_ESSAY = 10;
 const money = (cents: number, currency: string) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase(), minimumFractionDigits: cents % 100 ? 2 : 0 }).format(cents / 100);
 
-const perClaim = (cents: number, credits: number, currency: string) =>
-  `${new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase(), maximumSignificantDigits: 2 }).format(cents / 100 / (credits / CREDITS_PER_CLAIM))} per claim`;
+/* the currency sign and the number apart, so the sign can sit small beside a large figure */
+const moneyParts = (cents: number, currency: string) => {
+  const parts = new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase(), minimumFractionDigits: cents % 100 ? 2 : 0 }).formatToParts(cents / 100);
+  return { symbol: parts.filter((x) => x.type === 'currency').map((x) => x.value).join(''), amount: parts.filter((x) => x.type !== 'currency' && x.type !== 'literal').map((x) => x.value).join('') };
+};
 
-const ICON: Record<string, IconName> = { free: 'sparkle', scholar: 'book', lab: 'layers' };
+const size = sizeLabel;
+const every = everyLabel;
 
 function Feature({ children }: { children: React.ReactNode }) {
   return (
@@ -29,14 +33,27 @@ function Feature({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* The billing switch and the plan cards: Free, then Scholar and Lab (bought in
-   Polar, or shown as "coming soon" until they're set up there), then any other
-   credit packs that exist in Polar. */
-export function PlanPicker({ plans, packs, freeCredits }: { plans: PlanView[]; packs: CreditPack[]; freeCredits: number }) {
+/* What a plan gives beyond its credits, from its limits (lib/plans.ts). */
+function features(key: PlanKey): string[] {
+  const l = PLANS[key].limits;
+  const models = l.tiers.includes('premium') ? 'Every assistant model, Premium included' : 'Economy and Standard assistant models';
+  return [
+    models,
+    l.researchBudgetCap ? 'Deep research reports' : 'No deep research',
+    `${l.shelfPapers.toLocaleString()} papers on your shelf`,
+    `${size(l.pdfStorageBytes)} of PDF storage`,
+    `${l.searchesPerDay} paper searches a day${every(l.shelfRefreshDays) ? `, shelf refreshed ${every(l.shelfRefreshDays)}` : ''}`,
+  ];
+}
+
+/* The billing switch and the plan cards (bought in Polar, or shown as "coming
+   soon" until they're set up there), then the top-ups for plan members. */
+export function PlanPicker({ plans, packs }: { plans: PlanView[]; packs: CreditPack[] }) {
   const hasYear = plans.some((p) => p.year);
   const hasMonth = plans.some((p) => p.month);
   const [interval, setInterval] = useState<Interval>(hasMonth ? 'month' : 'year');
   const save = Math.max(0, ...plans.map((p) => p.savePct));
+  const mostCredits = Math.max(1, ...plans.map((p) => p.monthlyCredits));
 
   return (
     <div className="pr-pick">
@@ -53,55 +70,27 @@ export function PlanPicker({ plans, packs, freeCredits }: { plans: PlanView[]; p
         </div>
       )}
 
-      <div className={`pr-plans n-${1 + plans.length + packs.length}`}>
-        <section className="pr-card">
-          <div className="pr-card-top">
-            <span className="pr-ico">
-              <Icon name={ICON.free} />
-            </span>
-            <h2>Free</h2>
-          </div>
-          <p className="pr-blurb">For trying Citezeno and the occasional essay.</p>
-          <div className="pr-price">
-            <span className="pr-amount">$0</span>
-            <span className="pr-unit">/ month</span>
-          </div>
-          <p className="pr-bill">Free forever. No card needed.</p>
-          <div className="pr-credits">
-            <b>{freeCredits}</b> credits every month
-            <small>about {Math.max(1, Math.round(freeCredits / CLAIMS_PER_ESSAY))} essays · refilled on the 1st</small>
-          </div>
-          <ul className="pr-feats">
-            <Feature>All 12 citation styles and 5 output forms</Feature>
-            <Feature>Word, PDF, BibTeX, RIS and CSL-JSON</Feature>
-            <Feature>Check existing citations, free</Feature>
-            <Feature>Library synced to your account</Feature>
-          </ul>
-          <div className="pr-cta">
-            <FreePlanButton />
-          </div>
-        </section>
-
-        {plans.map((p) => {
+      {/* the rate card: one sheet, a column per plan, the featured one lifted out */}
+      <div className={`pr-rate n-${plans.length}`}>
+        {plans.map((p, i) => {
           const x = p[interval] || p.month || p.year!;
           const yearly = x === p.year;
           const shown = yearly ? Math.round(x.price / 12) : x.price;
-          const monthlyCredits = yearly ? Math.round(x.credits / 12) : x.credits;
+          const { symbol, amount } = moneyParts(shown, x.currency);
           return (
-            <section key={p.key} className={`pr-card${p.featured ? ' is-featured' : ''}`}>
-              {p.featured && <span className="pr-flag">Best value</span>}
-              <div className="pr-card-top">
-                <span className="pr-ico">
-                  <Icon name={ICON[p.key] || 'bolt'} />
-                </span>
+            <section key={p.key} className={`pr-rcol${p.featured ? ' is-featured' : ''}`}>
+              {p.featured && <span className="pr-rflag">Most popular</span>}
+              <div className="pr-rname">
                 <h2>{p.name}</h2>
+                <span aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
               </div>
-              <p className="pr-blurb">{p.blurb}</p>
-              <div className="pr-price" key={`${p.key}-${interval}`}>
-                <span className="pr-amount">{money(shown, x.currency)}</span>
-                <span className="pr-unit">/ month</span>
+              <p className="pr-rblurb">{p.blurb}</p>
+              <div className="pr-rprice" key={`${p.key}-${interval}`}>
+                <span className="pr-rcur">{symbol}</span>
+                <b>{amount}</b>
+                <span className="pr-rper">/ month</span>
               </div>
-              <p className="pr-bill">
+              <p className="pr-rbill">
                 {yearly ? (
                   <>
                     {money(x.price, x.currency)} billed yearly
@@ -115,17 +104,20 @@ export function PlanPicker({ plans, packs, freeCredits }: { plans: PlanView[]; p
                   'Billed monthly. Cancel any time.'
                 )}
               </p>
-              <div className="pr-credits">
-                <b>{x.credits.toLocaleString()}</b> credits {yearly ? 'a year, added up front' : 'every month'}
-                <small>
-                  about {Math.round(monthlyCredits / CLAIMS_PER_ESSAY).toLocaleString()} essays a month · {perClaim(x.price, x.credits, x.currency)}
-                </small>
+              <div className="pr-rcredits">
+                <div className="pr-rcredits-top">
+                  <b>{p.monthlyCredits.toLocaleString()}</b>
+                  <span>credits every month</span>
+                </div>
+                <div className="pr-rmeter" aria-hidden="true">
+                  <i style={{ width: `${(p.monthlyCredits / mostCredits) * 100}%` }} />
+                </div>
+                <small>about {Math.round(p.monthlyCredits / CLAIMS_PER_ESSAY).toLocaleString()} essays traced · each month’s credits end with the month</small>
               </div>
-              <ul className="pr-feats">
-                <Feature>Everything in Free</Feature>
-                <Feature>{p.featured ? 'Our lowest price per claim' : 'Enough for a full term of coursework'}</Feature>
-                <Feature>Unused credits roll over and never expire</Feature>
-                <Feature>Cancel any time from your account</Feature>
+              <ul className="pr-feats pr-rfeats">
+                {features(p.key).map((f) => (
+                  <Feature key={f}>{f}</Feature>
+                ))}
               </ul>
               <div className="pr-cta">
                 {p.preview ? (
@@ -140,35 +132,34 @@ export function PlanPicker({ plans, packs, freeCredits }: { plans: PlanView[]; p
             </section>
           );
         })}
-
-        {packs.map((p) => (
-          <section key={p.id} className="pr-card">
-            <div className="pr-card-top">
-              <span className="pr-ico">
-                <Icon name="bolt" />
-              </span>
-              <h2>{p.name}</h2>
-            </div>
-            <p className="pr-blurb">{p.description || (p.recurring ? 'Credits added every billing period.' : 'A one-time top-up.')}</p>
-            <div className="pr-price">
-              <span className="pr-amount">{money(p.price, p.currency)}</span>
-              {p.recurring && <span className="pr-unit">/ {p.recurring}</span>}
-            </div>
-            <p className="pr-bill">{p.recurring ? 'Cancel any time.' : 'One payment. No subscription.'}</p>
-            <div className="pr-credits">
-              <b>{p.credits.toLocaleString()}</b> credits{p.recurring ? ` every ${p.recurring}` : ''}
-              <small>{perClaim(p.price, p.credits, p.currency)}</small>
-            </div>
-            <ul className="pr-feats">
-              <Feature>Everything in Free</Feature>
-              <Feature>{p.recurring ? 'Unused credits roll over' : 'Credits never expire'}</Feature>
-            </ul>
-            <div className="pr-cta">
-              <BuyButton productId={p.id} featured={false} label={p.recurring ? 'Subscribe' : `Buy ${p.credits.toLocaleString()} credits`} />
-            </div>
-          </section>
-        ))}
       </div>
+
+      {packs.length > 0 && (
+        <>
+          <h3 className="h3" style={{ textAlign: 'center', margin: '36px 0 14px' }}>
+            Top-ups for plan members
+          </h3>
+          <div className={`pr-plans n-${packs.length}`}>
+            {packs.map((p) => (
+              <section key={p.id} className="pr-card">
+                <div className="pr-card-top">
+                  <span className="pr-ico">
+                    <Icon name="bolt" />
+                  </span>
+                  <h2>{p.name}</h2>
+                </div>
+                <div className="pr-price">
+                  <span className="pr-amount">{money(p.price, p.currency)}</span>
+                </div>
+                <p className="pr-bill">One payment. Credits last 12 months.</p>
+                <div className="pr-cta">
+                  <BuyButton productId={p.id} featured={false} label={`Buy ${p.credits.toLocaleString()} credits`} />
+                </div>
+              </section>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

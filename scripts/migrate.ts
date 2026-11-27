@@ -4,6 +4,13 @@
 import { getMigrations } from 'better-auth/db/migration';
 import { authOptions } from '../lib/auth';
 import { pool } from '../lib/db';
+import { AGENT_SQL } from '../lib/agent/schema';
+import { CREDITS_CARRY_OVER_SQL, CREDITS_SQL } from '../lib/credits/schema';
+import { embeddingSettings } from '../lib/providers/embeddings/embedder';
+import { PAPERS_LOCAL_SQL } from '../lib/papers/local/schema';
+import { READER_SQL } from '../lib/reader/schema';
+import { enableVectors } from '../lib/reader/vector';
+import { OLD_SHELF_CHECK, SHELF_RESET_SQL, SHELF_SQL } from '../lib/shelf/schema';
 
 const APP_SQL = `
 create table if not exists trace (
@@ -33,8 +40,8 @@ create table if not exists contact_message (
 );
 create index if not exists contact_ip_time on contact_message (ip, "createdAt" desc);
 
--- Credits. "free" resets to the monthly allowance each calendar month (UTC) and
--- does not roll over; "paid" comes from Polar purchases and never expires.
+-- The old two-number wallet, kept only so its balances can be carried over into
+-- credit lots (lib/credits/schema.ts). Nothing writes to these any more.
 create table if not exists credit_balance (
   "userId"    text        primary key references "user"(id) on delete cascade,
   free        integer     not null default 0 check (free >= 0),
@@ -87,6 +94,70 @@ create table if not exists activity (
   meta        jsonb       not null default '{}'::jsonb
 );
 create index if not exists activity_user_time on activity ("userId", "createdAt" desc);
+
+-- Find Papers (v7). Cached OpenAlex responses, keyed by a hash of the request.
+create table if not exists papers_cache (
+  key         text        primary key,
+  value       jsonb       not null,
+  "expiresAt" timestamptz not null
+);
+create index if not exists papers_cache_expires on papers_cache ("expiresAt");
+-- gateway (v9): expired entries are kept a while longer, to stand in while a provider is down
+alter table papers_cache add column if not exists "staleUntil" timestamptz;
+
+-- Find Papers: OpenAlex spending per UTC day (totals only: no queries, no users).
+create table if not exists papers_spend (
+  day         text             primary key,
+  usd         double precision not null default 0,
+  calls       integer          not null default 0,
+  searches    integer          not null default 0,
+  "alertedAt" timestamptz,
+  "cappedAt"  timestamptz
+);
+
+-- Find Papers: searches each user ran per UTC day, for the daily limit.
+create table if not exists papers_usage (
+  "userId"  text    not null references "user"(id) on delete cascade,
+  day       text    not null,
+  searches  integer not null default 0 check (searches >= 0),
+  primary key ("userId", day)
+);
+
+-- Find Papers: shared call slots, so OpenAlex's per-second limits hold across server instances.
+create table if not exists papers_slot (
+  key       text   primary key,
+  "nextAt"  bigint not null
+);
+
+-- Provider gateway (v8): spending per provider per UTC day (totals only: no
+-- queries, no users). papers_cache and papers_slot above now serve every
+-- provider, with keys that start with the provider's name.
+create table if not exists provider_spend (
+  provider    text             not null,
+  day         text             not null,
+  usd         double precision not null default 0,
+  calls       integer          not null default 0,
+  searches    integer          not null default 0,
+  "alertedAt" timestamptz,
+  "cappedAt"  timestamptz,
+  primary key (provider, day)
+);
+-- Provider gateway (v9): what the gateway did per provider and UTC hour, for the
+-- admin page (totals only: no users, no search text). "totalMs" sums the time
+-- of counts that have one (calls, waits).
+create table if not exists provider_stats (
+  hour       text             not null,
+  provider   text             not null,
+  name       text             not null,
+  count      bigint           not null default 0,
+  "totalMs"  double precision not null default 0,
+  primary key (hour, provider, name)
+);
+
+-- carry OpenAlex's spending over from before the gateway (papers_spend is no longer written)
+insert into provider_spend (provider, day, usd, calls, searches, "alertedAt", "cappedAt")
+  select 'openalex', day, usd, calls, searches, "alertedAt", "cappedAt" from papers_spend
+  on conflict (provider, day) do nothing;
 `;
 
 async function main() {
@@ -100,7 +171,25 @@ async function main() {
     console.log('Auth tables are up to date.');
   }
   await pool.query(APP_SQL);
-  console.log('App tables are up to date (trace, contact_message, credit_balance, credit_ledger, sharing, share access, activity).');
+  if ((await pool.query(OLD_SHELF_CHECK)).rowCount) {
+    if (process.env.SHELF_RESET !== '1') {
+      throw new Error(
+        'The shelf tables are from before paper IDs named their provider and must be recreated, which deletes every shelf. ' +
+          'Run again with SHELF_RESET=1 to do that (stored PDFs are queued for removal from storage).',
+      );
+    }
+    await pool.query(SHELF_RESET_SQL);
+    console.log('Old shelf tables removed (SHELF_RESET=1).');
+  }
+  await pool.query(SHELF_SQL);
+  await pool.query(AGENT_SQL);
+  await pool.query(READER_SQL);
+  await pool.query(CREDITS_SQL);
+  await pool.query(CREDITS_CARRY_OVER_SQL);
+  await pool.query(PAPERS_LOCAL_SQL);
+  const vectors = await enableVectors(pool, embeddingSettings(process.env).dimensions);
+  console.log('App tables are up to date (trace, contact_message, credits, sharing, share access, activity, papers, provider gateway, shelf, agent, reader, paper copy).');
+  console.log(vectors ? 'Reader: search by meaning is on (pgvector).' : 'Reader: pgvector is not available, so questions use keyword search only.');
 }
 
 main()

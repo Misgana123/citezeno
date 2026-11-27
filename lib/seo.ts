@@ -6,10 +6,16 @@ import { siteURL } from './site';
 
 export const SITE = {
   name: 'Citezeno',
-  tagline: 'Real citations for AI-generated text',
+  tagline: 'AI research with real sources',
   description:
-    'Citezeno finds real, verifiable sources for the claims in your writing. Paste text from ChatGPT or any AI, and get references from OpenAlex, Crossref, Open Library and Wikipedia in APA, MLA, Chicago, Harvard, IEEE and 7 more styles. Free to start.',
+    'Citezeno is an AI research platform. Ask a question and get an answer where every claim links to a real paper or page, run deep research reports, search 250M+ scholarly works, ask questions of any PDF, keep a shelf of papers and cite them in APA, MLA, Chicago and 9 more styles.',
   keywords: [
+    'AI research assistant',
+    'AI for academic research',
+    'deep research',
+    'literature review AI',
+    'chat with PDF',
+    'research paper search',
     'citation generator',
     'AI citation finder',
     'find sources for essay',
@@ -84,18 +90,22 @@ export const websiteLd = () => ({
   inLanguage: 'en',
 });
 
-export const appLd = (o: { freeCredits: number; lowPrice?: number; highPrice?: number; currency?: string }) => ({
+export const appLd = (o: { lowPrice?: number; highPrice?: number; currency?: string } = {}) => ({
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
   '@id': abs('/#app'),
   name: SITE.name,
-  url: abs('/studio'),
+  url: abs('/app/chat'),
   description: SITE.description,
   applicationCategory: 'EducationalApplication',
   operatingSystem: 'Any (web browser)',
   browserRequirements: 'Requires JavaScript',
   featureList: [
-    'Finds real sources in OpenAlex, Crossref, Open Library and Wikipedia',
+    'Research assistant whose answers link every claim to a real source',
+    'Deep research reports with numbered sources',
+    'Search 250M+ scholarly works and save them to a shelf',
+    'Ask questions of any PDF, answered with the page it came from',
+    'Finds real sources for a draft in OpenAlex, Crossref, Open Library and Wikipedia',
     '12 citation styles including APA 7, MLA 9, Chicago 17, Harvard, IEEE and Vancouver',
     'In-text citations, footnotes, endnotes and annotated bibliographies',
     'Word (.docx), PDF, BibTeX, RIS and CSL-JSON export',
@@ -103,8 +113,8 @@ export const appLd = (o: { freeCredits: number; lowPrice?: number; highPrice?: n
   ],
   offers:
     o.highPrice != null
-      ? { '@type': 'AggregateOffer', priceCurrency: (o.currency || 'usd').toUpperCase(), lowPrice: o.lowPrice ?? 0, highPrice: o.highPrice, offerCount: 2 }
-      : { '@type': 'Offer', price: 0, priceCurrency: 'USD', description: `${o.freeCredits} free credits every month` },
+      ? { '@type': 'AggregateOffer', priceCurrency: (o.currency || 'usd').toUpperCase(), lowPrice: o.lowPrice ?? 7, highPrice: o.highPrice, offerCount: 3 }
+      : { '@type': 'Offer', price: 7, priceCurrency: 'USD', description: 'Starter plan, 700 credits a month' },
   publisher: { '@id': abs('/#organization') },
 });
 

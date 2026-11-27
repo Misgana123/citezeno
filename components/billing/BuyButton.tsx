@@ -34,7 +34,7 @@ export function BuyButton({ productId, label, featured }: { productId: string; l
 export function FreePlanButton() {
   const signedIn = Boolean(useSession().data);
   return signedIn ? (
-    <Link className="btn btn-ghost" href="/studio">
+    <Link className="btn btn-ghost" href="/app/citation">
       Open the studio
     </Link>
   ) : (

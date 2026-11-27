@@ -1,24 +1,30 @@
 import { auth } from '@/lib/auth';
 import { logActivity } from '@/lib/activity';
+import { planLimits } from '@/lib/credits/limits';
 import { pool } from '@/lib/db';
 import { json, sameOrigin } from '@/lib/http';
 
 export const runtime = 'nodejs';
 
-const MAX_TRACES = 200;
+/* Listed at most (the plan decides how many can be saved). */
+const LIST_MAX = 2_000;
 const MAX_BYTES = 1_500_000;
 
-type Row = { id: string; title: string; style: string; mode: string; sources: number; snippet: string; savedAt: Date; shareToken: string | null; shareViews: number };
+type Row = {
+  id: string; title: string; style: string; mode: string; sources: number; snippet: string; savedAt: Date;
+  shareToken: string | null; shareViews: number; shareExpiresAt: Date | null; shareLocked: boolean; titleLocked: boolean;
+};
 
 /* List the signed-in user's saved traces (metadata only; open one to get its data). */
 export async function GET(req: Request) {
   const s = await auth.api.getSession({ headers: req.headers });
   if (!s) return json({ error: 'Sign in to see your library.' }, 401);
   const { rows } = await pool.query<Row>(
-    `select id, title, style, mode, sources, snippet, "savedAt", "shareToken", "shareViews" from trace where "userId" = $1 order by "savedAt" desc limit $2`,
-    [s.user.id, MAX_TRACES],
+    `select id, title, style, mode, sources, snippet, "savedAt", "shareToken", "shareViews", "shareExpiresAt", ("sharePassword" is not null) as "shareLocked", "titleLocked"
+     from trace where "userId" = $1 order by "savedAt" desc limit $2`,
+    [s.user.id, LIST_MAX],
   );
-  return json({ items: rows.map((r) => ({ ...r, savedAt: new Date(r.savedAt).getTime() })) });
+  return json({ items: rows.map((r) => ({ ...r, savedAt: new Date(r.savedAt).getTime(), shareExpiresAt: r.shareExpiresAt ? new Date(r.shareExpiresAt).getTime() : null })) });
 }
 
 /* Save (insert or update) one trace. Body: a library entry from lib/library.ts. */
@@ -42,13 +48,14 @@ export async function POST(req: Request) {
   const draft = String(e.draft ?? '');
   const data = { draft, result: e.result };
 
-  const { rows } = await pool.query<{ n: string }>(`select count(*) as n from trace where "userId" = $1 and id <> $2`, [s.user.id, id]);
-  if (Number(rows[0].n) >= MAX_TRACES) {
-    // keep the newest: drop the oldest entry to make room
-    await pool.query(
-      `delete from trace where ("userId", id) in (select "userId", id from trace where "userId" = $1 and id <> $2 order by "savedAt" asc limit 1)`,
-      [s.user.id, id],
-    );
+  // a new trace past the plan's limit isn't saved (updates to saved ones always are); nothing is ever deleted to make room
+  const { rows } = await pool.query<{ n: number; exists: boolean }>(
+    `select count(*)::int as n, bool_or(id = $2) as exists from trace where "userId" = $1`,
+    [s.user.id, id],
+  );
+  const max = (await planLimits(s.user.id)).savedTraces;
+  if (!rows[0].exists && rows[0].n >= max) {
+    return json({ error: `You’ve saved ${max.toLocaleString('en-US')} traces, the most your plan keeps. Delete some or upgrade your plan to save more.`, code: 'limit_reached', limit: max }, 403);
   }
 
   const saved = await pool.query<{ inserted: boolean; title: string }>(

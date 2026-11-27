@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/o/eo4VN4CUZwVkCTuHVQAXnC+Ak</id>
+  <title>arXiv Query: search_query=all:crispr AND all:protein&amp;id_list=&amp;start=0&amp;max_results=2</title>
+  <updated>2026-11-23T10:31:50Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=all:crispr+AND+all:protein&amp;start=0&amp;max_results=2&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>2</opensearch:itemsPerPage>
+  <opensearch:totalResults>29</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2202.07171v1</id>
+    <title>Investigating the genomic background of CRISPR-Cas genomes for CRISPR-based antimicrobials</title>
+    <updated>2022-02-15T03:47:26Z</updated>
+    <link href="https://arxiv.org/abs/2202.07171v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2202.07171v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>CRISPR-Cas systems are an adaptive immunity that protects prokaryotes against foreign genetic elements. Genetic templates acquired during past infection events enable DNA-interacting enzymes to recognize foreign DNA for destruction. Due to the programmability and specificity of these genetic templates, CRISPR-Cas systems are potential alternative antibiotics that can be engineered to self-target antimicrobial resistance genes on the chromosome or plasmid. However, several fundamental questions remain to repurpose these tools against drug-resistant bacteria. For endogenous CRISPR-Cas self-targeting, antimicrobial resistance genes and functional CRISPR-Cas systems have to co-occur in the target cell. Furthermore, these tools have to outplay DNA repair pathways that respond to the nuclease activities of Cas proteins, even for exogenous CRISPR-Cas delivery. Here, we conduct a comprehensive survey of CRISPR-Cas genomes. First, we address the co-occurrence of CRISPR-Cas systems and antimicrobial resistance genes in the CRISPR-Cas genomes. We show that the average number of these genes varies greatly by the CRISPR-Cas type, and some CRISPR-Cas types (IE and IIIA) have over 20 genes per genome. Next, we investigate the DNA repair pathways of these CRISPR-Cas genomes, revealing that the diversity and frequency of these pathways differ by the CRISPR-Cas type. The interplay between CRISPR-Cas systems and DNA repair pathways is essential for the acquisition of new spacers in CRISPR arrays. We conduct simulation studies to demonstrate that the efficiency of these DNA repair pathways may be inferred from the time-series patterns in the RNA structure of CRISPR repeats. This bioinformatic survey of CRISPR-Cas genomes elucidates the necessity to consider multifaceted interactions between different genes and systems to design effective CRISPR-based antimicrobials.</summary>
+    <category term="q-bio.GN" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2022-02-15T03:47:26Z</published>
+    <arxiv:comment>27 pages, 5 figures</arxiv:comment>
+    <arxiv:primary_category term="q-bio.GN"/>
+    <author>
+      <name>Hyunjin Shim</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/1711.09113v1</id>
+    <title>How the other half lives: CRISPR-Cas's influence on bacteriophages</title>
+    <updated>2017-11-24T19:29:35Z</updated>
+    <link href="https://arxiv.org/abs/1711.09113v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1711.09113v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>CRISPR-Cas is a genetic adaptive immune system unique to prokaryotic cells used to combat phage and plasmid threats. The host cell adapts by incorporating DNA sequences from invading phages or plasmids into its CRISPR locus as spacers. These spacers are expressed as mobile surveillance RNAs that direct CRISPR-associated (Cas) proteins to protect against subsequent attack by the same phages or plasmids. The threat from mobile genetic elements inevitably shapes the CRISPR loci of archaea and bacteria, and simultaneously the CRISPR-Cas immune system drives evolution of these invaders. Here we highlight our recent work, as well as that of others, that seeks to understand phage mechanisms of CRISPR-Cas evasion and conditions for population coexistence of phages with CRISPR-protected prokaryotes.</summary>
+    <category term="q-bio.PE" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2017-11-24T19:29:35Z</published>
+    <arxiv:comment>24 pages, 8 figures</arxiv:comment>
+    <arxiv:primary_category term="q-bio.PE"/>
+    <arxiv:journal_ref>Evolutionary Biology : Self, Non-Self Evolution, Species and Complex Traits, Evolution, Methods and Concepts, ISBN 978-3-319-61569-1, edited by Pierre Pontarotti, Springer Nature, September 2017, pp. 63-85</arxiv:journal_ref>
+    <author>
+      <name>Melia E. Bonomo</name>
+    </author>
+    <author>
+      <name>Michael W. Deem</name>
+    </author>
+  </entry>
+</feed>

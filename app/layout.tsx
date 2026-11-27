@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { JetBrains_Mono, Newsreader, Schibsted_Grotesk } from 'next/font/google';
 import { CommandPalette } from '@/components/CommandPalette';
+import { ConfirmHost } from '@/components/confirm';
 import { Toaster } from '@/components/toast';
 import { SITE } from '@/lib/seo';
 import { siteURL } from '@/lib/site';
@@ -64,6 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <CommandPalette />
         <Toaster />
+        <ConfirmHost />
       </body>
     </html>
   );

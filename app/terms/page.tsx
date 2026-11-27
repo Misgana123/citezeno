@@ -75,19 +75,26 @@ export default function TermsPage() {
               </ul>
             </Clause>
 
-            <Clause n={3} title="Credits and payments" short="One credit per claim. Paid credits keep their value.">
+            <Clause n={3} title="Plans, credits and payments" short="Credits pay for searches and AI. They expire.">
               <ul>
                 <li>Searching for sources uses credits: one per claim. The cost is shown before each trace.</li>
                 <li>
-                  Free monthly credits refill on the first of each month (UTC) and don’t roll over. Purchased credits don’t
-                  expire while your account is open. Credits have no cash value and can’t be transferred.
+                  The research assistant, deep research and the reader’s AI use credits for what they really cost. Credits are
+                  set aside before such an action starts; you’re charged what it used and the rest is released. An action that
+                  fails without giving you anything isn’t charged.
                 </li>
+                <li>
+                  Credits expire. Plan credits end with the month of the plan they belong to (annual plans add theirs one month
+                  at a time). Top-ups end 12 months after purchase. The credits that end soonest are used first. Credits have no
+                  cash value and can’t be transferred.
+                </li>
+                <li>Each plan has limits (for example storage, saved traces and searches a day), shown on the pricing page.</li>
                 <li>
                   Payments are processed by Polar as merchant of record, under its own terms. When a payment is refunded, the
                   credits it bought are removed from your balance.
                 </li>
                 <li>Deleting your account deletes any unused credits.</li>
-                <li>We may change prices for future purchases. Credits you already have keep their value.</li>
+                <li>We may change prices for future purchases. Credits you already have keep their value until they expire.</li>
               </ul>
             </Clause>
 

@@ -1,0 +1,82 @@
+{
+    "totalCount": 154,
+    "studies": [
+        {
+            "protocolSection": {
+                "identificationModule": {
+                    "nctId": "NCT06362421",
+                    "briefTitle": "Saliva Testing for High-Risk Human Papillomavirus Infection Oral Cavity and Pharynx Cancer",
+                    "officialTitle": "Proof of Concept Assay Development of Point of Care Saliva Testing for High Risk-HPV Oral Cavity and Pharynx Cancers"
+                },
+                "statusModule": {
+                    "overallStatus": "WITHDRAWN",
+                    "startDateStruct": {
+                        "date": "2025-08"
+                    }
+                },
+                "sponsorCollaboratorsModule": {
+                    "leadSponsor": {
+                        "name": "Wake Forest University Health Sciences"
+                    }
+                },
+                "descriptionModule": {
+                    "briefSummary": "The purpose of this research study is to determine if saliva and oral swab samples can be used to detect human papillomavirus in patients with cancer. In this study, the methods required to detect human papillomavirus will be developed and tested in samples collected from patients with oropharyngeal squamous cell carcinoma and compared to samples collected from participants without cancer."
+                },
+                "conditionsModule": {
+                    "conditions": [
+                        "Oropharyngeal Squamous Cell Carcinoma",
+                        "Human Papillomavirus Infection"
+                    ]
+                },
+                "designModule": {}
+            }
+        },
+        {
+            "protocolSection": {
+                "identificationModule": {
+                    "nctId": "NCT07018804",
+                    "briefTitle": "Mechanisms and Targeted Therapy of Airway Basal Cell Dysfunction in Bronchiolitis Obliterans Syndrome",
+                    "officialTitle": "Analysis of the Pathogenic Mechanism of Abnormal Airway Basal Cell Function in Bronchiolitis Obliterans Syndrome and Research on Targeted Treatment Strategies"
+                },
+                "statusModule": {
+                    "overallStatus": "WITHDRAWN",
+                    "startDateStruct": {
+                        "date": "2026-07-26"
+                    }
+                },
+                "sponsorCollaboratorsModule": {
+                    "leadSponsor": {
+                        "name": "Haikou Affiliated Hospital of Central South University Xiangya School of Medicine"
+                    }
+                },
+                "descriptionModule": {
+                    "briefSummary": "This experimental study aims to investigate the pathogenesis of bronchiolitis obliterans syndrome (BOS) and provide a basis for clinical diagnosis and treatment. The core research question is: whether there is a causal relationship between stem cell dysfunction induced by the inflammatory microenvironment and airway injury repair during the pathological process of BOS? Researchers will collect alveolar lavage fluid specimens from participants and healthy individuals to isolate distal small airway stem cells for subsequent scientific research and comparative analysis, thereby revealing the pathological mechanisms of BOS, exploring precise intervention targets, and developing innovative therapeutic strategies to improve patient prognosis, long-term survival rates, and quality of life."
+                },
+                "conditionsModule": {
+                    "conditions": [
+                        "Bronchiolitis Obliterans Syndrome (BOS)"
+                    ],
+                    "keywords": [
+                        "Bronchiolitis Obliterans Syndrome",
+                        "Airway epithelium",
+                        "Airway basal cells",
+                        "Inflammatory response"
+                    ]
+                },
+                "designModule": {
+                    "phases": [
+                        "NA"
+                    ]
+                },
+                "contactsLocationsModule": {
+                    "overallOfficials": [
+                        {
+                            "name": "Xiaoyang Yang, DM"
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "nextPageToken": "ZVNj7o2Elu8o3lpyU83-vqbumpOQJJxoYfCh3vg"
+}

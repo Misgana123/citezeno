@@ -12,6 +12,9 @@ import { Icon } from '../Icon';
 import { toast } from '../toast';
 import { SharePreview } from './SharePreview';
 import { ThemeThumb } from './ThemeThumb';
+import { Select } from '../Select';
+
+const STYLE_OPTIONS = STYLE_GROUPS.map(([g, ids]) => ({ label: g, options: ids.map((sid) => ({ value: sid, label: `${STYLES[sid].name}, ${STYLES[sid].edition}` })) }));
 
 export type ShareState = {
   token: string; url: string; theme: ShareTheme; style: string; mode: Mode; views: number;
@@ -31,7 +34,7 @@ type Props = {
   title: string;
   /* the signed-in user's name, shown as "Shared by …" */
   owner: string;
-  /* the open trace from the studio; the library page leaves it out and the dialog fetches it */
+  /* the open trace from the studio; the library dialog leaves it out and the dialog fetches it */
   saved?: Saved;
   onClose: () => void;
   onChange?: (s: ShareState | null) => void;
@@ -258,27 +261,11 @@ export function ShareDialog({ id, title, owner, saved, onClose, onChange }: Prop
             <section className="shd-two">
               <label className="field">
                 Citation style
-                <select className="select" value={style} onChange={(e) => setStyle(e.target.value)}>
-                  {STYLE_GROUPS.map(([g, ids]) => (
-                    <optgroup key={g} label={g}>
-                      {ids.map((sid) => (
-                        <option key={sid} value={sid}>
-                          {STYLES[sid].name}, {STYLES[sid].edition}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                <Select value={style} onChange={setStyle} options={STYLE_OPTIONS} />
               </label>
               <label className="field">
                 Output
-                <select className="select" value={mode} onChange={(e) => setMode(e.target.value as Mode)}>
-                  {SHARE_MODES.map((m) => (
-                    <option key={m} value={m} disabled={m === 'intext' && notes}>
-                      {MODE_LABEL[m]}
-                    </option>
-                  ))}
-                </select>
+                <Select<Mode> value={mode} onChange={setMode} options={SHARE_MODES.map((m) => ({ value: m, label: MODE_LABEL[m], disabled: m === 'intext' && notes }))} />
               </label>
             </section>
             {notes && mode === 'intext' && <p className="shd-note">{STYLES[style].name} cites with notes, so footnotes are shown.</p>}
@@ -288,19 +275,15 @@ export function ShareDialog({ id, title, owner, saved, onClose, onChange }: Prop
               <h3 className="shd-lbl">Access</h3>
               <label className="field">
                 Link expires
-                <select className="select" value={expiry} onChange={(e) => setExpiry(e.target.value as ExpiryChoice)}>
-                  {live?.expiresAt && (
-                    <option value="keep">
-                      {live.expired ? 'Expired on' : 'Keep:'} {formatExpiry(live.expiresAt)}
-                    </option>
-                  )}
-                  {EXPIRY_PRESETS.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.days ? `${p.label} from now` : p.label}
-                    </option>
-                  ))}
-                  <option value="custom">On a date…</option>
-                </select>
+                <Select<ExpiryChoice>
+                  value={expiry}
+                  onChange={setExpiry}
+                  options={[
+                    ...(live?.expiresAt ? [{ value: 'keep' as const, label: `${live.expired ? 'Expired on' : 'Keep:'} ${formatExpiry(live.expiresAt)}` }] : []),
+                    ...EXPIRY_PRESETS.map((p) => ({ value: p.id, label: p.days ? `${p.label} from now` : p.label })),
+                    { value: 'custom', label: 'On a date…' },
+                  ]}
+                />
               </label>
               {expiry === 'custom' && (
                 <label className="field">

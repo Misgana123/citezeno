@@ -15,6 +15,7 @@ export function GrantCredits({ userId, total: initial }: { userId: string; total
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('50');
   const [note, setNote] = useState('');
+  const [days, setDays] = useState('90');
   const [total, setTotal] = useState(initial);
   const [busy, setBusy] = useState(false);
   if (!open)
@@ -33,7 +34,7 @@ export function GrantCredits({ userId, total: initial }: { userId: string; total
         e.preventDefault();
         setBusy(true);
         try {
-          const r = await post('/api/admin/credits', { userId, amount: Number(amount), note });
+          const r = await post('/api/admin/credits', { userId, amount: Number(amount), note, days: Number(days) });
           setTotal(r.total);
           setOpen(false);
           toast(`Balance is now ${r.total} credits`);
@@ -45,6 +46,7 @@ export function GrantCredits({ userId, total: initial }: { userId: string; total
       }}
     >
       <input className="input" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Credits to add (negative to remove)" style={{ width: 90 }} />
+      <input className="input" type="number" min={0} value={days} onChange={(e) => setDays(e.target.value)} aria-label="Days the credits last (0 = never)" title="Days the given credits last (0 = never)" style={{ width: 70 }} />
       <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason (optional)" aria-label="Reason" />
       <button className="btn btn-sm" disabled={busy}>
         Apply
@@ -76,5 +78,32 @@ export function HandledToggle({ id, handled: initial }: { id: string; handled: b
       />
       Handled
     </label>
+  );
+}
+
+/* Give back what one paid action was charged. */
+export function RefundAction({ actionId, charged }: { actionId: string; charged: number }) {
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  if (done || charged <= 0) return <small>{done ? 'Returned' : '—'}</small>;
+  return (
+    <button
+      className="btn btn-ghost btn-sm"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const r = await post('/api/admin/credits/refund', { actionId });
+          setDone(true);
+          toast(r.credits ? `${r.credits} credits returned` : 'Nothing to return');
+        } catch (err) {
+          toast((err as Error).message, true);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      Return {charged}
+    </button>
   );
 }

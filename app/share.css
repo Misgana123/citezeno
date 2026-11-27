@@ -17,17 +17,14 @@
 /* ---- viewer controls (style switch, BibTeX, copy) ---- */
 .sh-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .sh-sel { position: relative; }
-.sh-sel select {
-  appearance: none; -webkit-appearance: none; min-height: 36px; max-width: 280px; padding: 0 34px 0 14px; border-radius: 999px; border: 1.5px solid var(--rule);
-  background: var(--sheet); color: var(--ink); font-weight: 600; font-size: 13.5px; cursor: pointer; text-overflow: ellipsis;
+.sh-sel .sh-sel-btn {
+  min-height: 36px; max-width: 280px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--rule);
+  background: var(--sheet); color: var(--ink); font-weight: 600; font-size: 13.5px;
 }
-.sh-sel::after { content: ''; position: absolute; right: 14px; top: 50%; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-70%) rotate(45deg); pointer-events: none; opacity: 0.7; }
-.sh-tools-glass .sh-sel select { min-height: 40px; background: rgba(233, 241, 246, 0.08); border-color: rgba(233, 241, 246, 0.22); color: var(--on-prussian); }
-.sh-tools-glass .sh-sel select option { color: #13213a; background: #fff; }
+.sh-tools-glass .sh-sel .sh-sel-btn { min-height: 40px; background: rgba(233, 241, 246, 0.08); border-color: rgba(233, 241, 246, 0.22); color: var(--on-prussian); }
 .sh-tools-glass .btn-sm { min-height: 40px; }
 .sh-tools-bare { flex-direction: column; align-items: stretch; gap: 0; }
-.sh-tools-bare .sh-sel select { width: 100%; max-width: none; border-radius: 0; border: 0; border-bottom: 1.5px solid var(--ink); background: transparent; padding-left: 0; min-height: 42px; font-size: 14px; }
-.sh-tools-bare .sh-sel::after { right: 4px; }
+.sh-tools-bare .sh-sel .sh-sel-btn { display: flex; width: 100%; max-width: none; border-radius: 0; border: 0; border-bottom: 1.5px solid var(--ink); background: transparent; padding: 0 2px 0 0; min-height: 42px; font-size: 14px; box-shadow: none; }
 .sh-tools-bare .btn { justify-content: flex-start; border: 0; border-bottom: 1px solid var(--rule-2); border-radius: 0; padding: 0; min-height: 42px; font-weight: 500; font-size: 14px; transition: padding-left 0.2s var(--sh-ease); }
 .sh-tools-bare .btn:hover { transform: none; padding-left: 4px; }
 .sh-tools-bare .sh-hint { margin-left: auto; font: 400 12px var(--f-mono); color: var(--ink-3); }
@@ -220,7 +217,7 @@
 .cy-bar-lab { font: 500 11px var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--on-prussian-2); padding: 0 8px 0 14px; }
 .cy-bar .sh-tools { flex: 1; }
 .cy-bar .sh-sel { flex: 1; min-width: 160px; }
-.cy-bar .sh-sel select { width: 100%; max-width: none; }
+.cy-bar .sh-sel .sh-sel-btn { display: flex; width: 100%; max-width: none; }
 .cy-sheet { position: relative; z-index: 2; margin: 18px auto 0; width: min(860px, 100% - 48px); background: var(--sheet); border-radius: 6px; box-shadow: var(--shadow-lg), 0 0 0 1px rgba(19, 33, 58, 0.06); padding: clamp(40px, 7vw, 88px) clamp(28px, 8vw, 96px) 64px; }
 .cy-sheet::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, var(--thread), rgba(226, 160, 27, 0)); border-radius: 6px 6px 0 0; }
 .cy-corner { position: absolute; top: 26px; right: 30px; font: 500 11px var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }

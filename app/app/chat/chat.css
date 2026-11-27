@@ -1,0 +1,352 @@
+/* The research assistant (/app/chat), beside the app sidebar: a greeting
+   with a large message box for a new chat; a conversation with the message
+   box docked below. Built on the shared tokens (globals.css), so it follows
+   the light and dark themes. */
+
+/* Chat surfaces: the app colors (atelier.css) — a near-white page, gray cards, a white message box. */
+.ch, .ch-shared { --ch-bg: var(--ground); --ch-card: var(--sheet); --ch-card-line: var(--rule-2); --ch-input: var(--cz-white); --ch-input-line: #d9dedf; }
+[data-theme='dark'] .ch { --ch-input-line: #26476a; }
+
+.ch { flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--ch-bg); }
+.ch-quiet { margin: 0; font-size: 14px; color: var(--ink-3); }
+.ch-error { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: 14px; color: var(--warn); }
+.ch-error svg { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+/* the logo while the assistant works: fades out and back in, like a dimming light */
+.ch-think-logo { flex: none; width: 20px; height: 20px; animation: ch-shade 2.4s ease-in-out infinite; }
+@keyframes ch-shade { 0%, 100% { opacity: 1; filter: none; } 50% { opacity: 0.28; filter: saturate(0.3); } }
+.ch-logo { flex: none; width: 40px; height: 40px; }
+
+/* ---------------------------------------------------------- home */
+.ch-home { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; position: relative; }
+.ch-home-in { width: min(680px, 100%); display: grid; justify-items: center; gap: 22px; margin-top: -8vh; }
+.ch-greet { display: flex; align-items: center; gap: 14px; margin: 0; font: 400 clamp(30px, 4vw, 40px)/1.15 var(--f-read); letter-spacing: -0.015em; text-align: center; }
+.ch-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.ch-suggest { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border: 1px solid var(--ch-card-line); border-radius: 10px; background: var(--card, var(--ch-card)); font-size: 14px; color: var(--ink-2); }
+.ch-suggest svg { width: 15px; height: 15px; }
+.ch-suggest:hover:not(:disabled) { border-color: var(--rule); color: var(--ink); }
+.ch-suggest:disabled { opacity: 0.5; cursor: not-allowed; }
+.ch-disclaimer { margin: 8px auto 0; max-width: 740px; font-size: 12px; color: var(--ink-3); text-align: center; }
+.ch-disclaimer.is-home { position: absolute; left: 0; right: 0; bottom: 14px; padding: 0 16px; }
+
+/* ---------------------------------------------------------- message box */
+.ch-compose {
+  width: 100%; display: grid; gap: 12px; padding: 12px 12px 10px 16px; border: 1px solid var(--ch-input-line); border-radius: 20px; background: var(--ch-input);
+  box-shadow: 0 1px 2px rgba(19, 33, 58, 0.04), 0 18px 40px -28px rgba(19, 33, 58, 0.35); transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ch-compose.is-big { gap: 16px; padding: 16px 14px 12px 18px; }
+.ch-compose:focus-within { border-color: var(--ch-input-line); }
+.ch-input { width: 100%; min-height: 26px; max-height: 240px; resize: none; field-sizing: content; padding: 2px 0; border: 0; background: transparent; font: inherit; font-size: 15px; line-height: 1.55; color: var(--ink); outline: none; }
+.ch-compose.is-big .ch-input { min-height: 52px; font-size: 15.5px; }
+.ch-input::placeholder { color: var(--ink-3); }
+.ch-compose-bar { display: flex; align-items: center; gap: 6px; }
+.ch-grow { flex: 1; }
+.ch-add { display: grid; place-items: center; width: 32px; height: 32px; margin-left: -6px; border: 0; border-radius: 9px; background: transparent; color: var(--ink-2); }
+.ch-add:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); }
+.ch-add svg { width: 18px; height: 18px; }
+.ch-add:disabled { opacity: 0.45; cursor: not-allowed; }
+.ch-add[aria-expanded='true'] { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); }
+.ch-add-wrap { position: relative; }
+/* the + menu opens upward, over the thread, so it never runs off the bottom */
+.ch-add-menu { top: auto; bottom: calc(100% + 6px); left: -6px; right: auto; width: 220px; }
+/* a switch in the + menu (web search): the label, then an on / off track */
+.ch-add-toggle .ch-switch { margin-left: auto; }
+.ch-add-toggle .ch-add-check { margin-left: auto; color: var(--ink); }
+.ch-switch { position: relative; flex: none; width: 28px; height: 16px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 18%, transparent); transition: background 0.15s; }
+.ch-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: transform 0.15s; }
+.ch-switch.is-on { background: var(--prussian); }
+[data-theme='dark'] .ch-switch.is-on { background: var(--wash); }
+.ch-switch.is-on::after { transform: translateX(12px); }
+/* what is switched on for the message (web search), beside the + button: a soft blue, like a pressed pill */
+.ch-chip { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 4px 0 10px; border: 1px solid color-mix(in srgb, var(--prussian) 28%, var(--ch-input-line)); border-radius: 999px; background: color-mix(in srgb, var(--wash) 30%, transparent); color: var(--prussian); font-size: 13px; font-weight: 600; }
+[data-theme='dark'] .ch-chip { border-color: color-mix(in srgb, var(--wash) 40%, var(--ch-input-line)); background: color-mix(in srgb, var(--wash) 16%, transparent); color: var(--wash); }
+.ch-chip svg { width: 14px; height: 14px; }
+.ch-chip button { display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 999px; background: transparent; color: inherit; }
+.ch-chip button:hover { background: color-mix(in srgb, var(--wash) 40%, transparent); }
+.ch-chip button svg { width: 12px; height: 12px; }
+
+/* files added to the message (and shown again on a sent message): square cards with a
+   picture of the file or the start of its text, and its type in the corner */
+.ch-files, .ch-user-files { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.ch-user-files { justify-self: end; justify-content: flex-end; max-width: 80%; }
+.ch-card {
+  position: relative; flex: none; width: 118px; height: 118px; overflow: hidden; border: 1px solid var(--ch-input-line); border-radius: 12px; background: var(--ch-input);
+  box-shadow: 0 1px 2px rgba(19, 33, 58, 0.05);
+}
+.ch-card-pic { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+/* a PDF's first page fills the card edge to edge, like a picture (paper stays white in dark mode) */
+.ch-card:not(.is-pic) .ch-card-pic { background: #fff; }
+.ch-card-text { display: block; height: 100%; padding: 10px 10px 0; overflow: hidden; font-size: 9.5px; line-height: 1.4; color: var(--ink-3); overflow-wrap: anywhere; }
+.ch-card-text b { display: block; margin-bottom: 4px; font-size: 11px; font-weight: 650; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-card-badge {
+  position: absolute; left: 8px; bottom: 8px; padding: 2px 7px; border: 1px solid var(--ch-input-line); border-radius: 7px; background: var(--ch-card);
+  font-size: 11px; font-weight: 550; letter-spacing: 0.02em; color: var(--ink-2); line-height: 1.35;
+}
+.ch-card-wait, .ch-card-err { display: grid; align-content: center; justify-items: center; gap: 8px; height: 100%; padding: 10px; text-align: center; font-size: 11px; line-height: 1.35; color: var(--ink-3); }
+.ch-card-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-card.is-error { border-color: color-mix(in srgb, var(--warn) 45%, var(--ch-input-line)); }
+.ch-card-err { color: var(--warn); overflow: hidden; }
+.ch-card-err svg { width: 18px; height: 18px; }
+.ch-card-spin { width: 18px; height: 18px; border: 2px solid color-mix(in srgb, var(--ink) 15%, transparent); border-top-color: var(--thread); border-radius: 50%; animation: ch-card-spin 0.8s linear infinite; }
+@keyframes ch-card-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ch-card-spin { animation-duration: 2.4s; } }
+/* × shows on hover or keyboard focus (always on touch screens) */
+.ch-card-x {
+  position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 1px solid var(--ch-input-line); border-radius: 50%;
+  background: var(--ch-input); color: var(--ink-2); opacity: 0; transition: opacity 0.12s;
+}
+.ch-card:hover .ch-card-x, .ch-card-x:focus-visible, .ch-card.is-error .ch-card-x { opacity: 1; }
+@media (hover: none) { .ch-card-x { opacity: 1; } }
+.ch-card-x:hover { color: var(--ink); background: var(--ch-card); }
+.ch-card-x svg { width: 12px; height: 12px; stroke-width: 2.2; }
+.ch-model { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; font-size: 13.5px; font-weight: 500; color: var(--ink); }
+.ch-model:hover, .ch-model.is-open { background: color-mix(in srgb, var(--ink) 6%, transparent); box-shadow: none; }
+.ch-model.cz-select:focus-visible { box-shadow: 0 0 0 2px var(--thread-soft); }
+.ch-model .cz-select-chev { width: 12px; height: 12px; color: var(--ink-3); opacity: 1; }
+.ch-model-pop { min-width: 200px !important; }
+/* the vendor's mark before a model's name (on the button and in the list); full color, not the list's amber check */
+.ch-model-icon, .cz-opt .ch-model-icon { flex: none; width: 15px; height: 15px; color: var(--ink); stroke: none; }
+.ch-model.is-one { padding: 0 10px; color: var(--ink-3); }
+/* send: dark, so the amber accent stays for the few things that should catch the eye */
+.ch-send { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: var(--prussian-deep, var(--ink)); color: #fff; }
+[data-theme='dark'] .ch-send { background: var(--ink); color: var(--prussian-deep); }
+.ch-send svg { width: 16px; height: 16px; stroke-width: 2.2; }
+.ch-send:disabled { opacity: 0.4; cursor: not-allowed; }
+.ch-send.is-stop { background: var(--ink); color: var(--ch-bg); }
+.ch-send.is-stop svg { width: 14px; height: 14px; }
+
+/* ---------------------------------------------------------- conversation */
+.ch-head { display: flex; align-items: center; min-height: 54px; padding: 8px 16px 8px 18px; border-bottom: 1px solid var(--rule-2); }
+.ch-title { position: relative; min-width: 0; }
+.ch-title-btn { display: inline-flex; align-items: center; gap: 6px; max-width: min(560px, 70vw); padding: 6px 10px; border: 0; border-radius: 9px; background: transparent; font-size: 14.5px; font-weight: 650; color: var(--ink); }
+.ch-title-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-title-btn svg { flex: none; width: 13px; height: 13px; color: var(--ink-3); transform: rotate(90deg); }
+.ch-title-btn:hover, .ch-title-btn[aria-expanded='true'] { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.ch-title-menu { left: 0; right: auto; }
+.ch-title-plain { padding: 6px 10px; font-size: 14.5px; font-weight: 650; }
+.ch-title-edit { width: min(420px, 70vw); }
+.ch-title-edit .input { height: 36px; min-height: 36px; border-width: 1px; border-radius: 9px; font-size: 14px; }
+
+.ch-thread { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.ch-col { max-width: 740px; margin: 0 auto; padding: 14px 24px 28px; display: grid; gap: 26px; }
+.ch-turn { display: grid; gap: 18px; }
+.ch-user { justify-self: end; max-width: 80%; padding: 11px 16px; border-radius: 18px; background: var(--ch-card); font-size: 15px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ch-ai { display: grid; gap: 14px; min-width: 0; }
+.ch-answer { font: 400 17.5px/1.7 var(--f-read); color: var(--ink); overflow-wrap: anywhere; }
+.ch-md { display: grid; gap: 10px; }
+.ch-answer p { margin: 0; }
+.ch-answer ul, .ch-answer ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+.ch-answer strong { font-weight: 600; }
+.ch-answer a { color: var(--ink); text-decoration-color: var(--thread); text-underline-offset: 3px; }
+.ch-answer code { padding: 1px 5px; border-radius: 5px; background: var(--ch-card); font: 13px var(--f-mono); }
+.ch-md-h { font-weight: 600; }
+.ch-cite {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; margin: 0 1px; border-radius: 6px; vertical-align: 2px;
+  background: var(--thread-soft); color: color-mix(in srgb, var(--thread) 60%, var(--ink)); font: 600 11.5px/1 var(--f-mono); text-decoration: none;
+}
+.ch-cite:hover { background: var(--thread); color: var(--thread-ink); }
+.ch-thinking { display: flex; align-items: center; gap: 10px; }
+
+/* what the assistant did: a timeline of steps hanging off a thin line, with
+   its short notes between them; one heading line once done */
+.ch-turn-work { display: grid; gap: 12px; min-width: 0; }
+.ch-tl > summary, .ch-tl-step summary { list-style: none; cursor: pointer; }
+.ch-tl > summary::-webkit-details-marker, .ch-tl-step summary::-webkit-details-marker { display: none; }
+.ch-tl-head { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 0; font-size: 13.5px; color: var(--ink-2); }
+.ch-tl-head:hover { color: var(--ink); }
+.ch-tl-heading { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--ink); }
+.ch-tl-count { flex: none; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ch-tl-badge { display: inline-flex; flex: none; align-items: center; gap: 6px; font-weight: 700; color: var(--prussian); }
+[data-theme='dark'] .ch-tl-badge { color: var(--wash); }
+.ch-tl-badge svg { width: 15px; height: 15px; }
+.ch-tl-chev { flex: none; width: 13px; height: 13px; color: var(--ink-3); transition: transform 0.15s; }
+details[open] > summary > .ch-tl-chev { transform: rotate(90deg); }
+.ch-tl-line { position: relative; margin: 6px 0 0 8px; padding: 0 0 0 22px; list-style: none; border-left: 1.5px solid var(--rule-2); }
+.ch-tl-sub { margin: 2px 0 4px; padding: 0 0 0 16px; list-style: none; }
+.ch-tl-step { position: relative; padding: 5px 0; }
+.ch-tl-line > .ch-tl-step::before, .ch-tl-line > .ch-tl-part::before { content: ''; position: absolute; left: -27px; top: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--ch-bg); border: 1.5px solid var(--ink-3); }
+.ch-tl-line > .ch-tl-step.is-running::before { border-color: var(--thread); background: var(--thread); }
+.ch-tl-line > .ch-tl-step.is-error::before { border-color: var(--warn); }
+.ch-tl-row { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13.5px; color: var(--ink-2); }
+summary.ch-tl-row:hover { color: var(--ink); }
+.ch-tl-ic { flex: none; width: 15px; height: 15px; color: var(--ink-3); }
+.ch-tl-ic.is-bad { color: var(--warn); }
+.ch-tl-did { flex: none; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--ink); }
+.ch-tl-did.is-live { animation: ch-pulse 1.4s ease-in-out infinite; }
+@keyframes ch-pulse { 50% { opacity: 0.5; } }
+.ch-tl-about { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-tl-meta { flex: none; margin-left: auto; padding-left: 10px; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ch-tl-row .ch-tl-chev { margin-left: 2px; }
+.ch-tl-error { margin: 2px 0 0 23px; font-size: 13px; color: var(--warn); }
+.ch-tl-note { margin: 8px 0; font: 400 15.5px/1.5 var(--f-read); color: var(--ink-2); white-space: pre-line; }
+.ch-tl-part > .ch-tl-note { margin: 10px 0 2px; color: var(--ink); }
+.ch-tl-part { position: relative; }
+.ch-tl-line > .ch-tl-part::before { top: 8px; }
+/* what one step found: papers, pages, sources */
+.ch-tl-found { margin: 6px 0 4px; padding: 4px 0; border: 1px solid var(--ch-card-line); border-radius: 12px; background: var(--ch-card); }
+.ch-tl-found ul { margin: 0; padding: 0; list-style: none; }
+.ch-tl-found li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px 12px; font-size: 13.5px; }
+.ch-tl-found li:hover { background: var(--card); }
+.ch-tl-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); text-decoration: none; }
+a.ch-tl-title:hover { text-decoration: underline; }
+.ch-tl-found .ch-tl-title { font-weight: 400; }
+.ch-tl-host { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--ink-3); }
+.ch-tl-doc { flex: none; width: 15px; height: 15px; color: var(--prussian); }
+[data-theme='dark'] .ch-tl-doc { color: var(--wash); }
+.ch-tl-site { display: grid; flex: none; place-items: center; width: 18px; height: 18px; border: 1px solid var(--ch-card-line); border-radius: 5px; background: var(--ch-bg); color: var(--ink-3); }
+.ch-tl-site svg { width: 11px; height: 11px; }
+.ch-tl-more { margin: 2px 12px 4px; padding: 0; border: 0; background: none; font-size: 12.5px; font-weight: 600; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; cursor: pointer; }
+/* deep research: the questions it looks into, ticked off as they're done */
+.ch-tl-plan { margin: 10px 0 4px; padding: 12px 14px; border: 1px solid var(--ch-card-line); border-radius: 12px; background: var(--ch-card); }
+.ch-tl-plan > p { margin: 0 0 6px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
+.ch-tl-plan ol { display: grid; gap: 3px; margin: 0; padding-left: 20px; font-size: 13.5px; color: var(--ink-2); }
+.ch-tl-plan li.is-done { color: var(--ink-3); }
+.ch-tl-plan li.is-now { font-weight: 600; color: var(--ink); }
+.ch-tl-progress { height: 4px; margin-top: 10px; overflow: hidden; border-radius: 99px; background: var(--rule-2); }
+.ch-tl-progress i { display: block; height: 100%; border-radius: inherit; background: var(--thread); transition: width 0.4s var(--ease); }
+.ch-spin { flex: none; width: 16px; height: 16px; margin: 1px; border: 2px solid var(--rule); border-top-color: var(--thread); border-radius: 50%; animation: ch-spin 0.8s linear infinite; }
+@keyframes ch-spin { to { transform: rotate(360deg); } }
+
+/* papers: a numbered reference list */
+.ch-refs { display: grid; gap: 6px; justify-items: start; }
+.ch-ref-list { list-style: none; margin: 0; padding: 0; width: 100%; border-top: 1px solid var(--rule-2); }
+.ch-ref-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px 2px; border-bottom: 1px solid var(--rule-2); scroll-margin-top: 80px; }
+.ch-ref-row:target { background: color-mix(in srgb, var(--thread-soft) 60%, transparent); border-radius: 10px; }
+.ch-ref-n { padding-top: 3px; font: 600 12px/1.3 var(--f-mono); color: color-mix(in srgb, var(--thread) 75%, var(--ink)); }
+.ch-ref-body { display: grid; gap: 3px; min-width: 0; }
+.ch-ref-title { font: 500 16.5px/1.35 var(--f-read); color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+a.ch-ref-title:hover { text-decoration: underline; text-decoration-color: var(--thread); text-underline-offset: 3px; }
+.ch-ref-meta { font-size: 12.5px; color: var(--ink-3); }
+.ch-ref-act { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; }
+.ch-ref-open { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--verify); text-decoration: none; white-space: nowrap; }
+.ch-ref-open svg { width: 13px; height: 13px; }
+.ch-ref-row.is-retracted .ch-ref-title { text-decoration: line-through; text-decoration-color: var(--warn); }
+.ch-flag { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: var(--warn-soft); color: var(--warn); }
+.ch-more-btn { padding: 4px 2px; border: 0; background: none; font-size: 13px; font-weight: 600; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; }
+
+/* sources from the citation search */
+.ch-sources { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ch-sources li { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--ch-card-line); border-radius: 12px; background: var(--ch-card); }
+.ch-cite-ref { margin: 0; font: 400 15.5px/1.55 var(--f-read); color: var(--ink); overflow-wrap: anywhere; }
+.ch-sources a { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-3); overflow-wrap: anywhere; }
+.ch-sources a svg { flex: none; width: 12px; height: 12px; }
+.ch-file { justify-self: start; display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--prussian-deep); color: #fff; font-weight: 600; font-size: 13.5px; }
+[data-theme='dark'] .ch-file { background: var(--ink); color: var(--prussian-deep); }
+.ch-file svg { width: 15px; height: 15px; }
+a.ch-file { text-decoration: none; }
+.ch-file-size { font-weight: 500; opacity: 0.75; }
+/* a file the assistant made: a picture's preview above its download */
+/* code a step ran (run_python), folded: the source, then what it printed */
+.ch-code { border: 1px solid var(--ch-card-line); border-radius: 12px; background: var(--ch-card); overflow: hidden; }
+.ch-code summary { display: flex; align-items: center; gap: 7px; padding: 9px 12px; cursor: pointer; font-weight: 650; font-size: 13.5px; color: var(--ink-2); }
+.ch-code summary svg { width: 15px; height: 15px; }
+.ch-code.is-failed summary { color: #b42318; }
+.ch-code pre { margin: 0; padding: 10px 12px; max-height: 320px; overflow: auto; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; }
+.ch-code-src { border-top: 1px solid var(--ch-card-line); }
+.ch-code-out { border-top: 1px dashed var(--ch-card-line); white-space: pre-wrap !important; color: var(--ink-2); }
+.ch-made { display: grid; justify-items: start; gap: 8px; }
+.ch-made-pic { display: block; max-width: min(100%, 520px); border: 1px solid var(--ch-card-line); border-radius: 12px; overflow: hidden; background: var(--ch-card); }
+.ch-made-pic img { display: block; width: 100%; height: auto; }
+
+/* asking first */
+.ch-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 14px; background: var(--ch-card); }
+.ch-ask p { flex: 1; min-width: 220px; margin: 0; font-size: 15px; font-weight: 650; line-height: 1.5; }
+.ch-ask-acts { display: flex; gap: 8px; }
+.ch-btn { height: 34px; padding: 0 16px; border-radius: 9px; border: 1px solid var(--ch-card-line); background: var(--ch-bg); font-weight: 650; font-size: 13.5px; color: var(--ink); }
+.ch-btn.is-go { background: var(--prussian-deep); border-color: var(--prussian-deep); color: #fff; }
+[data-theme='dark'] .ch-btn.is-go { background: var(--ink); border-color: var(--ink); color: var(--prussian-deep); }
+.ch-btn:disabled { opacity: 0.55; }
+/* under a deep research report: keep it as a file */
+.ch-report-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+/* under an answer: copy, read aloud, thumbs, try again, and when */
+.ch-acts { display: flex; align-items: center; gap: 2px; margin: 10px 0 0 -7px; font-family: var(--f-ui); }
+.ch-act { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-3); cursor: pointer; }
+.ch-act:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); }
+.ch-act.is-on { color: var(--ink); }
+.ch-act svg { width: 16px; height: 16px; }
+.ch-act-time { margin-left: 8px; font-size: 12.5px; color: var(--ink-3); }
+.ch-report-acts .ch-btn { display: inline-flex; align-items: center; gap: 6px; }
+.ch-report-acts svg { width: 15px; height: 15px; }
+.ch-offer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-top: 14px; padding: 12px 14px; border: 1px solid var(--rule-2); border-radius: 14px; background: var(--ch-card); }
+.ch-offer > svg { flex: none; width: 18px; height: 18px; color: var(--thread); }
+.ch-offer p { flex: 1; min-width: 220px; margin: 0; font-size: 14px; line-height: 1.5; }
+.ch-offer p .ch-quiet { display: block; margin: 2px 0 0; font-size: 13px; }
+
+.ch-dock { padding: 4px 24px 12px; }
+.ch-dock .ch-compose { max-width: 740px; margin: 0 auto; }
+
+@media (prefers-reduced-motion: reduce) { .ch-spin, .ch-think-logo, .ch-tl-did.is-live { animation: none; } }
+
+@media (max-width: 860px) {
+  .ch-head { display: none; }
+  .ch-col { padding: 16px 16px 22px; gap: 22px; }
+  .ch-dock { padding: 4px 12px 10px; }
+  .ch-home { padding: 18px 14px 40px; }
+  .ch-home-in { margin-top: 0; }
+  .ch-user { max-width: 92%; }
+  .ch-answer { font-size: 16.5px; }
+  .ch-ref-row { grid-template-columns: 22px minmax(0, 1fr); }
+  .ch-ref-act { grid-column: 2; justify-content: flex-start; }
+}
+
+/* a shared chat's public page: the conversation read-only, under its title */
+.ch-shared { max-width: 820px; margin: 0 auto; padding: 40px 0 64px; }
+.ch-shared-head { max-width: 740px; margin: 0 auto 8px; padding: 0 24px 18px; border-bottom: 1px solid var(--rule-2); }
+.ch-shared-head h1 { margin: 0 0 6px; font: 600 clamp(26px, 4vw, 34px)/1.15 var(--f-read); letter-spacing: -0.01em; color: var(--ink); }
+.ch-shared-head p { margin: 0; font-size: 13.5px; color: var(--ink-3); }
+.ch-shared-files { justify-self: end; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ch-shared-files li { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--rule-2); border-radius: 9px; font-size: 13px; color: var(--ink-2); }
+.ch-shared-files svg { width: 14px; height: 14px; color: var(--ink-3); }
+.ch-shared-foot { max-width: 740px; margin: 12px auto 0; padding: 18px 24px 0; border-top: 1px solid var(--rule-2); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.ch-shared-foot p { margin: 0; max-width: 480px; font-size: 13px; color: var(--ink-3); }
+
+/* Share: a quiet button at the right of the chat's header, and its dialog */
+.ch-share-btn { display: inline-flex; align-items: center; gap: 7px; height: 32px; margin-left: auto; padding: 0 12px; border: 1px solid var(--ch-card-line); border-radius: 9px; background: var(--cz-white, var(--sheet)); font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.ch-share-btn:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
+.ch-share-btn:disabled { opacity: 0.55; cursor: default; }
+.ch-share-btn svg { width: 15px; height: 15px; }
+.dialog.ch-share { position: relative; width: min(460px, 100%); padding: 22px 22px 20px; border-radius: 20px; }
+.ch-share-x { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 9px; background: none; color: var(--ink-3); cursor: pointer; }
+.ch-share-x:hover { background: var(--card); color: var(--ink); }
+.ch-share-x svg { width: 16px; height: 16px; }
+.ch-share-head { display: flex; align-items: center; gap: 12px; padding-right: 36px; }
+.ch-share-ic { display: grid; flex: none; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: color-mix(in srgb, var(--wash) 26%, transparent); color: var(--prussian); }
+[data-theme='dark'] .ch-share-ic { color: var(--wash); }
+.ch-share-ic svg { width: 19px; height: 19px; }
+.ch-share-head > div { min-width: 0; }
+.dialog.ch-share h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: 0; }
+.dialog.ch-share .ch-share-head p { margin: 1px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 14px var(--f-read); color: var(--ink-3); }
+.dialog.ch-share p.ch-share-wait { margin: 18px 0 0; }
+/* who can open it: one row with a switch */
+.ch-share-access { display: flex; align-items: center; gap: 12px; margin: 18px 0 14px; padding: 12px 14px; border: 1px solid var(--rule-2); border-radius: 14px; }
+.ch-share-dot { display: grid; flex: none; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--card); color: var(--ink-2); }
+.ch-share-dot svg { width: 16px; height: 16px; }
+.ch-share-access.is-on .ch-share-dot { background: var(--verify-soft); color: var(--verify); }
+.ch-share-who { flex: 1; min-width: 0; display: grid; line-height: 1.35; }
+.ch-share-who b { font-size: 14px; font-weight: 600; color: var(--ink); }
+.ch-share-who span { font-size: 12.5px; color: var(--ink-3); }
+.ch-share-switch { position: relative; flex: none; width: 38px; height: 22px; padding: 0; border: 0; border-radius: 99px; background: color-mix(in srgb, var(--ink) 16%, transparent); cursor: pointer; transition: background 0.15s; }
+.ch-share-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); transition: transform 0.15s; }
+.ch-share-switch[aria-checked='true'] { background: var(--verify); }
+.ch-share-switch[aria-checked='true']::after { transform: translateX(16px); }
+.ch-share-switch:disabled { opacity: 0.6; cursor: default; }
+.ch-share-notes { display: grid; gap: 9px; margin: 0 0 18px; padding: 0; list-style: none; font-size: 13.5px; color: var(--ink-2); }
+.ch-share-notes li { display: flex; gap: 10px; }
+.ch-share-notes svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--ink-3); }
+/* dark buttons: the main action, Copy and Update */
+.ch-share-go, .ch-share-btn-dark { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 10px; background: var(--prussian-deep); color: #fff; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+[data-theme='dark'] :is(.ch-share-go, .ch-share-btn-dark) { background: var(--ink); color: var(--prussian-deep); }
+.ch-share-go { width: 100%; height: 42px; }
+.ch-share-btn-dark { flex: none; height: 32px; padding: 0 12px; border-radius: 8px; }
+:is(.ch-share-go, .ch-share-btn-dark):disabled { opacity: 0.6; cursor: default; }
+:is(.ch-share-go, .ch-share-btn-dark) svg { width: 15px; height: 15px; }
+/* the link, with Copy inside its field */
+.ch-share-link { display: flex; align-items: center; gap: 6px; padding: 5px 5px 5px 12px; border: 1px solid var(--rule); border-radius: 12px; background: var(--card); }
+.ch-share-link > svg { flex: none; width: 15px; height: 15px; color: var(--ink-3); }
+.ch-share-link input { flex: 1; min-width: 0; border: 0; background: none; padding: 0; font: 13px var(--f-mono); color: var(--ink-2); outline: none; text-overflow: ellipsis; }
+.ch-share-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; font-size: 12.5px; color: var(--ink-3); }
+.ch-share-stop { flex: none; padding: 0; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 500; color: var(--ink-3); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; cursor: pointer; }
+.ch-share-stop:hover { color: var(--warn); text-decoration-color: currentColor; }
+.ch-share-behind { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 10px 10px 10px 14px; border-radius: 12px; background: var(--thread-soft); font-size: 13px; color: var(--ink); }
+.ch-share-behind span { flex: 1; }
+.dialog.ch-share p.ch-share-err { margin: 14px 0 0; }
+@media (max-width: 560px) { .ch-share-btn { padding: 0 9px; } }

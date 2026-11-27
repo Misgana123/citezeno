@@ -114,8 +114,9 @@ export default function PrivacyPage() {
             <Sec n={3} id="credits" title="If you buy credits">
               <p>
                 Payments are handled by Polar, our merchant of record. Polar collects your payment details and billing
-                address; we never see your card number. We keep a record of your credit balance, each purchase (product,
-                amount and order number) and how many credits each trace used.
+                address; we never see your card number. We keep a record of your plan, your credits and when they end, each
+                purchase (product, amount and order number), and what each paid action used: its kind, the credits charged, and
+                what each step cost us (for example a model’s token counts). We don’t keep your questions in these records.
               </p>
               <p className="lg-aside">
                 <Icon name="lock" /> We never see or store your card number.
@@ -143,17 +144,17 @@ export default function PrivacyPage() {
 
             <Sec n={7} id="choices" title="Your choices">
               <div className="lg-actions">
-                <Link href="/account">
+                <Link href="/app/account">
                   <b>
                     Account page <Icon name="arrow" />
                   </b>
                   <small>Edit your name and sign out other devices.</small>
                 </Link>
-                <Link href="/library">
+                <Link href="/app/citation">
                   <b>
                     Delete a saved trace <Icon name="arrow" />
                   </b>
-                  <small>From your library, at any time.</small>
+                  <small>From the Library in Citation, at any time.</small>
                 </Link>
                 <Link href="/contact?topic=Account%20help">
                   <b>
@@ -163,7 +164,7 @@ export default function PrivacyPage() {
                 </Link>
               </div>
               <p>
-                Delete your account on the <Link href="/account">account page</Link> (we may ask you to confirm by email).
+                Delete your account on the <Link href="/app/account">account page</Link> (we may ask you to confirm by email).
                 This removes your account, sessions and saved traces.
               </p>
             </Sec>

@@ -28,23 +28,23 @@ Without `RESEND_API_KEY`, emails (confirmation, password reset, contact messages
 
 Create an API key at [resend.com](https://resend.com) and verify your sending domain there. Until a domain is verified, Resend only delivers mail from `onboarding@resend.dev` to your own Resend account address. Set `EMAIL_FROM` to an address on the verified domain.
 
-### Credits and billing (Polar)
+### Plans, credits and billing (Polar)
 
-The studio needs an account, and searching costs **1 credit per claim**: every claim in a full trace, or the one passage in “Cite this claim”. The Trace button shows the cost first. Every account gets `NEXT_PUBLIC_FREE_MONTHLY_CREDITS` free credits (default 30) on the 1st of each month (UTC). Free credits don't roll over and are spent first; purchased credits never expire. If a trace is stopped or fails, its credits are returned (up to 10 times a day).
+There is no free plan. Three plans, **Starter** ($7), **Scholar** ($19) and **Lab** ($39), billed monthly or annually (20% less), plus one-off top-ups for plan members. One credit is worth $0.01 on every plan. The full design is in `docs/creditsystem.md`; the code is in `lib/credits/` and `lib/plans.ts`.
 
-Polar handles the payments. Citezeno keeps the balance in its own database (`credit_balance`, `credit_ledger`).
+- **What uses credits.** 1 per claim in the studio; the research assistant, deep research, the reader's AI and preparing your own PDFs cost what they really cost (real provider cost ÷ $0.003, rounded up, at least 1). Exports, styles, citation checks, share links and reading are free.
+- **Hold, then settle.** Every paid action sets credits aside first, records each step's real cost (through the provider gateway), then charges what it used and releases the rest. A failure that gave nothing costs nothing.
+- **Credits expire.** Each grant is a lot with an end date: plan credits end with the month, top-ups after 12 months. The soonest to end are spent first. The credits cron (`/api/credits/cron`, every 5 minutes) settles abandoned holds, expires lots, adds annual plans' monthly credits, warns a week before top-ups end and runs the owner's daily checks.
+- **Plan limits** (storage, shelf size, saved traces, searches a day, models, deep research…) are in `lib/plans.ts`.
 
-There are two paid plans, **Scholar** and **Lab**, each billed monthly or annually; the pricing page shows them with a Monthly / Annually switch and the annual saving (`components/billing/PlanPicker.tsx`, `lib/plans.ts`).
+To set up Polar:
 
-1. In Polar ([sandbox.polar.sh](https://sandbox.polar.sh) for testing), create four subscription products: Scholar monthly ($7), Scholar yearly ($67.20), Lab monthly ($19) and Lab yearly ($182.40). Prices are read from Polar, so change them there.
-2. Paste their IDs into `POLAR_SCHOLAR_MONTHLY_PRODUCT_ID`, `POLAR_SCHOLAR_ANNUAL_PRODUCT_ID`, `POLAR_LAB_MONTHLY_PRODUCT_ID` and `POLAR_LAB_ANNUAL_PRODUCT_ID`. Leave one empty to hide that option.
-3. Set the credits each payment adds: `SCHOLAR_MONTHLY_CREDITS` (200), `SCHOLAR_ANNUAL_CREDITS` (2400), `LAB_MONTHLY_CREDITS` (1000), `LAB_ANNUAL_CREDITS` (12000). Annual plans add the whole year's credits when the payment arrives. No product metadata is needed for the plans.
-4. Create an Organization Access Token and set `POLAR_ACCESS_TOKEN` and `POLAR_SERVER` (`sandbox` or `production`).
-5. Add a webhook pointing to `{BETTER_AUTH_URL}/api/auth/polar/webhooks` for the `order.paid` and `order.refunded` events, then set `POLAR_WEBHOOK_SECRET`.
+1. In Polar ([sandbox.polar.sh](https://sandbox.polar.sh) for testing), create six subscription products (Starter, Scholar and Lab, each monthly and yearly) and three one-time top-ups ($5, $10, $25). Prices are read from Polar.
+2. Paste their IDs into the `POLAR_*_PRODUCT_ID` variables in `.env.example`. Credit amounts can be changed there too.
+3. Create an Organization Access Token and set `POLAR_ACCESS_TOKEN` and `POLAR_SERVER` (`sandbox` or `production`).
+4. Add a webhook to `{BETTER_AUTH_URL}/api/auth/polar/webhooks` with the order and subscription events listed in `.env.example`, then set `POLAR_WEBHOOK_SECRET`.
 
-Any other active Polar product with a `credits` value in its metadata (e.g. a one-time top-up) still appears as its own card and adds that many credits.
-
-Credits are added when `order.paid` arrives (repeat deliveries are ignored), and refunds take back the matching share. Without `POLAR_ACCESS_TOKEN`, billing is off: the free allowance still applies and the pricing page shows no buy buttons.
+Without `POLAR_ACCESS_TOKEN`, billing is off and the pricing page shows the plans as "coming soon".
 
 ### Google and GitHub sign-in (optional)
 
@@ -62,10 +62,12 @@ Each button appears only when its keys are set. Register these callback URLs wit
 | `/styles` | Gallery of all 12 citation styles for an article, a book and a web page |
 | `/sign-in`, `/sign-up` | Email and password accounts, plus Google and GitHub when configured |
 | `/forgot-password`, `/reset-password`, `/verify-email` | Password reset and email confirmation |
-| `/account` | Credits and billing history, Polar receipts portal, profile, sign-in methods, change password, signed-in devices, delete account |
-| `/pricing` | Credit packs loaded live from Polar, plus the free tier |
+| `/account` | Plan, credits by end date, plan limits used, billing history, Polar receipts portal, profile, sign-in methods, change password, signed-in devices, delete account |
+| `/pricing` | Starter, Scholar and Lab plans and top-ups, priced live from Polar |
 | `/billing/success` | Shown after checkout while the credits arrive |
 | `/library` | Every saved trace: search, filter, sort, rename, share, delete, reopen in the studio |
+| `/papers` | Find Papers: search OpenAlex by keywords or meaning, preview papers and their references |
+| `/shelf` | My shelf (Keep Papers): saved papers, projects, folders, tags, notes, PDFs, imports, search and export |
 | `/s/[token]` | Public read-only view of a shared trace, in any style, with a BibTeX download |
 | `/two-factor` | The code step of sign-in when two-step verification is on |
 | `/history` | Activity timeline: traces, credits, sharing and security events, with filters and CSV export |
@@ -195,6 +197,46 @@ lib/
 ```
 
 Runtime dependencies are Next.js, React, Better Auth, `pg`, Resend and Polar. Icons, charts, the command menu, toasts and the Word and PDF writers are all built in. `scripts/migrate.ts` creates the database tables.
+
+## My shelf (Keep Papers)
+
+Every user's personal library of papers, at `/shelf` (named Shelf because "library" is the studio's saved traces). Code lives in `lib/shelf/`, `components/shelf/` and `app/api/shelf/`; the plan is in `docs/coreidea.md`.
+
+- **Tables**: `npm run db:migrate` creates the `shelf_*` tables. Deleting an account removes the whole shelf.
+- **PDF storage (Cloudflare R2)**: create a private R2 bucket and an API token with "Object Read & Write" on it, then set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET`. Add the bucket CORS rule shown in `.env.example` (GET and PUT from your site's domains). The browser uploads straight to R2 with a short-lived signed PUT, because Vercel caps request bodies at 4.5 MB, and files are read only through links that expire after a few minutes. Without the R2 keys, uploads are switched off with a clear message. To keep using Cloudinary instead, set `FILE_STORAGE_PROVIDER=cloudinary` and `CLOUDINARY_URL` (Cloudinary → Settings → API Keys, and turn on Settings → Security → "Allow delivery of PDF and ZIP files").
+- **Background work (Vercel Cron)**: `vercel.json` calls `/api/shelf/cron` every minute (needs Vercel Pro). Set `CRON_SECRET` to any long random string; Vercel sends it, and the route refuses calls without it. Each run works through imports, removes deleted PDFs from storage, rechecks saved papers with OpenAlex (citations, retractions) and clears abandoned uploads.
+- **OpenAlex**: every call goes through Find Papers' cache, rate limiter, cost log and daily cap. Title searches count toward the user's daily search limit.
+- **Limits**: `SHELF_PDF_MAX_MB`, `SHELF_STORAGE_MB`, `SHELF_UPLOADS_PER_DAY`, `SHELF_IMPORT_MAX_MB`, `SHELF_IMPORT_MAX_ENTRIES`, `SHELF_REFRESH_DAYS`, `SHELF_REFRESH_BATCHES` (see `.env.example`).
+- **Tests**: the Shelf database tests run against a throwaway schema when `TEST_DATABASE_URL` is set (for example to your local `DATABASE_URL`); without it they are skipped.
+
+## Read papers (Reader)
+
+Open any paper at `/app/read/<paper id>` (for example `/app/read/openalex:W2626778328`) to read it, highlight it, get a summary and ask it questions. Code lives in `lib/reader/`, `components/reader/` and `app/api/reader/`; the plan is in `docs/coreidea.md`.
+
+- **The PDF**: the user's own upload first, then the open-access PDF from OpenAlex (one shared copy is kept in storage only for CC BY, CC BY-SA, CC0 and public-domain papers; others are fetched fresh and streamed each time), else the details and abstract.
+- **Tables and search by meaning**: `npm run db:migrate` creates the `reader_*` tables and turns on pgvector when the database offers it (it prints which). Without pgvector, questions use keyword search only.
+- **Background work (Vercel Cron)**: `vercel.json` also calls `/api/reader/cron` every minute with `CRON_SECRET`: it reads new PDFs into passages, embeds them, re-embeds after an embedding model change and removes shared copies nobody opened for 90 days. A paper opened in the app starts processing right away.
+- **AI**: summaries, "Ask the paper" and Explain use the chat models (`READER_MODEL`, `READER_FAST_MODEL`); embeddings use Gemini Embedding 2 through OpenRouter, or straight from Gemini when OpenRouter is down (`READER_EMBEDDING_MODEL`, `READER_EMBEDDING_DIMENSIONS`), all with the AI keys and daily cap (see AI models below). Without an AI key the reader still opens, reads and highlights. Every AI call is logged in `reader_ai_log`.
+- **Running locally**: nothing extra beyond the keys above; PDF.js's worker is served by `/api/reader/worker`. For open-access PDFs stored in R2, the bucket's CORS rule must allow GET from `http://localhost:3000`.
+
+## AI models
+
+The assistant and the reader reach AI models through OpenRouter: one key (`OPENROUTER_API_KEY`) for hundreds of models from many makers. Code lives in `lib/providers/openrouter/` and `lib/providers/chat/`.
+
+- **The model list**: OpenRouter's live list, fetched at most once a day and cached (kept for 30 days while OpenRouter can't be reached). Only models that can use tools, answer in text and have a fixed price are offered. `AGENT_MODELS` narrows it (IDs, or a maker's models with `*`, e.g. `google/*,anthropic/*`); `AGENT_DEFAULT_MODEL` sets the default (`google/gemini-3.5-flash-lite`). The chat's model picker shows the popular models first (`AGENT_POPULAR_MODELS`, default: newest Claude, GPT, Gemini, Grok, DeepSeek and Qwen), then all models grouped by maker, with a search box.
+- **Fallback**: with `GEMINI_API_KEY` set too, Gemini answers directly while OpenRouter is down, out of credits or too busy: the same model for Google's models, `AI_FALLBACK_MODEL` for the rest. A bad request or our own daily cap never falls back. With only `GEMINI_API_KEY`, Gemini's own models are offered.
+- **Spending**: each call's cost is what OpenRouter says it charged. `AI_DAILY_ALERT_USD` and `AI_DAILY_CAP_USD` apply to OpenRouter and to Gemini each. Setting a credit limit on the OpenRouter key in its dashboard adds a second safety net.
+
+## Paper sources, the waiting line and our own copy
+
+How Find Papers, Shelf, Reader and the assistant get paper data without going over the services' limits. Code lives in `lib/providers/` (one folder per service, plus the shared `gateway/`) and `lib/papers/`; the full description is in `docs/scaling-and-rate-limits.md`. Everything below is off or unchanged until its setting is turned on.
+
+- **Paper sources**: `PAPER_PROVIDERS` lists them, primary first: `openalex` (default), `arxiv`, `pubmed`, `europepmc`, `semanticscholar` (needs `S2_API_KEY`), `clinicaltrials`. Every listed source is searched; one that is slow or down is left out after `PAPERS_EXTRA_WAIT_MS` and the user sees "results may be incomplete".
+- **Filling in details**: `PAPER_ENRICHERS` (`unpaywall`, `crossref`, `core`, `semanticscholar`) fills gaps such as free PDF links and missing abstracts. Set `PROVIDER_CONTACT_EMAIL`; Unpaywall needs it and Crossref answers faster with it.
+- **The waiting line**: every call to an outside service waits its turn under that service's shared per-second limit (for example `OPENALEX_RATE_PER_S`). It is told "busy" only past `PROVIDER_MAX_WAIT_MS`. Identical calls share one request, expired answers stand in while a service is down, and a service that keeps failing is paused for 30 seconds. The admin page shows what happened per service.
+- **Redis (optional)**: with `REDIS_URL` the cache and the waiting line live in Redis (Upstash works); without it, or while Redis is down, Postgres does the job. Locally: `redis-server` and `REDIS_URL=redis://localhost:6379`.
+- **Our own copy of papers**: `PAPERS_LOCAL_COPY=1` keeps every paper users see (table `paper_record`); `PAPERS_LOCAL_FIRST=1` searches it first. `vercel.json` calls `/api/papers/cron` every 15 minutes with `CRON_SECRET` to download about 100,000 papers (`PAPERS_SEED_*`), fill their gaps, recheck old ones and stay under `PAPERS_LOCAL_MAX_MB` (about 4 KB a paper). To run it by hand locally: `curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/papers/cron`.
+- **Tests**: the Redis tests run when `TEST_REDIS_URL` is set; the paper-copy database tests when `TEST_DATABASE_URL` is set.
 
 ## Optional settings
 
