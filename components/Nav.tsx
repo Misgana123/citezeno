@@ -10,6 +10,7 @@ const LINKS = [
   { href: '/#deep', label: 'Deep research' },
   { href: '/#method', label: 'How it works' },
   { href: '/pricing', label: 'Pricing' },
+  { href: '/docs', label: 'Docs' },
   { href: '/#faq', label: 'FAQ' },
 ];
 
@@ -65,7 +66,7 @@ export function Nav({ onBlue = false }: { onBlue?: boolean }) {
         </Link>
         <nav className="nav-links" aria-label="Main">
           {LINKS.map((l) => (
-            <Link key={l.href} href={l.href} aria-current={path === l.href ? 'page' : undefined}>
+            <Link key={l.href} href={l.href} aria-current={path === l.href || (l.href === '/docs' && path?.startsWith('/docs/')) ? 'page' : undefined}>
               {l.label}
             </Link>
           ))}
@@ -93,7 +94,7 @@ export function Nav({ onBlue = false }: { onBlue?: boolean }) {
       <div className="nav-sheet" id="nav-sheet" hidden={!open}>
         <nav aria-label="Main">
           {LINKS.map((l) => (
-            <Link key={l.href} href={l.href} aria-current={path === l.href ? 'page' : undefined} onClick={() => setOpen(false)}>
+            <Link key={l.href} href={l.href} aria-current={path === l.href || (l.href === '/docs' && path?.startsWith('/docs/')) ? 'page' : undefined} onClick={() => setOpen(false)}>
               {l.label}
               <Icon name="chevron" />
             </Link>
@@ -113,7 +114,7 @@ const FOOT_COLS: [string, [string, string][]][] = [
       ['/styles/ama', 'AMA'], ['/styles/asa', 'ASA'], ['/styles/acs', 'ACS'], ['/styles/cse', 'CSE'], ['/styles/turabian', 'Turabian'], ['/styles', 'All 12 styles'],
     ],
   ],
-  ['Company', [['/contact', 'Contact'], ['/privacy', 'Privacy'], ['/terms', 'Terms']]],
+  ['Company', [['/docs', 'Docs'], ['/contact', 'Contact'], ['/privacy', 'Privacy'], ['/terms', 'Terms']]],
 ];
 
 /* "Signature": a short promise, three link columns, the data credit and a

@@ -8,6 +8,7 @@ import { PlanReceipt, type ReceiptPlan } from '@/components/landing/PlanReceipt'
 import { receiptLines } from '@/lib/plan-lines';
 import { previewPlanViews } from '@/lib/plans';
 import { SITE, appLd, faqLd, organizationLd, pageMeta, websiteLd } from '@/lib/seo';
+import '@/components/landing/band.css';
 import './landing.css';
 
 export const metadata = pageMeta({
@@ -370,26 +371,28 @@ export default function Home() {
         </section>
 
         <section className="section" id="pricing" style={{ paddingTop: 0 }} aria-labelledby="pricing-title">
-          <div className="wrap">
-            <PlanReceipt
-              plans={RECEIPT}
-              intro={
-                <>
-                  <span className="kicker">Pricing</span>
-                  <h2 className="h2" id="pricing-title">
-                    Pay for research, <em className="h2-em">not for seats.</em>
-                  </h2>
-                  <p className="lp-price-lede">
-                    One credit balance pays for the assistant, deep research, the reader and the citation studio. Pick the size that fits how much you read.
-                  </p>
-                </>
-              }
-              more={
-                <Link className="lp-price-more" href="/pricing">
-                  Compare every plan and what credits buy <Icon name="arrow" />
-                </Link>
-              }
-            />
+          <div className="lp-dr">
+            <div className="wrap">
+              <PlanReceipt
+                plans={RECEIPT}
+                intro={
+                  <>
+                    <span className="kicker">Pricing</span>
+                    <h2 className="h2" id="pricing-title">
+                      Pay for research, <em className="h2-em">not for seats.</em>
+                    </h2>
+                    <p className="lp-price-lede">
+                      One credit balance pays for the assistant, deep research, the reader and the citation studio. Pick the size that fits how much you read.
+                    </p>
+                  </>
+                }
+                more={
+                  <Link className="lp-price-more" href="/pricing">
+                    Compare every plan <Icon name="arrow" />
+                  </Link>
+                }
+              />
+            </div>
           </div>
         </section>
 

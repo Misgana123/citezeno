@@ -392,13 +392,12 @@ img, svg { display: block; }
 
 /* ---------------- closing call to action: the drop zone ---------------- */
 .cta-drop-wrap { padding: 0 0 120px; }
-.cta-drop-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px; align-items: center; padding: clamp(28px, 4vw, 52px); border-radius: 28px; background: var(--sheet); box-shadow: 0 0 0 1px var(--rule-2), 0 40px 80px -50px rgba(11, 38, 69, 0.5); }
-.cta-drop-title { margin: 0; font-size: clamp(30px, 3.6vw, 46px); line-height: 1.06; letter-spacing: -0.033em; font-weight: 750; text-wrap: balance; }
-.cta-drop-title em { font-family: var(--f-read); font-style: italic; font-weight: 400; color: var(--prussian); }
-[data-theme='dark'] .cta-drop-title em { color: var(--wash); }
-.cta-drop-points { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 10px; font-size: 15px; color: var(--ink-2); }
+.cta-drop-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px; align-items: center; padding: clamp(28px, 4vw, 52px); border-radius: 28px; position: relative; overflow: hidden; color: var(--on-prussian); background: radial-gradient(900px 520px at 90% 0%, #1e5185 0%, var(--prussian) 45%, var(--prussian-deep) 90%); box-shadow: 0 40px 80px -50px rgba(11, 38, 69, 0.5); }
+.cta-drop-title { margin: 0; color: #fff; font-size: clamp(30px, 3.6vw, 46px); line-height: 1.06; letter-spacing: -0.033em; font-weight: 750; text-wrap: balance; }
+.cta-drop-title em { font-family: var(--f-read); font-style: italic; font-weight: 400; color: var(--thread); }
+.cta-drop-points { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 10px; font-size: 15px; color: var(--on-prussian-2); }
 .cta-drop-points li { display: flex; align-items: center; gap: 10px; }
-.cta-drop-points svg { width: 18px; height: 18px; flex: none; color: var(--verify); }
+.cta-drop-points svg { width: 18px; height: 18px; flex: none; color: var(--thread); }
 .cta-drop {
   display: grid; place-items: center; gap: 10px; min-height: 280px; padding: 30px; border-radius: 20px; border: 2px dashed var(--rule); text-align: center; text-decoration: none; color: var(--ink);
   background: repeating-linear-gradient(transparent 0 33px, rgba(29, 89, 140, 0.06) 33px 34px), var(--card);

@@ -45,20 +45,7 @@
 /* ---------------- deep research: the live run ---------------- */
 @keyframes lp-pulse { 50% { box-shadow: 0 0 0 5px rgba(226, 160, 27, 0.18); } }
 @keyframes lp-in { from { opacity: 0; transform: translateY(10px) scale(0.99); } }
-/* a full-width band; its content stays on the page grid */
-.lp-dr {
-  position: relative; padding: 112px 0; overflow: hidden;
-  color: var(--on-prussian); background: radial-gradient(1400px 800px at 85% 0%, #1e5185 0%, var(--prussian) 42%, var(--prussian-deep) 85%);
-}
 .lp-dr-in { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 64px; align-items: center; }
-.lp-dr::before {
-  content: ''; position: absolute; inset: 0; background-size: 40px 40px; mask: linear-gradient(90deg, transparent, #000);
-  background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-}
-.lp-dr > * { position: relative; }
-.lp-dr .kicker { color: var(--thread); }
-.lp-dr h2 { margin: 18px 0; font-size: clamp(38px, 4.6vw, 58px); font-weight: 750; letter-spacing: -0.035em; line-height: 1; color: #fff; }
-.lp-dr h2 em { font: italic 400 1em var(--f-read); letter-spacing: -0.015em; color: var(--thread); }
 .lp-dr-lede { max-width: 30em; margin: 0 0 30px; font-size: 18px; color: var(--on-prussian-2); }
 .lp-dr .btn { margin-bottom: 40px; }
 .lp-dr-facts { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; border-top: 1px solid rgba(255, 255, 255, 0.14); }
@@ -93,7 +80,6 @@
 .lp-out small { font-size: 12px; color: var(--ink-3); }
 .lp-out-go { margin-left: auto; padding: 8px 14px; border-radius: 10px; background: var(--thread); color: var(--thread-ink); font-size: 13px; font-weight: 600; white-space: nowrap; }
 @media (max-width: 1000px) {
-  .lp-dr { padding: 72px 0; }
   .lp-dr-in { grid-template-columns: 1fr; gap: 40px; }
   .lp-dr-facts dt { font-size: 30px; }
 }
@@ -137,6 +123,19 @@
 .lp-price-more { display: inline-flex; align-items: center; gap: 6px; margin-top: 22px; font-size: 14.5px; font-weight: 600; color: var(--prussian); }
 .lp-price-more svg { width: 15px; height: 15px; }
 [data-theme='dark'] .lp-price-more { color: var(--wash); }
+/* the pricing section on the dark band, like deep research */
+.lp-dr .lp-price-lede { color: var(--on-prussian-2); }
+.lp-dr .lp-plan-btn { border-color: rgba(255, 255, 255, 0.16); color: var(--on-prussian); }
+.lp-dr .lp-plan-btn:hover { background: rgba(255, 255, 255, 0.06); }
+.lp-dr .lp-radio { border-color: rgba(255, 255, 255, 0.32); }
+.lp-dr .lp-plan-btn[aria-checked='true'] { background: rgba(255, 255, 255, 0.1); border-color: var(--thread); box-shadow: 0 20px 40px -24px rgba(4, 16, 32, 0.7); }
+.lp-dr .lp-plan-btn[aria-checked='true'] .lp-radio { border-color: var(--thread); }
+.lp-dr .lp-plan-btn[aria-checked='true'] .lp-radio::after { background: var(--thread); }
+.lp-dr .lp-plan-btn b { color: #fff; }
+.lp-dr .lp-plan-btn b small { color: var(--thread); background: rgba(226, 160, 27, 0.16); }
+.lp-dr .lp-plan-btn > span > span { color: var(--on-prussian-2); }
+.lp-dr .lp-plan-p { color: #fff; }
+.lp-dr .lp-price-more, [data-theme='dark'] .lp-dr .lp-price-more { color: var(--thread); }
 /* a paper receipt with torn edges; always printed on light paper */
 .lp-receipt {
   --zz: radial-gradient(circle at 8px 0, transparent 7px, #fffef9 7.5px);

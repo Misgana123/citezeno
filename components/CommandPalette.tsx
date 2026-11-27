@@ -11,15 +11,7 @@ import { readHref } from './reader/api';
    Tabs narrow it to one kind; with no words it shows what was used recently.
    Tab hands the words to the assistant as a new chat. */
 
-export type Command = {
-  id: string;
-  group: string;
-  label: string;
-  meta?: string;
-  icon?: IconName;
-  keywords?: string;
-  run: () => void;
-};
+export type Command = { id: string; group: string; label: string; meta?: string; icon?: IconName; keywords?: string; run: () => void };
 
 /* ---- a tiny registry pages can add commands to ---- */
 const sets = new Map<string, Command[]>();
@@ -43,6 +35,36 @@ const subscribe = (l: () => void) => {
 };
 const EMPTY: Command[] = [];
 
+/* ---- result sources pages can add: a tab of their own (the docs give "Docs"), opened first on that page ---- */
+export type SourceResult = { id: string; group: string; title: string; sub?: string; icon: IconName; href: string };
+export type Source = { tab: string; label: string; placeholder?: string; results: SourceResult[] };
+const sources = new Map<string, Source>();
+const sourceListeners = new Set<() => void>();
+let sourceSnapshot: Source[] = [];
+export function registerSource(key: string, source: Source) {
+  sources.set(key, source);
+  sourceSnapshot = [...sources.values()];
+  sourceListeners.forEach((l) => l());
+  return () => {
+    sources.delete(key);
+    sourceSnapshot = [...sources.values()];
+    sourceListeners.forEach((l) => l());
+  };
+}
+const subscribeSources = (l: () => void) => {
+  sourceListeners.add(l);
+  return () => sourceListeners.delete(l);
+};
+const NO_SOURCES: Source[] = [];
+
+/* a source's results grouped into sections; with no words only its first group is listed */
+function sourceSections(src: Source, q: string, cap: number): { label: string; results: SourceResult[] }[] {
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const groups = [...new Set(src.results.map((r) => r.group))];
+  if (!words.length) return groups.slice(0, 1).map((g) => ({ label: g, results: src.results.filter((r) => r.group === g) }));
+  return groups.map((g) => ({ label: g, results: src.results.filter((r) => r.group === g && words.every((w) => `${r.title} ${r.sub || ''}`.toLowerCase().includes(w))).slice(0, cap) }));
+}
+
 const TABS = [
   { id: 'all', label: 'All' },
   { id: 'chats', label: 'Chats' },
@@ -50,7 +72,7 @@ const TABS = [
   { id: 'drafts', label: 'Drafts' },
   { id: 'actions', label: 'Actions' },
 ] as const;
-type Tab = (typeof TABS)[number]['id'];
+type Tab = (typeof TABS)[number]['id'] | (string & {});
 
 type Row = { key: string; icon: IconName; title: string; sub?: string | null; meta?: string; flag?: string; go: () => void };
 type Section = { label: string; rows: Row[] };
@@ -77,7 +99,20 @@ export function CommandPalette() {
   const [signedOut, setSignedOut] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const extra = useSyncExternalStore(subscribe, () => snapshot, () => EMPTY);
+  const extra = useSyncExternalStore(
+    subscribe,
+    () => snapshot,
+    () => EMPTY,
+  );
+  const pageSources = useSyncExternalStore(
+    subscribeSources,
+    () => sourceSnapshot,
+    () => NO_SOURCES,
+  );
+  /* a page with its own results (the docs) searches only those: no chats, papers, drafts or actions */
+  const pageOnly = pageSources.length > 0;
+  const tabs = useMemo(() => (pageOnly ? pageSources.map((s) => ({ id: s.tab, label: s.label })) : [...TABS]), [pageSources, pageOnly]);
+  const firstTab: Tab = pageSources[0]?.tab ?? 'all';
   const inApp = path?.startsWith('/app') ?? false;
 
   useEffect(() => {
@@ -99,7 +134,7 @@ export function CommandPalette() {
   useEffect(() => {
     if (!open) return;
     setQ('');
-    setTab('all');
+    setTab(firstTab);
     setSel(0);
     setTimeout(() => inputRef.current?.focus(), 10);
   }, [open]);
@@ -107,25 +142,31 @@ export function CommandPalette() {
 
   /* the user's chats, papers and drafts, a moment after they stop typing */
   useEffect(() => {
-    if (!open || tab === 'actions' || signedOut) return;
+    if (!open || tab === 'actions' || signedOut || pageOnly) {
+      setLoading(false);
+      return;
+    }
     const ctrl = new AbortController();
-    const t = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/search?${new URLSearchParams({ q: q.trim(), type: tab })}`, { cache: 'no-store', signal: ctrl.signal });
-        if (res.status === 401) setSignedOut(true);
-        else if (res.ok) setFound((await res.json()) as SearchResult);
-      } catch {
-        /* aborted or offline: keep what is shown */
-      } finally {
-        if (!ctrl.signal.aborted) setLoading(false);
-      }
-    }, q.trim() ? 160 : 0);
+    const t = setTimeout(
+      async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`/api/search?${new URLSearchParams({ q: q.trim(), type: tab })}`, { cache: 'no-store', signal: ctrl.signal });
+          if (res.status === 401) setSignedOut(true);
+          else if (res.ok) setFound((await res.json()) as SearchResult);
+        } catch {
+          /* aborted or offline: keep what is shown */
+        } finally {
+          if (!ctrl.signal.aborted) setLoading(false);
+        }
+      },
+      q.trim() ? 160 : 0,
+    );
     return () => {
       clearTimeout(t);
       ctrl.abort();
     };
-  }, [open, q, tab, signedOut]);
+  }, [open, q, tab, signedOut, pageOnly]);
 
   const actions: Command[] = useMemo(() => {
     const flipTheme = () => {
@@ -163,22 +204,45 @@ export function CommandPalette() {
 
   const sections: Section[] = useMemo(() => {
     const push = (href: string) => () => router.push(href);
-    const chatRows = found.chats.map(
-      (c): Row => ({ key: `c:${c.id}`, icon: c.paperId ? 'book' : 'chat', title: c.title, sub: c.snippet, meta: when(c.at), go: push(c.paperId ? `${readHref(c.paperId)}?chat=${encodeURIComponent(c.id)}` : `/app/chat?c=${encodeURIComponent(c.id)}`) }),
-    );
+    const chatRows = found.chats.map((c): Row => ({
+      key: `c:${c.id}`,
+      icon: c.paperId ? 'book' : 'chat',
+      title: c.title,
+      sub: c.snippet,
+      meta: when(c.at),
+      go: push(c.paperId ? `${readHref(c.paperId)}?chat=${encodeURIComponent(c.id)}` : `/app/chat?c=${encodeURIComponent(c.id)}`),
+    }));
     // papers open in the reader
-    const paperRows = found.papers.map(
-      (p): Row => ({ key: `p:${p.itemId}`, icon: 'layers', title: p.title, sub: [p.authors, p.year].filter(Boolean).join(' · ') || null, flag: p.retracted ? 'Retracted' : undefined, go: push(readHref(p.paperId)) }),
-    );
-    const readingRows = (found.reading ?? []).map(
-      (r): Row => ({ key: `r:${r.paperId}`, icon: 'book', title: r.title, sub: r.pageCount ? `Page ${r.page} of ${r.pageCount}` : `Page ${r.page}`, meta: when(r.at), go: push(readHref(r.paperId)) }),
-    );
+    const paperRows = found.papers.map((p): Row => ({
+      key: `p:${p.itemId}`,
+      icon: 'layers',
+      title: p.title,
+      sub: [p.authors, p.year].filter(Boolean).join(' · ') || null,
+      flag: p.retracted ? 'Retracted' : undefined,
+      go: push(readHref(p.paperId)),
+    }));
+    const readingRows = (found.reading ?? []).map((r): Row => ({
+      key: `r:${r.paperId}`,
+      icon: 'book',
+      title: r.title,
+      sub: r.pageCount ? `Page ${r.page} of ${r.pageCount}` : `Page ${r.page}`,
+      meta: when(r.at),
+      go: push(readHref(r.paperId)),
+    }));
     const draftRows = found.drafts.map((d): Row => ({ key: `d:${d.id}`, icon: 'doc', title: d.title, sub: d.snippet, meta: when(d.at), go: push(`/app/citation?open=${encodeURIComponent(d.id)}`) }));
     const actionRows = (list: Command[]) => list.map((c): Row => ({ key: `a:${c.id}`, icon: c.icon || 'arrow', title: c.label, meta: c.meta, go: c.run }));
     const searching = q.trim().length > 0;
+    const sourceRows = (src: Source, cap: number): Section[] =>
+      sourceSections(src, q, cap).map((g) => ({ label: g.label, rows: g.results.map((r): Row => ({ key: `s:${src.tab}:${r.id}`, icon: r.icon, title: r.title, sub: r.sub, go: push(r.href) })) }));
+    const current = pageSources.find((s) => s.tab === tab);
+    if (current) return sourceRows(current, 12);
 
     if (tab === 'chats') return [{ label: searching ? 'Chats' : 'Recent chats', rows: chatRows }];
-    if (tab === 'papers') return [{ label: 'Continue reading', rows: readingRows }, { label: searching ? 'Papers on your shelf' : 'Recently saved papers', rows: paperRows }];
+    if (tab === 'papers')
+      return [
+        { label: 'Continue reading', rows: readingRows },
+        { label: searching ? 'Papers on your shelf' : 'Recently saved papers', rows: paperRows },
+      ];
     if (tab === 'drafts') return [{ label: searching ? 'Drafts' : 'Recent drafts', rows: draftRows }];
     if (tab === 'actions') return [{ label: 'Actions', rows: actionRows(matchedActions) }];
     if (!searching) {
@@ -201,7 +265,7 @@ export function CommandPalette() {
       { label: 'Drafts', rows: draftRows },
       { label: 'Actions', rows: actionRows(matchedActions.slice(0, 5)) },
     ];
-  }, [found, tab, q, matchedActions, actions, router, inApp]);
+  }, [found, tab, q, matchedActions, actions, router, inApp, pageSources]);
 
   const visible = sections.filter((s) => s.rows.length);
   const rows = visible.flatMap((s) => s.rows);
@@ -223,8 +287,8 @@ export function CommandPalette() {
     router.push(text ? `/app/chat?ask=${encodeURIComponent(text)}` : '/app/chat');
   };
   const moveTab = (d: number) => {
-    const i = TABS.findIndex((t) => t.id === tab);
-    setTab(TABS[(i + d + TABS.length) % TABS.length].id);
+    const i = tabs.findIndex((t) => t.id === tab);
+    setTab(tabs[(i + d + tabs.length) % tabs.length].id);
   };
 
   if (!open) return null;
@@ -245,7 +309,7 @@ export function CommandPalette() {
       // with no words typed (or with Alt), the arrows change the kind
       e.preventDefault();
       moveTab(e.key === 'ArrowRight' ? 1 : -1);
-    } else if (e.key === 'Tab' && !e.shiftKey && !signedOut) {
+    } else if (e.key === 'Tab' && !e.shiftKey && !signedOut && !pageOnly) {
       e.preventDefault();
       ask();
     }
@@ -261,7 +325,7 @@ export function CommandPalette() {
             className="sd-input"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search chats, papers, drafts and actions"
+            placeholder={pageSources.find((s) => s.tab === tab)?.placeholder ?? 'Search chats, papers, drafts and actions'}
             aria-label="Search"
             role="combobox"
             aria-expanded="true"
@@ -272,13 +336,17 @@ export function CommandPalette() {
             <Icon name="x" />
           </button>
         </div>
-        <div className="sd-tabs" role="tablist" aria-label="What to search">
-          {TABS.filter((t) => !signedOut || t.id === 'all' || t.id === 'actions').map((t) => (
-            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {tabs.length > 1 && (
+          <div className="sd-tabs" role="tablist" aria-label="What to search">
+            {tabs
+              .filter((t) => !signedOut || !['chats', 'papers', 'drafts'].includes(t.id))
+              .map((t) => (
+                <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
+                  {t.label}
+                </button>
+              ))}
+          </div>
+        )}
 
         <div className="sd-list" id="sd-list" role="listbox" ref={listRef}>
           {visible.map((s) => (
@@ -307,7 +375,7 @@ export function CommandPalette() {
           {!rows.length && !loading && (
             <div className="sd-empty">
               {q.trim() ? <>Nothing matches “{q.trim()}”.</> : tab === 'all' ? 'Nothing here yet. Start a chat or save a paper.' : 'Nothing here yet.'}
-              {q.trim() && !signedOut && (
+              {q.trim() && !signedOut && !pageOnly && (
                 <button type="button" className="sd-ask" onClick={ask}>
                   <Icon name="sparkle" /> Ask the assistant about “{q.trim()}”
                 </button>
@@ -320,14 +388,16 @@ export function CommandPalette() {
           <span>
             Close <kbd>Esc</kbd>
           </span>
-          <span>
-            Change type <kbd>←</kbd>
-            <kbd>→</kbd>
-          </span>
+          {tabs.length > 1 && (
+            <span>
+              Change type <kbd>←</kbd>
+              <kbd>→</kbd>
+            </span>
+          )}
           <span>
             Open <kbd>↵</kbd>
           </span>
-          {!signedOut && (
+          {!signedOut && !pageOnly && (
             <span className="sd-foot-end">
               Ask the assistant <kbd>Tab</kbd>
             </span>
