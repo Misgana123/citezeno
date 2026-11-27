@@ -50,7 +50,7 @@ describe('the tool registry', () => {
       expect(t.description.length).toBeGreaterThan(20);
       expect(['read', 'write']).toContain(t.kind);
     }
-    for (const n of ['search_papers', 'get_paper', 'get_references', 'get_citing_papers', 'find_similar_papers', 'list_library', 'lookup_paper', 'save_paper', 'organize_papers', 'delete_papers', 'resolve_duplicate', 'export_library', 'create_project']) {
+    for (const n of ['search_papers', 'get_paper', 'get_references', 'get_citing_papers', 'find_similar_papers', 'list_library', 'lookup_paper', 'save_paper', 'organize_papers', 'delete_papers', 'resolve_duplicate', 'export_library', 'create_project', 'clean_references', 'check_references', 'text_stats', 'shelf_stats', 'zip_files']) {
       expect(findTool(n)).toBeTruthy();
     }
   });
@@ -166,6 +166,16 @@ describe.skipIf(!TEST_DB_URL)('shelf tools (Postgres)', () => {
   it('exports a file the user can download', async () => {
     const r = await runTool(ctx(), 'export_library', { format: 'bibtex' });
     expect(r.outcome).toMatchObject({ status: 'done', output: { result: { exported: 1 }, display: { file: { name: expect.stringMatching(/\.bib$/), text: expect.stringContaining('Paper W1') } } } });
+  });
+
+  it('counts the shelf by year, journal, author and title words, with the list filters', async () => {
+    await runTool(ctx(), 'add_paper_manually', { details: { title: 'Field notes on rivers', authors: ['Me'], year: 2021 } });
+    const stats = done(await runTool(ctx(), 'shelf_stats', {}));
+    expect(stats).toMatchObject({ total: 2, byYear: [{ year: 2020, count: 1 }, { year: 2021, count: 1 }], noYear: 0, authors: [{ name: 'Ada Lovelace', count: 1 }, { name: 'Me', count: 1 }] });
+    expect(stats.titleWords).toEqual(expect.arrayContaining([{ name: 'rivers', count: 1 }, { name: 'paper', count: 1 }]));
+    expect(stats.titleWords).not.toEqual(expect.arrayContaining([expect.objectContaining({ name: 'on' })]));
+    expect(done(await runTool(ctx(), 'shelf_stats', { yearFrom: 2021 }))).toMatchObject({ total: 1, byYear: [{ year: 2021, count: 1 }] });
+    expect(done(await runTool(context(other, db.pool), 'shelf_stats', {}))).toMatchObject({ total: 0, byYear: [], authors: [] });
   });
 
   it('lists projects, folders and tags with IDs', async () => {

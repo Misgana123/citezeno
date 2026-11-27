@@ -17,12 +17,15 @@ const KIND_LABEL: Record<z.infer<typeof chartInput>['kind'], string> = {
   area: 'area chart',
   pie: 'pie chart',
   scatter: 'scatter chart',
+  histogram: 'histogram',
+  box: 'box plot',
+  heatmap: 'heatmap',
 };
 
 export const createChart = defineTool({
   name: 'create_chart',
   description:
-    'Draw a chart as a PNG picture from numbers: bar, horizontal_bar, line, area, pie or scatter, with one or more series. Use only numbers from tool results or the user. The chat shows it; its fileId can go into create_docx or create_pdf as an image block.',
+    'Draw a chart as a PNG picture from numbers: bar, horizontal_bar, line, area, pie, scatter (trendLine adds a least-squares line), histogram (each series holds raw numbers; bins sets how many bars), box (one box plot per series, from its raw numbers) or heatmap (categories across, one row per series). Bar and line charts can have error bars (errors, ± per value). Use only numbers from tool results or the user. The chat shows it; its fileId can go into create_docx or create_pdf as an image block.',
   input: chartInput,
   kind: 'write',
   step: 'make',

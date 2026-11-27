@@ -65,6 +65,42 @@ describe('charts', () => {
     expect(await chartSvg(BAR)).toContain('Papers per year');
   });
 
+  it('checks the new kinds’ numbers: raw samples, error bars, trend lines and bins', () => {
+    const ok = (c: object) => chartInput.safeParse({ filename: 'c', ...c }).success;
+    expect(ok({ kind: 'histogram', series: [{ name: 'Ages', values: [21, 22, 25] }] })).toBe(true);
+    expect(ok({ kind: 'box', series: [{ name: 'A', values: [] }] })).toBe(false);
+    expect(ok({ kind: 'bar', categories: ['a', 'b'], series: [{ name: 's', values: [1, 2], errors: [0.5] }] })).toBe(false);
+    expect(ok({ kind: 'bar', categories: ['a', 'b'], series: [{ name: 's', values: [1, 2], errors: [0.5, -1] }] })).toBe(false);
+    expect(ok({ kind: 'bar', stacked: true, categories: ['a'], series: [{ name: 's', values: [1], errors: [0.5] }] })).toBe(false);
+    expect(ok({ kind: 'pie', categories: ['a'], series: [{ name: 's', values: [1], errors: [0.5] }] })).toBe(false);
+    expect(ok({ kind: 'bar', trendLine: true, categories: ['a'], series: [{ name: 's', values: [1] }] })).toBe(false);
+    expect(ok({ kind: 'bar', bins: 10, categories: ['a'], series: [{ name: 's', values: [1] }] })).toBe(false);
+  });
+
+  it('draws histograms, box plots, heatmaps, error bars and trend lines', async () => {
+    const samples = (n: number, k: number) => Array.from({ length: n }, (_, i) => Math.round(Math.sin(i * k) * 10 + i / 3));
+    const charts = [
+      { kind: 'histogram', bins: 8, series: [{ name: 'Control', values: samples(60, 1) }, { name: 'Treated', values: samples(60, 2) }] },
+      { kind: 'box', yLabel: 'Score', series: [{ name: 'Control', values: samples(30, 1) }, { name: 'Treated', values: samples(30, 3) }] },
+      { kind: 'heatmap', categories: ['2021', '2022'], series: [{ name: 'Sleep', values: [3, 7] }, { name: 'Memory', values: [1, 0.25] }] },
+      { kind: 'bar', categories: ['A', 'B'], series: [{ name: 'Mean', values: [3, 5], errors: [0.5, 1] }, { name: 'Other', values: [2, 4], errors: [0.2, 0.4] }] },
+      { kind: 'horizontal_bar', categories: ['A', 'B'], series: [{ name: 'Mean', values: [3, 5], errors: [0.5, 1] }] },
+      { kind: 'line', categories: ['1', '2', '3'], series: [{ name: 'Mean', values: [3, 5, 4], errors: [0.5, 1, 0.7] }] },
+      { kind: 'scatter', trendLine: true, series: [{ name: 'a', points: [[1, 2], [2, 4.1], [3, 5.9]] }, { name: 'b', points: [[1, 1], [2, 1.5], [3, 2.2]] }] },
+    ];
+    for (const c of charts) {
+      const input = chartInput.parse({ filename: 'c', title: `A ${c.kind}`, ...c });
+      const svg = await chartSvg(input);
+      expect(svg, c.kind).toMatch(/^<svg/);
+      expect(svg, c.kind).toContain(`A ${c.kind}`);
+    }
+    const heat = await chartSvg(chartInput.parse({ filename: 'c', ...charts[2] }));
+    expect(heat).toContain('0.25');
+    const bars = chartSpec(chartInput.parse({ filename: 'c', ...charts[3] })) as { layer: { mark: { type: string } }[] };
+    expect(bars.layer.map((l) => l.mark.type)).toEqual(['bar', 'errorbar']);
+    expect((chartSpec(chartInput.parse({ filename: 'c', ...charts[0] })) as { data: { values: unknown[] } }).data.values).toHaveLength(120);
+  });
+
   it('paints a PNG at twice the size, with its text drawn', async () => {
     const png = await chartPng(BAR);
     const meta = await sharp(png).metadata();

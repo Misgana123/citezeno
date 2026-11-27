@@ -36,10 +36,11 @@ const MIME_BY_EXT: Record<string, string> = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  zip: 'application/zip',
 };
 export const mimeFor = (path: string) => MIME_BY_EXT[path.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream';
 
-const inputRef = z
+export const inputRef = z
   .object({
     fileId: z.string().min(1).max(80).optional().describe('A file the assistant made in this chat.'),
     pdfId: z.string().min(1).max(80).optional().describe('A PDF on the user’s shelf.'),
@@ -49,7 +50,7 @@ const inputRef = z
 type InputRef = z.infer<typeof inputRef>;
 
 /* A plain file name for the sandbox ("../x/data (1).csv" → "data (1).csv"). */
-const baseName = (name: string) =>
+export const baseName = (name: string) =>
   name
     .split(/[\\/]/)
     .pop()!

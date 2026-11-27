@@ -16,7 +16,7 @@ const text = (t: string) => ({ kind: 'assistant' as const, text: t });
 describe('every step in plain words', () => {
   // one input with every field any tool reads, so each tool's line can be made
   const sample = {
-    query: 'sleep and memory', search: 'sleep', itemIds: ['a', 'b'], inputs: [{}, {}], details: { title: 'A paper' }, format: 'bibtex', kind: 'bar', url: 'https://www.example.org/page',
+    query: 'sleep and memory', search: 'sleep', itemIds: ['a', 'b'], inputs: [{}, {}], files: [{}, {}], details: { title: 'A paper' }, format: 'bibtex', kind: 'bar', url: 'https://www.example.org/page',
     input: '10.1000/xyz', name: 'Thesis', filename: 'report', to: 'pdf', pages: '1-3', question: 'what did they find', text: 'Sleep helps memory.', action: 'merge', note: 'n', attachment: 'photo.png', title: 'Results', paperId: 'openalex:W1', itemId: 'i1',
   };
   const internal = /openalex|tavily|e2b|europe ?pmc|pubmed|arxiv|crossref|gemini|openrouter|[a-z]+_[a-z]+|\bid\b|W\d{3,}|\{|\}/i;

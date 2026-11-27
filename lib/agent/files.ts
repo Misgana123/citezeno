@@ -42,6 +42,7 @@ const EXTENSIONS: Record<string, string> = {
   'text/markdown': 'md',
   'text/plain': 'txt',
   'application/json': 'json',
+  'application/zip': 'zip',
 };
 
 /* A safe file name that ends in the type's extension: "Report.docx". */
