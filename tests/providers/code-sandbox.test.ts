@@ -48,7 +48,7 @@ describe('code sandbox (E2B)', () => {
     const sdk = fakeSdk();
     const box = createE2b({ E2B_API_KEY: 'e2b_key', SECRET: 'x' }, ungated, async () => sdk.api)!;
     const out = await box.run({ ...req, sessionId: null });
-    expect(sdk.created).toEqual([{ apiKey: 'e2b_key', timeoutMs: 600_000, allowInternetAccess: true }]);
+    expect(sdk.created).toEqual([{ apiKey: 'e2b_key', timeoutMs: 180_000, allowInternetAccess: true }]);
     expect(JSON.stringify(sdk.created)).not.toContain('SECRET');
     expect(sdk.writes).toEqual([{ id: 'sb_new', path: '/home/user/data.csv' }]);
     expect(out).toMatchObject({ sessionId: 'sb_new', stdout: 'mean: 3.5\n', outputs: [{ mime: 'image/png' }, { mime: 'text/plain', data: '42' }], missing: ['missing.csv'], error: null });

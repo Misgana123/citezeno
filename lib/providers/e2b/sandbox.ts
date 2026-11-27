@@ -6,7 +6,7 @@ import type { Env, Gate } from '../types';
 /* E2B cloud sandboxes (@e2b/code-interpreter). E2B_API_KEY, server only.
 
      E2B_TEMPLATE              a custom sandbox template (default: E2B's code interpreter)
-     E2B_USD_PER_SECOND        what a running sandbox costs us per second (default 0.00003)
+     E2B_USD_PER_SECOND        what a running sandbox costs us per second (default 0.000046: 2 vCPU + 4 GiB at E2B's published rates)
      CODE_SANDBOX_INTERNET     "off" cuts the sandbox off from the internet (default on)
      CODE_DAILY_ALERT_USD      log a warning once a day's sandbox spending passes this (default 2)
      CODE_DAILY_CAP_USD        stop running code once it passes this (default 10)
@@ -18,7 +18,7 @@ import type { Env, Gate } from '../types';
 
 export const PROVIDER = 'e2b';
 const LABEL = 'E2B';
-const IDLE_MS = 10 * 60_000;
+const IDLE_MS = 3 * 60_000; // E2B bills idle time too, so a short wait keeps costs down
 const OUT_CHARS = 20_000;
 export const WORK_DIR = '/home/user';
 
@@ -155,7 +155,7 @@ export function e2bPolicy(env: Env): GatewayPolicy<E2bRequest> {
     label: LABEL,
     describe: () => ({ search: false, cacheKey: null, cacheTtlS: 0 }),
     // a run is billed by the second: at most its time limit
-    estimateUsd: (r) => (r.op === 'run' ? (r.req.timeoutMs / 1000) * positive(env.E2B_USD_PER_SECOND, 0.00003) : 0),
+    estimateUsd: (r) => (r.op === 'run' ? (r.req.timeoutMs / 1000) * positive(env.E2B_USD_PER_SECOND, 0.000046) : 0),
     spend: { dailyAlertUsd: positive(env.CODE_DAILY_ALERT_USD, 2), dailyCapUsd: positive(env.CODE_DAILY_CAP_USD, 10), configHint: 'CODE_DAILY_ALERT_USD and CODE_DAILY_CAP_USD' },
     concurrency: 10,
     maxQueue: 40,
@@ -170,6 +170,6 @@ export function e2b(transport: Transport<E2bRequest>): CodeSandbox {
 export function createE2b(env: Env, gate: Gate, sdk?: () => Promise<SandboxApi>): CodeSandbox | null {
   const key = env.E2B_API_KEY?.trim();
   if (!key) return null;
-  const opts = { template: env.E2B_TEMPLATE?.trim() || undefined, internet: env.CODE_SANDBOX_INTERNET?.trim().toLowerCase() !== 'off', usdPerSecond: positive(env.E2B_USD_PER_SECOND, 0.00003) };
+  const opts = { template: env.E2B_TEMPLATE?.trim() || undefined, internet: env.CODE_SANDBOX_INTERNET?.trim().toLowerCase() !== 'off', usdPerSecond: positive(env.E2B_USD_PER_SECOND, 0.000046) };
   return e2b(gate(e2bTransport(key, opts, sdk), e2bPolicy(env)));
 }
