@@ -7,6 +7,7 @@ import { getItem, listItems } from '@/lib/shelf/store/items';
 import { listFolders } from '@/lib/shelf/store/folders';
 import { unreadNotices } from '@/lib/shelf/store/notices';
 import { listProjects } from '@/lib/shelf/store/projects';
+import { shelfStats } from '@/lib/shelf/store/stats';
 import { listTags } from '@/lib/shelf/store/tags';
 import { READING_STATUSES } from '@/lib/shelf/types';
 import type { AgentContext } from '../context';
@@ -142,4 +143,19 @@ export const listNotices = defineTool({
   },
 });
 
-export const LIBRARY_TOOLS = [listLibrary, getLibraryItem, listCollections, findDuplicates, listNotices];
+export const shelfStatsTool = defineTool({
+  name: 'shelf_stats',
+  description:
+    'Counts over the user’s saved papers (all, or those the filters pick): papers per year, the top journals, authors, topics, types and reading statuses, the words their titles use most, and how many are open access, retracted or have a PDF. Use it for questions like "which journals do I read most" or "how has my reading changed over the years"; draw the numbers with create_chart when a chart helps.',
+  input: z.object({ ...listFilters, top: z.number().int().min(3).max(30).optional().describe('How many of each top list (default 10).') }),
+  kind: 'read',
+  step: 'shelf',
+  label: () => 'Counting your shelf',
+  done: () => ({ did: 'Counted your shelf' }),
+  async run(ctx, { top, sort: _sort, ...f }) {
+    const stats = await shelfStats(ctx.db, ctx.userId, listQuery(f, 1, 1), top);
+    return { result: stats, display: { summary: tally(stats.total, 'paper') } };
+  },
+});
+
+export const LIBRARY_TOOLS = [listLibrary, getLibraryItem, listCollections, findDuplicates, listNotices, shelfStatsTool];

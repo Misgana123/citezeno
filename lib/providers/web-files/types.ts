@@ -4,7 +4,8 @@
    files never sit whole in memory and can be passed straight on to the reader.
 
    It also reads a public web page for the assistant (web_fetch): the page's
-   main text, without menus, ads and scripts. */
+   main text, without menus, ads and scripts; and downloads a file for it
+   (download_file): a document, data, reference file, picture or archive. */
 
 export type WebPdf = {
   stream: ReadableStream<Uint8Array>;
@@ -34,8 +35,23 @@ export type WebPage = {
    kind of file, or a page with no readable text). */
 export type WebPageRefusal = Exclude<WebPdfRefusal, 'not_pdf'> | 'is_pdf' | 'not_page';
 
+/* A downloaded file, its kind found from its first bytes. */
+export type WebFile = {
+  bytes: Uint8Array;
+  /* "data.csv": the site's name for it, with its kind's extension */
+  name: string;
+  mime: string;
+  finalUrl: string;
+};
+
+/* Why a file could not be downloaded (ProviderError details.reason): the PDF
+   reasons but not_pdf, plus is_page (the link is a web page: read it with
+   fetchPage) and not_file (a kind of file that isn't kept). */
+export type WebFileRefusal = Exclude<WebPdfRefusal, 'not_pdf'> | 'is_page' | 'not_file';
+
 export interface WebFiles {
   readonly name: string;
   fetchPdf(url: string, opts: { maxBytes: number }): Promise<WebPdf>;
   fetchPage(url: string, opts: { maxBytes: number }): Promise<WebPage>;
+  fetchFile(url: string, opts: { maxBytes: number }): Promise<WebFile>;
 }

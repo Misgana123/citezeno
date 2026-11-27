@@ -5,7 +5,7 @@ import { papersErrorCode } from '@/lib/shelf/papers-error';
 import type { AgentContext } from '../context';
 import { findTool } from './index';
 import type { ClientTool } from './client';
-import type { AgentTool, StepKind, StepLine, ToolOutput } from './types';
+import type { AgentTool, CodeSource, StepKind, StepLine, ToolOutput } from './types';
 
 /* Running one tool call the model asked for: check the input, ask the user
    first when the action needs it, run it as the user, and turn any failure
@@ -13,7 +13,7 @@ import type { AgentTool, StepKind, StepLine, ToolOutput } from './types';
 
 export type ToolOutcome =
   | { status: 'done'; output: ToolOutput }
-  | { status: 'needs_confirmation'; question: string }
+  | { status: 'needs_confirmation'; question: string; code?: CodeSource }
   /* runs in the user's browser: the page is asked to run it with this input */
   | { status: 'client' }
   | { status: 'error'; message: string; code?: string };
@@ -54,8 +54,8 @@ export async function runTool(ctx: AgentContext, name: string, rawInput: unknown
 
   try {
     if (!opts.confirmed && tool.confirm) {
-      const question = await tool.confirm(input, ctx);
-      if (question) return { tool, input, label, outcome: { status: 'needs_confirmation', question } };
+      const ask = await tool.confirm(input, ctx);
+      if (ask) return { tool, input, label, outcome: { status: 'needs_confirmation', ...(typeof ask === 'string' ? { question: ask } : ask) } };
     }
     return { tool, input, label, outcome: { status: 'done', output: await tool.run(ctx, input) } };
   } catch (e) {

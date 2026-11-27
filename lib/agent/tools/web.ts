@@ -4,11 +4,13 @@ import { readAll } from '@/lib/providers/web-files/read';
 import type { WebResult } from '@/lib/providers/web-search/types';
 import { ShelfError } from '@/lib/shelf/errors';
 import type { AgentContext } from '../context';
+import { AGENT_FILE_MAX_BYTES } from '../files';
 import { defineTool, tally } from './types';
 
-/* Searching and reading the open web. Offered to the model only while the
-   user has web search on in the chat (it is off by default). Pages are fetched
-   on our server through the web files job, which refuses private addresses. */
+/* Searching and reading the open web, and downloading files from it. Offered
+   to the model only while the user has web search on in the chat. Pages and
+   files are fetched on our server through the web files job, which refuses
+   private addresses. */
 
 export const WEB_RESULTS_MAX = 10;
 const PAGE_MAX_BYTES = 3 * 1024 * 1024;
@@ -25,6 +27,8 @@ const PAGE_REFUSALS: Record<string, string> = {
   not_page: 'That link isn’t a readable web page.',
   not_pdf: 'That link isn’t a readable web page.',
   too_large: 'That page is too large to read.',
+  is_page: 'That link is a web page, not a file. Read it with web_fetch instead.',
+  not_file: 'That link isn’t a kind of file that can be downloaded here (documents, spreadsheets, slides, PDFs, data and reference files, pictures and ZIP or gzip archives can).',
 };
 
 function readable<T>(work: Promise<T>): Promise<T> {
@@ -99,6 +103,25 @@ export const webFetch = defineTool({
   },
 });
 
-export const WEB_TOOLS = [webSearch, webFetch];
+export const downloadFile = defineTool({
+  name: 'download_file',
+  description: `Download a file from a public link and keep it as a file of this chat, with a fileId for the other tools (unzip_file, run_python inputs, convert_file, pdf tools, clean_references…). For files: documents, spreadsheets, slides, PDFs, CSV/JSON data, BibTeX/RIS, pictures, ZIP or gzip archives; at most ${AGENT_FILE_MAX_BYTES / (1024 * 1024)} MB. Its kind is checked from its content, not its name. A web page is refused: read pages with web_fetch.`,
+  input: z.object({ url: z.string().trim().url().max(2000), filename: z.string().trim().min(1).max(120).optional().describe('A name for the file, without the extension (default: the site’s name for it).') }),
+  kind: 'write',
+  step: 'web',
+  label: (i) => `Downloading ${clipText(i.url.replace(/^https?:\/\/(www\.)?/i, ''), 60)}`,
+  done: (i) => ({ did: 'Downloaded', about: i.url.replace(/^https?:\/\/(www\.)?/i, '').slice(0, 80) }),
+  async run(ctx, { url, filename }) {
+    const got = await readable(ctx.webFiles().fetchFile(url, { maxBytes: AGENT_FILE_MAX_BYTES }));
+    const name = filename ? `${filename.replace(/\.[a-z0-9]{1,5}$/i, '')}.${got.name.split('.').pop()}` : got.name;
+    const file = await ctx.files.save({ name, mime: got.mime, bytes: got.bytes });
+    return {
+      result: { fileId: file.id, fileName: file.name, mime: file.mime, sizeBytes: file.size, url: got.finalUrl },
+      display: { file, links: [{ title: file.name, url: got.finalUrl }], summary: 'Downloaded' },
+    };
+  },
+});
+
+export const WEB_TOOLS = [webSearch, webFetch, downloadFile];
 /* The tools the Web switch turns on. */
 export const WEB_TOOL_NAMES: ReadonlySet<string> = new Set(WEB_TOOLS.map((t) => t.name));

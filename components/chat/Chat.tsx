@@ -320,7 +320,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
           // the model named this new chat
           setTitle(e.title);
           refreshChats();
-        } else if (e.type === 'confirm') setWaiting({ callId: e.callId, kind: 'confirm', question: e.question });
+        } else if (e.type === 'confirm') setWaiting({ callId: e.callId, kind: 'confirm', question: e.question, ...(e.code ? { code: e.code } : {}) });
         else if (e.type === 'client_tool') task = { callId: e.callId, name: e.name, input: e.input, label: e.label };
         else if (e.type === 'error') setError(e.message);
         else setEntries((prev) => applyEvent(prev, e));
@@ -602,6 +602,16 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
               {waiting && (
                 <div className="ch-ask" role="alertdialog" aria-label="The assistant is asking first">
                   <p>{waiting.kind === 'confirm' ? waiting.question : `${waiting.label}. This uses 1 credit.`}</p>
+                  {waiting.kind === 'confirm' && waiting.code && (
+                    <details className="ch-code ch-ask-code">
+                      <summary>
+                        <Icon name="code" /> Show code
+                      </summary>
+                      <pre className="ch-code-src">
+                        <code>{waiting.code.source}</code>
+                      </pre>
+                    </details>
+                  )}
                   <div className="ch-ask-acts">
                     <button type="button" className="ch-btn is-go" onClick={() => answer(true)} disabled={busy}>
                       {waiting.kind === 'confirm' ? 'Yes' : 'Run it'}

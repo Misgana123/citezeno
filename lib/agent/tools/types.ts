@@ -33,7 +33,7 @@ export type ToolDisplay = {
   /* more files a step made (run_python) */
   files?: AgentFileRef[];
   /* code a step ran, and what it printed */
-  code?: { language: 'python'; source: string; output: string; failed?: boolean };
+  code?: CodeSource & { output: string; failed?: boolean };
   /* the reply's number for each paper shown here (by paper ID), as the answer cites them: [1], [2]… */
   refs?: Record<string, number>;
   /* deep research offered for this question: the chat shows a button that starts it */
@@ -48,6 +48,12 @@ export type ToolDisplay = {
 export function tally(n: number, one: string, many = `${one}s`): string {
   return n === 0 ? `No ${many}` : `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
 }
+
+/* Code shown to the user: after it ran, or before, when they're asked to run it. */
+export type CodeSource = { language: 'python'; source: string };
+
+/* What to ask before a step runs; code lets the user see what they're approving. */
+export type Confirmation = { question: string; code?: CodeSource };
 
 export type ToolOutput = {
   /* What the model reads: compact JSON-friendly data. */
@@ -72,7 +78,7 @@ export type AgentTool<S extends z.ZodType = z.ZodType> = {
      Plain words only: never a tool name, a provider, an ID or raw input. */
   done(input: z.infer<S>): StepLine;
   /* The question to ask before running, or null when it can run straight away. */
-  confirm?(input: z.infer<S>, ctx: AgentContext): string | null | Promise<string | null>;
+  confirm?(input: z.infer<S>, ctx: AgentContext): string | Confirmation | null | Promise<string | Confirmation | null>;
   run(ctx: AgentContext, input: z.infer<S>): Promise<ToolOutput>;
 };
 
