@@ -3,15 +3,17 @@
 /* Security headers for every response. The studio calls OpenAlex, Crossref,
    Open Library and Wikipedia straight from the browser, so those are allowed
    in connect-src, as is PDF storage (R2, or Cloudinary), which the browser
-   uploads to and reads from with signed links; Polar's checkout opens on its own site. */
+   uploads to and reads from with signed links; Polar's checkout opens on its own site.
+   Google's file picker (connected Google Drive) loads from apis.google.com and
+   opens in a frame from docs.google.com. */
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'" + (process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''),
+  "script-src 'self' 'unsafe-inline' https://apis.google.com" + (process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''),
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   "connect-src 'self' https://api.openalex.org https://api.crossref.org https://openlibrary.org https://covers.openlibrary.org https://*.wikipedia.org https://*.r2.cloudflarestorage.com https://api.cloudinary.com",
-  "frame-src 'self' https://*.polar.sh",
+  "frame-src 'self' https://*.polar.sh https://docs.google.com https://drive.google.com",
   "frame-ancestors 'none'",
   "form-action 'self' https://*.polar.sh https://accounts.google.com https://github.com",
   "base-uri 'self'",

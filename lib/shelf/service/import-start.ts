@@ -2,6 +2,7 @@ import type { ShelfConfig } from '../config';
 import { tx, type Db } from '../db';
 import { ShelfError } from '../errors';
 import { parseReferenceFile } from '../import/parse';
+import type { ParsedFile } from '../import/types';
 import { createImport } from '../store/imports';
 import { findOrCreateProject, ownsProject } from '../store/projects';
 import { assertShelfRoom } from './shelve';
@@ -16,6 +17,13 @@ export async function startImport(db: Db, config: ShelfConfig, userId: string, f
   const total = parsed.entries.length + parsed.failed.length;
   if (!total) throw new ShelfError('invalid_file', 'No references were found in this file.');
   if (total > config.importMaxEntries) throw new ShelfError('too_large', `This file has ${total.toLocaleString('en-US')} references; imports are limited to ${config.importMaxEntries.toLocaleString('en-US')}. Split it into smaller files.`);
+  return queueImport(db, config, userId, { fileName: f.fileName, projectId: f.projectId, newProject: f.newProject, parsed });
+}
+
+/* Queue references already read (from a file, or from a connected reference
+   manager) for the import run: they must fit on the shelf, into a project if asked. */
+export async function queueImport(db: Db, config: ShelfConfig, userId: string, f: { fileName: string; projectId?: string | null; newProject?: string | null; parsed: ParsedFile }): Promise<string> {
+  const parsed = f.parsed;
   return tx(db, async (q) => {
     // the whole file must fit on the shelf (entries already there are skipped, so this is on the safe side)
     await assertShelfRoom(q, userId, config.maxItems, parsed.entries.length);

@@ -7,7 +7,9 @@ import { Icon } from '../Icon';
 import { formatCount } from '../papers/format';
 import { confirmDialog } from '../confirm';
 import { toast } from '../toast';
-import { AddPapersDialog } from './add/AddPapersDialog';
+import { AddPapersDialog, type AddContext } from './add/AddPapersDialog';
+import { ReferenceAppTab } from './add/ReferenceAppTab';
+import { useConnectors } from '../connectors/useConnectors';
 import { FilesDialog } from './pdf/FilesDialog';
 import { PdfUploadTab } from './pdf/PdfUploadTab';
 import { ImportTab } from './add/ImportTab';
@@ -44,6 +46,8 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
   const listQuery = useMemo(() => listParams(filters).toString(), [filters]);
   const list = useShelfList(listQuery);
   const groups = useShelfGroups();
+  // a connected reference manager (Zotero) adds its own way in
+  const refApp = useConnectors().forCapability('references');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const lastPicked = useRef<string | null>(null);
   const [open, setOpen] = useState<ShelfItem | null>(null);
@@ -272,7 +276,7 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
               <ChipBar filters={filters} onChange={patchFilters}>
                 {uploads && <StorageMeter version={storageV} onManage={() => setFilesOpen(true)} />}
                 <FilterMenu filters={filters} onChange={patchFilters} />
-                <ExportMenu groups={groups} query={new URLSearchParams(listQuery)} baseName={exportName(title)} compact />
+                <ExportMenu groups={groups} query={new URLSearchParams(listQuery)} baseName={exportName(title)} compact count={list.total} />
                 <SortPill value={filters.sort} searching={!!filters.q.trim()} onChange={(sort) => patchFilters({ sort })} />
               </ChipBar>
 
@@ -286,7 +290,7 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
                   onDelete={bulkDelete}
                   onClear={() => setSelected(new Set())}
                   onSelectAll={selected.size < list.items.length ? () => setSelected(new Set(list.items.map((i) => i.id))) : undefined}
-                  extra={<ExportMenu groups={groups} query={new URLSearchParams({ ids: [...selected].join(',') })} baseName="citezeno-selected" label="Export" everything={false} />}
+                  extra={<ExportMenu groups={groups} query={new URLSearchParams({ ids: [...selected].join(',') })} baseName="citezeno-selected" label="Export" everything={false} count={selected.size} />}
                 />
               )}
 
@@ -357,6 +361,7 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
               render: (c) => <PdfUploadTab projectId={c.projectId} onAdded={c.onAdded} onManageFiles={() => setFilesOpen(true)} initialFiles={dropped ?? undefined} />,
             },
             { key: 'import', label: 'Import file', icon: 'download', render: (c) => <ImportTab projectId={c.projectId} onProgress={importProgress} /> },
+            ...(refApp ? [{ key: 'refapp', label: `From ${refApp.label}`, icon: 'download' as const, render: (c: AddContext) => <ReferenceAppTab app={refApp} projectId={c.projectId} onProgress={importProgress} /> }] : []),
           ]}
         />
       )}

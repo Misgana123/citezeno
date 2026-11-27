@@ -392,6 +392,7 @@ export const DOC_ARTICLES: DocArticle[] = [
       ],
     },
     { type: 'code', file: 'references.bib', code: '@article{smith2024,\n  title   = {Title of the paper},\n  author  = {Smith, Jane and Lee, Min},\n  journal = {Journal name},\n  year    = {2024},\n  doi     = {10.1234/example}\n}' },
+    { type: 'p', text: 'With [connected apps](/docs/connected-apps), the export menu can also **Send to Zotero**, **Send to Google Sheets** or **Send to a Notion database** directly.' },
     { type: 'callout', tone: 'note', title: 'Always free', text: 'Exporting never costs anything, on any plan.' },
   ]),
 
@@ -523,6 +524,7 @@ export const DOC_ARTICLES: DocArticle[] = [
         ['Profile', 'Your name and email'],
         ['Credits and billing', 'Your plan, renewal date and receipts'],
         ['Library', 'How many traces you’ve saved and sources cited'],
+        ['Connected apps', 'Google Drive, Notion and Zotero, connected to your account ([more](/docs/connected-apps))'],
         ['Sign-in and security', 'Connected accounts, change password, two-factor'],
         ['Devices', 'Sign out one device, or all others'],
         ['Delete account', 'Removes your account and saved work'],
@@ -531,6 +533,30 @@ export const DOC_ARTICLES: DocArticle[] = [
     { type: 'h2', text: 'Activity history' },
     { type: 'p', text: '[History](/app/history) lists your traces, sharing and sign-ins. Filter it, **Download CSV**, or **Clear history**.' },
     { type: 'callout', tone: 'warn', title: 'Deleting your account', text: 'This can’t be undone. Export your shelf and download your drafts first.' },
+  ]),
+  a('connected-apps', 'account', 'Connect Google Drive, Notion and Zotero', 'Bring papers and files in from your apps, and send your work back.', 3, [
+    { type: 'p', text: 'Open [Account → Connected apps](/app/account#apps) and choose **Connect**. You sign in on the app’s own page and choose what Citezeno may see. Disconnect at any time; nothing in the app or on your shelf is deleted.' },
+    {
+      type: 'table',
+      head: ['App', 'What you can do'],
+      rows: [
+        ['Google Drive', 'Add PDFs and Google Docs from Drive to your shelf (Upload PDFs → Add from Google Drive), save the studio’s document as a Google Doc, send shelf papers to a new Google Sheet'],
+        ['Notion', 'Send shelf papers to a Notion database, and have the assistant read your pages or write answers and notes into a new page'],
+        ['Zotero', 'Import your library or a collection onto your shelf (Add papers → From Zotero), keep it up to date with Sync now, and send shelf papers to a Zotero collection'],
+      ],
+    },
+    { type: 'h2', text: 'In the assistant' },
+    { type: 'p', text: 'Once an app is connected, ask in plain words: “Make a Google Sheet of the papers in my Thesis project”, “Read my Notion page Lab meeting notes”, or “Sync my Zotero library”. The assistant always asks before it changes anything in your apps.' },
+    { type: 'h2', text: 'What Citezeno can see' },
+    {
+      type: 'steps',
+      items: [
+        { title: 'Google Drive', text: 'Only the files you choose in Google’s file picker, and the files Citezeno saves for you. Nothing else in your Drive is visible.' },
+        { title: 'Notion', text: 'Only the pages and databases you share with Citezeno. To share more later, open a page in Notion and choose ••• → Connections.' },
+        { title: 'Zotero', text: 'The libraries you allow when you sign in. You can also connect with an API key from your Zotero settings.' },
+      ],
+    },
+    { type: 'callout', tone: 'note', title: 'Your connections stay private', text: 'Access tokens are stored encrypted and never shown in your browser or to the AI. Connected apps cost no credits; the assistant’s replies are charged as usual.' },
   ]),
 ];
 

@@ -11,4 +11,5 @@ export type ImportEntry = {
   abstract: string | null;
 };
 
-export type ParsedFile = { format: 'bibtex' | 'ris'; entries: ImportEntry[]; failed: { label: string; reason: string }[] };
+/* zotero: read from a connected Zotero library, not a file */
+export type ParsedFile = { format: 'bibtex' | 'ris' | 'zotero'; entries: ImportEntry[]; failed: { label: string; reason: string }[] };

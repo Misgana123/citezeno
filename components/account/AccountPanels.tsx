@@ -34,6 +34,7 @@ export function AccountPanels({
   sessions: initialSessions,
   stats,
   billing,
+  apps,
 }: {
   user: User;
   currentToken: string;
@@ -42,6 +43,8 @@ export function AccountPanels({
   sessions: Sess[];
   stats: { traces: number; sources: number; last: number | null };
   billing: React.ReactNode;
+  /* Connected apps (Google Drive, Notion, Zotero…) */
+  apps?: React.ReactNode;
 }) {
   const router = useRouter();
   const hasPassword = providers.includes('credential');
@@ -139,6 +142,7 @@ export function AccountPanels({
         <a href="#profile">Profile</a>
         <a href="#billing">Credits and billing</a>
         <a href="#library">Library</a>
+        {apps && <a href="#apps">Connected apps</a>}
         <a href="#security">Sign-in and security</a>
         <a href="#devices">Devices</a>
         <a href="#danger">Delete account</a>
@@ -209,6 +213,8 @@ export function AccountPanels({
             Open the studio
           </Link>
         </section>
+
+        {apps}
 
         <section className="panel" id="security">
           <h2>Sign-in and security</h2>

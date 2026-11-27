@@ -5,6 +5,8 @@ import { DOCUMENT_TOOLS } from './documents';
 import { MEDIA_TOOLS } from './media';
 import { PDF_TOOLS } from './pdf';
 import { CODE_TOOLS } from './code';
+import { CONNECTOR_TOOLS } from './connectors';
+import type { Capability } from '@/lib/providers/connectors/types';
 import { CONVERT_TOOLS } from './convert';
 import { EXPORT_TOOLS } from './export';
 import { LIBRARY_TOOLS } from './library';
@@ -21,15 +23,17 @@ import { ZIP_TOOLS } from './zip';
 
 /* Every action the agent can take: one tool per thing a user can do in the
    app. New features add their tools here and the agent can use them. */
-export const AGENT_TOOLS: readonly AgentTool[] = [...PAPER_TOOLS, ...LIBRARY_TOOLS, ...SAVE_TOOLS, ...ORGANIZE_TOOLS, ...EXPORT_TOOLS, ...REFERENCE_TOOLS, ...TEXT_TOOLS, ...READER_TOOLS, ...WEB_TOOLS, ...DOCUMENT_TOOLS, ...MEDIA_TOOLS, ...PDF_TOOLS, ...ZIP_TOOLS, ...CODE_TOOLS, ...CONVERT_TOOLS, ...RESEARCH_TOOLS] as AgentTool[];
+export const AGENT_TOOLS: readonly AgentTool[] = [...PAPER_TOOLS, ...LIBRARY_TOOLS, ...SAVE_TOOLS, ...ORGANIZE_TOOLS, ...EXPORT_TOOLS, ...REFERENCE_TOOLS, ...TEXT_TOOLS, ...READER_TOOLS, ...WEB_TOOLS, ...DOCUMENT_TOOLS, ...MEDIA_TOOLS, ...PDF_TOOLS, ...ZIP_TOOLS, ...CODE_TOOLS, ...CONVERT_TOOLS, ...RESEARCH_TOOLS, ...CONNECTOR_TOOLS] as AgentTool[];
 
 const byName = new Map<string, AgentTool | ClientTool>([...AGENT_TOOLS, ...CLIENT_TOOLS].map((t) => [t.name, t]));
 
 /* A tool the server runs, or one the user's browser runs ("client"). */
 export const findTool = (name: string): AgentTool | ClientTool | null => byName.get(name) ?? null;
 
-/* The tools offered for one reply: the web tools only while the user has web search on. */
-export const offeredTools = (opts: { web: boolean }): (AgentTool | ClientTool)[] => [...AGENT_TOOLS, ...CLIENT_TOOLS].filter((t) => opts.web || !WEB_TOOL_NAMES.has(t.name));
+/* The tools offered for one reply: the web tools only while the user has web
+   search on, a connected app's tools only while one giving them is connected. */
+export const offeredTools = (opts: { web: boolean; connected?: ReadonlySet<Capability> | ReadonlyMap<Capability, unknown> }): (AgentTool | ClientTool)[] =>
+  [...AGENT_TOOLS, ...CLIENT_TOOLS].filter((t) => (opts.web || !WEB_TOOL_NAMES.has(t.name)) && (!('needs' in t) || !t.needs || !!opts.connected?.has(t.needs)));
 
 /* A tool's input as JSON Schema, for the model. */
 export function inputSchema(tool: AgentTool | ClientTool): Record<string, unknown> {

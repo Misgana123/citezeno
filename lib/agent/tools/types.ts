@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { Paper } from '@/lib/papers/types';
 import type { ShelfItem } from '@/lib/shelf/types';
+import type { Capability } from '@/lib/providers/connectors/types';
 import type { AgentContext } from '../context';
 import type { AgentFileRef } from '../files';
 import type { CitedSource } from './client';
@@ -72,6 +73,8 @@ export type AgentTool<S extends z.ZodType = z.ZodType> = {
   kind: ToolKind;
   /* What kind of step this is (its icon on the chat's timeline). */
   step: StepKind;
+  /* A connected app's capability this tool uses; offered only while the user has one connected. */
+  needs?: Capability;
   /* A short label for the step while it runs, e.g. 'Searching papers for “sleep”'. */
   label(input: z.infer<S>): string;
   /* Its line once done, in the past tense: { did: 'Searched papers', about: 'sleep' }.

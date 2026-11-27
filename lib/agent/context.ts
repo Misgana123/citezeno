@@ -2,6 +2,7 @@ import type { Meter } from '@/lib/credits/meter';
 import type { PapersConfig } from '@/lib/papers/config';
 import type { Limits } from '@/lib/plans';
 import type { Attachment } from '@/lib/providers/chat/types';
+import type { Capabilities, Capability } from '@/lib/providers/connectors/types';
 import type { PaperSources } from '@/lib/providers/papers/sources';
 import type { PdfTextReader } from '@/lib/providers/pdf-text/types';
 import type { WebFiles } from '@/lib/providers/web-files/types';
@@ -38,4 +39,14 @@ export type AgentContext = {
   credits?: Meter;
   /* What the user's plan allows (web searches per reply, Python time…). */
   limits?: Limits;
+  /* The user's connected apps (Google Drive, Notion, Zotero…): which capability
+     each gives, and one ready to call (as the user, through the gateway).
+     Absent → none connected. */
+  connectors?: AgentConnectors;
+};
+
+export type AgentConnectors = {
+  /* capability → the app's name, for the connections that work */
+  connected: ReadonlyMap<Capability, { name: string; label: string }>;
+  open<C extends Capability>(cap: C): Promise<{ api: Capabilities[C]; connector: string; label: string }>;
 };

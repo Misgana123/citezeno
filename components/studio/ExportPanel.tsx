@@ -15,14 +15,17 @@ export function ExportPanel({
   onPdf,
   busy,
   style,
+  cloud,
 }: {
   rendered: Rendered;
   doc: DocOptions;
   setDoc: (p: Partial<DocOptions>) => void;
   onWord: () => void;
   onPdf: () => void;
-  busy: '' | 'word' | 'pdf';
+  busy: '' | 'word' | 'pdf' | 'cloud';
   style: string;
+  /* a connected app that keeps editable documents (Google Docs), when one can be connected here */
+  cloud?: { label: string; connected: boolean; connectHref: string; onSave: () => void } | null;
 }) {
   const [fmt, setFmt] = useState<ExportFormat>('bibtex');
 
@@ -122,6 +125,24 @@ export function ExportPanel({
                 <small>Print-ready, with clickable links and page numbers</small>
               </span>
             </button>
+            {cloud &&
+              (cloud.connected ? (
+                <button className="xp-tile" onClick={cloud.onSave} disabled={!!busy}>
+                  <span className="xp-ico word"><Icon name="word" /></span>
+                  <span>
+                    <b>{busy === 'cloud' ? 'Saving…' : 'Save to Google Docs'}</b>
+                    <small>An editable copy in your {cloud.label}</small>
+                  </span>
+                </button>
+              ) : (
+                <a className="xp-tile" href={cloud.connectHref}>
+                  <span className="xp-ico word"><Icon name="word" /></span>
+                  <span>
+                    <b>Save to Google Docs</b>
+                    <small>Connect {cloud.label} first</small>
+                  </span>
+                </a>
+              ))}
           </div>
         </div>
 

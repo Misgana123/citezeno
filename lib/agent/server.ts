@@ -11,10 +11,11 @@ import { newMeter, type CallCredits } from '@/lib/providers/gateway/meter';
 import type { Attachment } from '@/lib/providers/chat/types';
 import { chatModelsFor, codeSandboxFor, fileStorage, pdfTextReader, webFiles, webSearchFor } from '@/lib/providers/server';
 import { allow } from '@/lib/ratelimit';
+import { agentConnectors } from '@/lib/connectors/agent';
 import { shelfConfig } from '@/lib/shelf/config';
 import type { AgentContext } from './context';
 import { agentFiles } from './files';
-import { readingContext, webContext } from './prompt';
+import { connectorsContext, readingContext, webContext } from './prompt';
 import { research, RESEARCH_MS } from './research';
 import { replyCredits, type ReplyCredits, type ReplyKind } from './credits';
 import { modelAccess, ModelLocked } from './models';
@@ -131,6 +132,11 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
   const searches = searchReservations(papers.usage, userId, papersConfig.dailySearchesPerUser);
   let sources: ReturnType<typeof papers.sources> | null = null;
   let web: ReturnType<typeof webSearchFor> | undefined;
+  // the user's connected apps (their tools are offered only while connected)
+  const connectors = await agentConnectors(userId, meter).catch((e) => {
+    console.warn('[citezeno] agent: connected apps unavailable', (e as Error).message);
+    return undefined;
+  });
   const ctx: AgentContext = {
     userId,
     db: pool,
@@ -149,6 +155,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     files: agentFiles({ db: pool, store: fileStorage(), maxTotalBytes: limits.agentFilesBytes }, { userId, conversationId: conversation.id }),
     credits: reply.meter,
     limits,
+    connectors,
   };
 
   const encoder = new TextEncoder();
@@ -176,8 +183,8 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     setPending: (p) => setPending(pool, conversation.id, p),
     maxTurns: MAX_TURNS,
     deadline: Date.now() + replyMs,
-    extraSystem: (extraSystem ?? '') + (conversation.webSearch ? webContext() : ''),
-    tools: offeredTools({ web: conversation.webSearch }),
+    extraSystem: (extraSystem ?? '') + (conversation.webSearch ? webContext() : '') + connectorsContext(connectors?.connected),
+    tools: offeredTools({ web: conversation.webSearch, connected: connectors?.connected }),
     ...(named
       ? {
           naming: {

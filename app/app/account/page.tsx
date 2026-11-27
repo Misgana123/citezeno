@@ -2,10 +2,13 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { AccountPanels } from '@/components/account/AccountPanels';
+import { ConnectionsPanel } from '@/components/account/ConnectionsPanel';
 import { BillingPanel } from '@/components/billing/BillingPanel';
 import { AppShell, PageHead } from '@/components/app/AppShell';
 import { Icon } from '@/components/Icon';
 import { auth, enabledProviders } from '@/lib/auth';
+import { connectorCatalog } from '@/lib/connectors/catalog';
+import { connectorDeps } from '@/lib/connectors/server';
 import { billing, wallet } from '@/lib/credits/server';
 import { usageFor } from '@/lib/credits/usage';
 import { pool } from '@/lib/db';
@@ -21,7 +24,7 @@ export default async function AccountPage() {
   const h = await headers();
 
   const plan = await billing().currentPlan(session.user.id);
-  const [accounts, sessions, stats, balance, ledger, usage] = await Promise.all([
+  const [accounts, sessions, stats, balance, ledger, usage, apps] = await Promise.all([
     auth.api.listUserAccounts({ headers: h }).catch(() => []),
     auth.api.listSessions({ headers: h }).catch(() => []),
     pool
@@ -34,6 +37,10 @@ export default async function AccountPage() {
     wallet().balance(session.user.id),
     wallet().history(session.user.id, 15),
     usageFor(pool, session.user.id, plan?.plan ?? null),
+    connectorCatalog(connectorDeps(), session.user.id).catch((e) => {
+      console.error('[citezeno] account: connected apps failed to load', e);
+      return [];
+    }),
   ]);
 
   const u = session.user;
@@ -49,7 +56,7 @@ export default async function AccountPage() {
           ) : undefined
         }
       >
-        Manage your profile, credits, sign-in methods and devices. Your traces live in the Library in <Link href="/app/citation">Citation</Link>.
+        Manage your profile, credits, connected apps, sign-in methods and devices. Your traces live in the Library in <Link href="/app/citation">Citation</Link>.
       </PageHead>
       <AccountPanels
         user={{ id: u.id, name: u.name, email: u.email, image: u.image ?? null, emailVerified: u.emailVerified, createdAt: new Date(u.createdAt).getTime(), twoFactorEnabled: Boolean((u as { twoFactorEnabled?: boolean | null }).twoFactorEnabled) }}
@@ -72,6 +79,7 @@ export default async function AccountPage() {
             usage={usage.rows}
           />
         }
+        apps={<ConnectionsPanel connectors={apps} />}
         stats={{ traces: Number(stats.n) || 0, sources: Number(stats.sources) || 0, last: stats.last ? new Date(stats.last).getTime() : null }}
       />
     </AppShell>

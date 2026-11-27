@@ -1,5 +1,6 @@
 import { isPapersError, PapersError } from '@/lib/papers/errors';
 import { userMessage } from '@/lib/papers/messages';
+import { CONNECTOR_NAMES } from '@/lib/providers/connectors/registry';
 import { isProviderError } from '@/lib/providers/errors';
 import { papersErrorCode } from '@/lib/shelf/papers-error';
 import type { AgentContext } from '../context';
@@ -24,6 +25,9 @@ export type ToolRun = { tool: AgentTool | ClientTool | null; input: unknown; lab
 export function failureMessage(e: unknown): { message: string; code?: string } {
   const err = e as { name?: string; code?: string; message?: string };
   if (err?.name === 'ShelfError' && typeof err.code === 'string') return { message: err.message ?? 'That didn’t work.', code: err.code };
+  // a connected app: not connected, needs connecting again, refused this
+  if (err?.name === 'ConnectorError' && typeof err.code === 'string') return { message: err.message ?? 'The connected app couldn’t do this.', code: err.code };
+  if (isProviderError(e) && e.details.reason !== 'auth' && (e.code === 'not_found' || e.code === 'bad_request' || e.code === 'unsupported') && CONNECTOR_NAMES.includes(e.details.provider ?? '')) return { message: e.message, code: e.code };
   // out of credits, or past this reply's budget: the step didn't run
   if (err?.name === 'CreditError' && typeof err.code === 'string') return { message: `${err.message ?? 'Not enough credits.'} This step didn’t run.`, code: err.code };
   const papersCode = papersErrorCode(e);

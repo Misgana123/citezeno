@@ -6,7 +6,11 @@ import type { Paper } from '@/lib/papers/types';
 import type { DupSummary } from '@/lib/shelf/api/saved-response';
 import type { CompleteResult } from '@/lib/shelf/service/pdf-upload';
 import type { ShelfItem } from '@/lib/shelf/types';
+import { connectHref } from '../../connectors/api';
+import { pickCloudFiles, PICK_PDF } from '../../connectors/pick';
+import { useConnectors } from '../../connectors/useConnectors';
 import { Icon } from '../../Icon';
+import { toast } from '../../toast';
 import { authorsShort } from '../../papers/format';
 import { readHref } from '../../reader/api';
 import { draftToInput, emptyDraft, ManualForm } from '../add/ManualForm';
@@ -15,9 +19,24 @@ import { savedToast } from '../dup-hint';
 import { markSaved } from '../saved-store';
 import { fileSize, uploadPdf, type UploadStage } from './upload';
 
+/* A PDF from the user's computer, or picked from a connected app (fetched by our server). */
+type Source = { name: string; size: number | null; send: (onStage: (s: UploadStage, progress?: number) => void) => Promise<CompleteResult> };
+
+const DRIVE = 'google';
+
+const localSource = (file: File): Source => ({ name: file.name, size: file.size, send: (onStage) => uploadPdf(file, { onStage }) });
+const driveSource = (f: { id: string; name: string; size: number | null }): Source => ({
+  name: f.name,
+  size: f.size,
+  send: async (onStage) => {
+    onStage('reading');
+    return shelfFetch<CompleteResult>('/api/connectors/files/pdf', { method: 'POST', body: { fileId: f.id } });
+  },
+});
+
 type Row = {
   key: string;
-  file: File;
+  file: { name: string; size: number | null };
   stage: UploadStage | 'match' | 'done' | 'error' | 'skipped';
   progress: number;
   result?: CompleteResult;
@@ -54,15 +73,26 @@ export function PdfUploadTab({
       .catch(() => {});
   }, []);
   const input = useRef<HTMLInputElement>(null);
+  const apps = useConnectors();
+  const drive = apps.find(DRIVE);
+  const fromDrive = async () => {
+    try {
+      const picked = await pickCloudFiles(DRIVE, { mimeTypes: PICK_PDF, multiple: true, title: 'Choose PDFs to add' });
+      if (picked.length) void run(picked.map(driveSource));
+    } catch (e) {
+      toast((e as Error).message, true);
+    }
+  };
   const patch = (key: string, p: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...p } : r)));
 
-  const start = async (files: File[]) => {
-    const added = files.map((file, i) => ({ key: `${Date.now()}-${i}-${file.name}`, file, stage: 'starting' as const, progress: 0 }));
-    setRows((rs) => [...added, ...rs]);
+  const start = (files: File[]) => run(files.map(localSource));
+  const run = async (sources: Source[]) => {
+    const added = sources.map((src, i) => ({ key: `${Date.now()}-${i}-${src.name}`, file: { name: src.name, size: src.size }, src, stage: 'starting' as const, progress: 0 }));
+    setRows((rs) => [...added.map(({ src: _src, ...row }) => row), ...rs]);
     // one at a time keeps within storage and OpenAlex limits
     for (const r of added) {
       try {
-        const result = await uploadPdf(r.file, { onStage: (stage, progress) => patch(r.key, { stage, progress: progress ?? 0 }) });
+        const result = await r.src.send((stage, progress) => patch(r.key, { stage, progress: progress ?? 0 }));
         patch(r.key, { stage: 'match', result });
       } catch (e) {
         patch(r.key, { stage: 'error', error: e instanceof ShelfApiError ? e : new ShelfApiError('unavailable', 'The upload failed.') });
@@ -142,13 +172,28 @@ export function PdfUploadTab({
         />
       </label>
 
+      {drive && (
+        <p className="sh-up-cloud small">
+          {drive.connection?.status === 'ok' ? (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={fromDrive}>
+              <Icon name="upload" /> Add from {drive.label}
+            </button>
+          ) : (
+            <a className="btn btn-ghost btn-sm" href={connectHref(DRIVE, '/app/shelf')}>
+              {drive.connection ? `Connect ${drive.label} again` : `Connect ${drive.label}`}
+            </a>
+          )}
+          <span>Choose PDFs or Google Docs from your Drive; Citezeno only sees the files you choose.</span>
+        </p>
+      )}
+
       <ul className="sh-up-list">
         {rows.map((r) => (
           <li key={r.key} className={`sh-up-row is-${r.stage}`}>
             <div className="sh-up-head">
               <Icon name="pdf" />
               <span className="sh-up-name">{r.file.name}</span>
-              <span className="small">{fileSize(r.file.size)}</span>
+              {r.file.size != null && <span className="small">{fileSize(r.file.size)}</span>}
             </div>
             {(r.stage === 'starting' || r.stage === 'uploading' || r.stage === 'reading') && (
               <div className="sh-up-progress" role="status">
