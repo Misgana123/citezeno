@@ -179,6 +179,18 @@ describe('naming a new chat', () => {
 describe('asking first', () => {
   const many = Array.from({ length: 12 }, (_, i) => `i_${i}`);
 
+  it('asks before a heavy Python run and keeps its code with the question', async () => {
+    const { chat } = scripted({ text: 'Running it.', toolCalls: [call('c1', 'run_python', { code: 'slow()', timeoutSeconds: 40 })] });
+    const h = harness(chat);
+    await answer(h.deps, [], 'crunch it');
+    const code = { language: 'python', source: 'slow()' };
+    expect(h.events.slice(-2)).toEqual([
+      { type: 'confirm', callId: 'c1', question: 'Run this Python? It may take up to 40 seconds.', label: 'Running Python', code },
+      { type: 'done', reason: 'waiting' },
+    ]);
+    expect(h.pending()).toMatchObject({ waiting: { callId: 'c1', kind: 'confirm', code } });
+  });
+
   it('pauses on a big change and asks; "no" tells the model it must not do it', async () => {
     const { chat, requests } = scripted(
       { text: 'Marking them done.', toolCalls: [call('c1', 'organize_papers', { itemIds: many, action: 'set_status', status: 'done' })] },

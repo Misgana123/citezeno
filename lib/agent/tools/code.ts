@@ -16,6 +16,10 @@ const TIMEOUT_DEFAULT_S = 30;
 /* A chat reply has about 50 seconds; a run must fit inside it. */
 const TIMEOUT_MAX_S = 40;
 const PLOTS_MAX = 5;
+/* A heavy run asks the user first, showing its code: a longer time limit than
+   the default, this many files or more, or installing packages. */
+const HEAVY_INPUTS = 3;
+const INSTALLS = /\bpip3?\s+install\b|\bpip\.main\(/;
 const OUT_TO_MODEL = 8000;
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -81,11 +85,22 @@ async function gather(ctx: AgentContext, refs: InputRef[]): Promise<SandboxFile[
   return out;
 }
 
+const runSeconds = (ctx: AgentContext, asked?: number) => Math.min(asked ?? TIMEOUT_DEFAULT_S, ctx.limits?.pythonSecondsPerRun ?? TIMEOUT_MAX_S);
+
+/* Why a run counts as heavy, in words for the question ([] when it isn't). */
+export function heavyReasons(seconds: number, inputs: number, code: string): string[] {
+  return [
+    ...(seconds > TIMEOUT_DEFAULT_S ? [`may take up to ${seconds} seconds`] : []),
+    ...(inputs >= HEAVY_INPUTS ? [`uses ${inputs} files`] : []),
+    ...(INSTALLS.test(code) ? ['installs packages first'] : []),
+  ];
+}
+
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}\n… [cut]` : s);
 
 export const runPython = defineTool({
   name: 'run_python',
-  description: `Run Python 3 in this chat's sandbox (pandas, numpy, matplotlib and other common packages; it has internet access for pip). Variables and files stay between runs in the same chat for a few idle minutes. Use it only when the other tools can't do the job: analysing an attached CSV, statistics, unusual file work. Put files in with inputs (they appear in the working folder by name) and list the files to keep in downloads (paths in the working folder). Shown plots are kept as pictures. Each run may take at most ${TIMEOUT_MAX_S} seconds.`,
+  description: `Run Python 3 in this chat's sandbox (pandas, numpy, matplotlib and other common packages; it has internet access for pip). Variables and files stay between runs in the same chat for a few idle minutes. Use it only when the other tools can't do the job: analysing an attached CSV, statistics, unusual file work. Put files in with inputs (they appear in the working folder by name) and list the files to keep in downloads (paths in the working folder). Shown plots are kept as pictures. Each run may take at most ${TIMEOUT_MAX_S} seconds. A run longer than ${TIMEOUT_DEFAULT_S} seconds, with ${HEAVY_INPUTS} or more input files, or that installs packages asks the user first, so keep runs small when you can.`,
   input: z.object({
     code: z.string().min(1).max(CODE_MAX),
     inputs: z.array(inputRef).max(10).optional(),
@@ -96,11 +111,17 @@ export const runPython = defineTool({
   step: 'code',
   label: () => 'Running Python',
   done: () => ({ did: 'Ran Python' }),
+  confirm(i, ctx) {
+    const why = heavyReasons(runSeconds(ctx, i.timeoutSeconds), i.inputs?.length ?? 0, i.code);
+    if (!why.length) return null;
+    const list = why.length === 1 ? why[0] : `${why.slice(0, -1).join(', ')} and ${why.at(-1)}`;
+    return { question: `Run this Python? It ${list}.`, code: { language: 'python', source: i.code } };
+  },
   async run(ctx, i) {
     const runner = ctx.code();
     if (!runner) throw new ShelfError('unavailable', 'Running code isn’t set up yet.');
     const upload = await gather(ctx, i.inputs ?? []);
-    const out = await runner.run({ code: i.code, upload, download: i.downloads ?? [], timeoutMs: Math.min(i.timeoutSeconds ?? TIMEOUT_DEFAULT_S, ctx.limits?.pythonSecondsPerRun ?? TIMEOUT_MAX_S) * 1000 });
+    const out = await runner.run({ code: i.code, upload, download: i.downloads ?? [], timeoutMs: runSeconds(ctx, i.timeoutSeconds) * 1000 });
 
     const saved: AgentFileRef[] = [];
     for (const [n, o] of out.outputs

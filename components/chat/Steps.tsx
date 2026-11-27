@@ -4,7 +4,7 @@ import type { ToolDisplay } from '@/lib/agent/tools/types';
 import { Icon } from '../Icon';
 import { PaperRefs } from './PaperRefs';
 import { Timeline } from './steps/Timeline';
-import { isShown, type WorkItem } from './steps/timeline';
+import { isShown, type LiveStep, type WorkItem } from './steps/timeline';
 
 /* What the assistant did for one turn: the timeline of its steps and notes,
    then what the steps found (a numbered reference list, sources, code that
@@ -39,6 +39,12 @@ function StoredFileCard({ file }: { file: StoredFile }) {
   );
 }
 
+/* The code of a Python run still going (shown before its output comes back). */
+function running(s: LiveStep): string | null {
+  const src = (s.input as { code?: unknown } | null)?.code;
+  return s.status === 'running' && s.name === 'run_python' && typeof src === 'string' ? src : null;
+}
+
 function download(file: TextFile) {
   const url = URL.createObjectURL(new Blob([file.text], { type: `${file.mime};charset=utf-8` }));
   const a = Object.assign(document.createElement('a'), { href: url, download: file.name });
@@ -57,7 +63,7 @@ export function Steps({ items, turn, chatId = null, readOnly = false }: { items:
   const refs = Object.assign({}, ...steps.map((s) => s.display?.refs ?? {})) as Record<string, number>;
   const sources = steps.flatMap((s) => s.display?.sources ?? []);
   const files = steps.flatMap((s) => [...(s.display?.file ? [s.display.file] : []), ...(s.display?.files ?? [])]);
-  const code = steps.flatMap((s) => (s.display?.code ? [{ id: s.callId, ...s.display.code }] : []));
+  const code = steps.flatMap((s) => (s.display?.code ? [{ id: s.callId, ...s.display.code, live: false }] : running(s) ? [{ id: s.callId, language: 'python' as const, source: running(s)!, output: '', failed: false, live: true }] : []));
   // the same paper found twice in a turn is listed once
   const seen = new Set<string>();
   const uniquePapers = papers.filter((p) => !seen.has(p.id) && seen.add(p.id));
@@ -90,7 +96,7 @@ export function Steps({ items, turn, chatId = null, readOnly = false }: { items:
       {code.map((c) => (
         <details key={c.id} className={`ch-code${c.failed ? ' is-failed' : ''}`}>
           <summary>
-            <Icon name="code" /> {c.failed ? 'Python (failed)' : 'Python'}
+            <Icon name="code" /> {c.live ? 'Python (running)' : c.failed ? 'Python (failed)' : 'Python'}
           </summary>
           <pre className="ch-code-src">
             <code>{c.source}</code>

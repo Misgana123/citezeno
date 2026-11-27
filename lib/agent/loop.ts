@@ -129,8 +129,9 @@ async function runCalls(d: LoopDeps, calls: ToolCall[], from: number, results: T
     if (!started) d.emit({ type: 'step', callId: call.id, name: call.name, label: run.label, input: run.input, ...stepLook(call.name, run.input, false) });
     const o = run.outcome;
     if (o.status === 'needs_confirmation') {
-      await d.setPending({ calls, results, steps, waiting: { callId: call.id, kind: 'confirm', question: o.question }, turns, refs: Object.fromEntries(d.refs ?? []) });
-      d.emit({ type: 'confirm', callId: call.id, question: o.question, label: run.label });
+      const code = o.code ? { code: o.code } : {};
+      await d.setPending({ calls, results, steps, waiting: { callId: call.id, kind: 'confirm', question: o.question, ...code }, turns, refs: Object.fromEntries(d.refs ?? []) });
+      d.emit({ type: 'confirm', callId: call.id, question: o.question, label: run.label, ...code });
       return { status: 'paused' };
     }
     if (o.status === 'client') {

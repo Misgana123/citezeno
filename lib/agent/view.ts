@@ -1,6 +1,6 @@
 import { excerptOf } from './attachments';
 import type { Conversation } from './store';
-import type { Feedback, StepView, StoredMessage } from './types';
+import type { Feedback, StepView, StoredMessage, Waiting } from './types';
 
 /* A conversation as the chat page shows it: the user's messages, the agent's
    words, and the steps it took (with what they found). Nothing internal. */
@@ -19,7 +19,7 @@ export type ConversationView = {
   webSearch: boolean;
   entries: ChatEntry[];
   /* a yes / no question, or a tool the browser should run (asking first, since reopening shouldn't spend credits silently) */
-  waiting: { callId: string; kind: 'confirm'; question: string } | { callId: string; kind: 'client'; name: string; input: unknown; label: string } | null;
+  waiting: Waiting | null;
 };
 
 export function toView(c: Conversation, messages: StoredMessage[]): ConversationView {

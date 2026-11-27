@@ -203,7 +203,7 @@ export const DOC_ARTICLES: DocArticle[] = [
     { type: 'h2', text: 'What it can make' },
     { type: 'list', items: ['Word documents, PDFs, slides and spreadsheets.', 'Charts from your numbers.', 'PDF work: merge, split or pull out the text.', 'File conversions, and exports of your shelf.'] },
     { type: 'h2', text: 'Analysing data with Python' },
-    { type: 'p', text: 'Attach a CSV or spreadsheet and ask for statistics or a plot. The assistant runs Python in a private sandbox with pandas, numpy and matplotlib, and shows the code and output in a **Python** step you can open. Each run is short, up to about 40 seconds; files and variables carry over between runs for a few minutes.' },
+    { type: 'p', text: 'Attach a CSV or spreadsheet and ask for statistics or a plot. The assistant runs Python in a private sandbox with pandas, numpy and matplotlib, and shows the code and output in a **Python** step you can open. Each run is short, up to about 40 seconds; files and variables carry over between runs for a few minutes. A heavier run (a longer time limit, three or more files, or installing packages) asks you first, with a **Show code** link so you can see what it will run.' },
     { type: 'callout', tone: 'tip', title: 'Tip', text: 'Say what you want the result to look like, for example “a bar chart of mean scores by group, as a PNG”.' },
   ]),
   a('manage-and-share-chats', 'assistant', 'Manage and share chats', 'Find old chats, pin, rename, delete and share them.', 2, [

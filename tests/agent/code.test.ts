@@ -48,7 +48,7 @@ describe('run_python', () => {
       code: 'import pandas as pd',
       inputs: [{ attachment: 'data.csv' }, { fileId: 'af_doc' }, { pdfId: 'p_1' }, { attachment: 'data.csv' }],
       downloads: ['out/results.csv', 'nope.csv'],
-    });
+    }, { confirmed: true });
     expect(r.label).toBe('Running Python');
     expect(requests[0].upload.map((f) => f.path)).toEqual(['data.csv', 'report.pdf', 'paper.pdf', 'data (2).csv']);
     expect(new TextDecoder().decode(requests[0].upload[0].bytes)).toBe('a,b\n1,2');
@@ -77,6 +77,28 @@ describe('run_python', () => {
     expect((await runTool(ctx().c, 'run_python', { code: 'x', inputs: [{ pdfId: 'p_1', fileId: 'af_doc' }] })).outcome).toMatchObject({ status: 'error' });
     expect((await runTool(ctx({}, { code: false }).c, 'run_python', { code: 'x' })).outcome).toMatchObject({ status: 'error', message: 'Running code isn’t set up yet.' });
     expect((await runTool(ctx().c, 'run_python', { code: 'x', timeoutSeconds: 120 })).outcome).toMatchObject({ status: 'error' });
+  });
+
+  it('asks first for a heavy run, showing its code, and runs a light one straight away', async () => {
+    const { c, requests } = ctx();
+    expect((await runTool(c, 'run_python', { code: 'print(1)' })).outcome).toMatchObject({ status: 'done' });
+    expect((await runTool(c, 'run_python', { code: 'print(1)', timeoutSeconds: 30 })).outcome).toMatchObject({ status: 'done' });
+
+    const long = await runTool(c, 'run_python', { code: 'slow()', timeoutSeconds: 40 });
+    expect(long.outcome).toEqual({ status: 'needs_confirmation', question: 'Run this Python? It may take up to 40 seconds.', code: { language: 'python', source: 'slow()' } });
+    const files = Array.from({ length: 3 }, () => ({ attachment: 'data.csv' }));
+    expect((await runTool(c, 'run_python', { code: 'x', inputs: files })).outcome).toMatchObject({ question: 'Run this Python? It uses 3 files.' });
+    expect((await runTool(c, 'run_python', { code: '!pip install polars\nimport polars', timeoutSeconds: 40, inputs: files })).outcome).toMatchObject({
+      question: 'Run this Python? It may take up to 40 seconds, uses 3 files and installs packages first.',
+    });
+    for (const code of ['%pip install x', 'subprocess.run("pip3 install x")', 'import pip; pip.main(["install", "x"])']) expect((await runTool(c, 'run_python', { code })).outcome).toMatchObject({ status: 'needs_confirmation' });
+    expect(requests).toHaveLength(2);
+
+    // a plan with shorter runs caps the time first, so it isn't heavy
+    expect((await runTool({ ...c, limits: { pythonSecondsPerRun: 30 } as never }, 'run_python', { code: 'x', timeoutSeconds: 40 })).outcome).toMatchObject({ status: 'done' });
+    // once the user says yes it runs
+    expect((await runTool(c, 'run_python', { code: 'slow()', timeoutSeconds: 40 }, { confirmed: true })).outcome).toMatchObject({ status: 'done' });
+    expect(requests.at(-1)?.timeoutMs).toBe(40_000);
   });
 
   it('knows common file types', () => {

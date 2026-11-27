@@ -251,6 +251,7 @@ a.ch-file { text-decoration: none; }
 .ch-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 14px; background: var(--ch-card); }
 .ch-ask p { flex: 1; min-width: 220px; margin: 0; font-size: 15px; font-weight: 650; line-height: 1.5; }
 .ch-ask-acts { display: flex; gap: 8px; }
+.ch-ask-code { flex-basis: 100%; order: 1; }
 .ch-btn { height: 34px; padding: 0 16px; border-radius: 9px; border: 1px solid var(--ch-card-line); background: var(--ch-bg); font-weight: 650; font-size: 13.5px; color: var(--ink); }
 .ch-btn.is-go { background: var(--prussian-deep); border-color: var(--prussian-deep); color: #fff; }
 [data-theme='dark'] .ch-btn.is-go { background: var(--ink); border-color: var(--ink); color: var(--prussian-deep); }
