@@ -201,7 +201,7 @@ export const DOC_ARTICLES: DocArticle[] = [
   a('files-and-analysis', 'assistant', 'Make files and analyse data', 'Word, PDF, slides, spreadsheets, charts and Python.', 3, [
     { type: 'p', text: 'Ask the assistant to make something and it appears under the answer as a **Download** card with its name and size.' },
     { type: 'h2', text: 'What it can make' },
-    { type: 'list', items: ['Word documents, PDFs, slides and spreadsheets.', 'Charts from your numbers: bar, line, area, pie, scatter (with a trend line), histogram, box plot and heatmap, with error bars on bar and line charts.', 'PDF work: merge, split or pull out the text.', 'File conversions, ZIPs of several files, and exports of your shelf.'] },
+    { type: 'list', items: ['Word documents, PDFs, slides and spreadsheets.', 'Charts from your numbers: bar, line, area, pie, scatter (with a trend line), histogram, box plot and heatmap, with error bars on bar and line charts.', 'PDF work: merge, split or pull out the text.', 'File conversions, ZIPs (making one from several files, or opening one into its files), and exports of your shelf.'] },
     { type: 'h2', text: 'Reference files, drafts and your shelf' },
     {
       type: 'list',

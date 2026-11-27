@@ -50,7 +50,7 @@ describe('the tool registry', () => {
       expect(t.description.length).toBeGreaterThan(20);
       expect(['read', 'write']).toContain(t.kind);
     }
-    for (const n of ['search_papers', 'get_paper', 'get_references', 'get_citing_papers', 'find_similar_papers', 'list_library', 'lookup_paper', 'save_paper', 'organize_papers', 'delete_papers', 'resolve_duplicate', 'export_library', 'create_project', 'clean_references', 'check_references', 'text_stats', 'shelf_stats', 'zip_files']) {
+    for (const n of ['search_papers', 'get_paper', 'get_references', 'get_citing_papers', 'find_similar_papers', 'list_library', 'lookup_paper', 'save_paper', 'organize_papers', 'delete_papers', 'resolve_duplicate', 'export_library', 'create_project', 'clean_references', 'check_references', 'text_stats', 'shelf_stats', 'zip_files', 'unzip_file']) {
       expect(findTool(n)).toBeTruthy();
     }
   });
