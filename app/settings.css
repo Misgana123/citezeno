@@ -173,3 +173,17 @@ select.st-input { width: auto; height: 32px; padding: 0 28px 0 10px; font-size: 
   .st-stats { grid-template-columns: 1fr 1fr; }
   .st-cfind { order: 9; width: 100%; margin-left: 0; }
 }
+
+/* Settings → Lab */
+.st-group > h4 .st-count { margin-left: 6px; vertical-align: 1px; }
+.st-av.st-av-sm { width: 30px; height: 30px; font-size: 13px; }
+.st-cap { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 12.5px; }
+.st-cap .st-input { width: 72px; height: 32px; font-size: 13px; }
+.st-invite { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.st-invite .st-input[type='email'] { flex: 1; min-width: 200px; }
+.st-input.st-input-inline { width: auto; flex: 1; min-width: 180px; }
+.st-join { width: min(440px, 100%); height: auto; grid-template-rows: auto; padding: 26px; gap: 14px; text-align: center; justify-items: center; }
+.st-join h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.st-join p { margin: 0; color: var(--ink-2); font-size: 14px; }
+.st-pre { margin: 0; padding: 12px 14px; border: 1px solid var(--st-line); border-radius: 10px; background: var(--st-soft); font: 13px/1.55 var(--f-mono); white-space: pre-wrap; color: var(--ink-2); }
+.st-share { width: min(560px, 100%); height: auto; max-height: min(640px, 100%); grid-template-rows: 52px minmax(0, 1fr); }

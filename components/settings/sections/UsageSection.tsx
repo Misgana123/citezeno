@@ -6,6 +6,8 @@ import { REASONS } from '@/lib/pricing';
 import { Icon } from '../../Icon';
 import { PortalButton } from '../../billing/BuyButton';
 import { useCredits } from '../../useCredits';
+import { useLab } from '../../labs/useLab';
+import { openSettings } from '../open';
 import type { AccountState } from '../useAccount';
 import { longDate, shortDate } from './shared';
 
@@ -45,6 +47,8 @@ export function UsageSection({ account }: { account: AccountState }) {
           </div>
         </div>
       </div>
+
+      <LabPool userId={a.user.id} />
 
       <div className="st-group">
         <div className="st-stats">
@@ -140,5 +144,35 @@ export function UsageSection({ account }: { account: AccountState }) {
         </div>
       )}
     </section>
+  );
+}
+
+/* In a lab: lab work is paid from the owner's credits, up to your monthly cap. */
+function LabPool({ userId }: { userId: string }) {
+  const { lab } = useLab();
+  if (!lab?.lab || lab.role === 'guest') return null;
+  const me = lab.members.find((m) => m.userId === userId);
+  const owner = lab.members.find((m) => m.role === 'owner');
+  return (
+    <div className="st-group">
+      <div className="st-box">
+        <div className="st-line st-wrap">
+          <div className="st-txt">
+            <b>
+              Lab: {lab.lab.name}
+              <span className="st-tag">{lab.role === 'owner' ? 'Your plan pays' : `Paid by ${owner?.name ?? 'the owner'}`}</span>
+            </b>
+            <small>
+              Chats in the lab’s projects use {lab.role === 'owner' ? 'your' : 'the lab’s'} credits
+              {me?.usedThisMonth != null ? `: ${me.usedThisMonth.toLocaleString('en-US')} this month` : ''}
+              {me?.creditCap != null ? ` of your ${me.creditCap.toLocaleString('en-US')} cap; past it, your own credits are used.` : '.'}
+            </small>
+          </div>
+          <button type="button" className="st-btn" onClick={() => openSettings('lab')}>
+            Open the lab
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

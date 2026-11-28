@@ -525,6 +525,7 @@ export const DOC_ARTICLES: DocArticle[] = [
       head: ['Section', 'What’s there'],
       rows: [
         ['Account', 'Your name and email, and deleting your account'],
+        ['Lab', 'Your lab on the Lab plan: people, roles, invitations and credit caps ([more](/docs/labs))'],
         ['Credits and usage', 'Your plan, renewal date, credits, your plan’s limits, recent activity and receipts'],
         ['Appearance', 'Light, dark, or the same as your device'],
         ['Library', 'How many traces you’ve saved and sources cited'],
@@ -536,6 +537,26 @@ export const DOC_ARTICLES: DocArticle[] = [
     { type: 'p', text: '[History](/app/history) lists your traces, sharing and sign-ins. Filter it, **Download CSV**, or **Clear history**.' },
     { type: 'callout', tone: 'warn', title: 'Deleting your account', text: 'This can’t be undone. Export your shelf and download your drafts first.' },
   ]),
+  a('labs', 'account', 'Labs: work as a group', 'A shared shelf, chats in shared projects, lab skills and one credit pool, on the Lab plan.', 3, [
+    { type: 'p', text: 'A lab is a shared space for a research group, on the [Lab plan](/pricing): you and up to 5 people, plus guests on single projects. Make one in [Settings → Lab](/app/chat?settings=lab).' },
+    {
+      type: 'table',
+      head: ['Role', 'What they can do'],
+      rows: [
+        ['Owner', 'Everything, and pays: lab work uses the owner’s credits. Hands the lab over or deletes it.'],
+        ['Admin', 'Invites and removes members, sets roles and monthly credit caps, writes lab skills, shares projects with guests.'],
+        ['Member', 'Works on the lab’s shelf, chats in its projects and uses lab skills.'],
+        ['Guest', 'Sees only the projects shared with them (view or edit), and uses their own credits. Takes no seat.'],
+      ],
+    },
+    { type: 'h2', text: 'The lab’s shelf' },
+    { type: 'p', text: 'On your shelf, switch between **My shelf** and the lab’s shelf at the top of the sidebar. Papers, projects, notes and PDFs on the lab’s shelf are shared by everyone in the lab, and each paper says who added it. To bring papers over, select them on your own shelf and choose **Copy to lab**. To share one project with someone outside the lab, use **Share with a guest…** on the project.' },
+    { type: 'h2', text: 'Chats in lab projects' },
+    { type: 'p', text: 'In the chat’s **+ → Add from shelf**, pick a lab project before your first message: the chat belongs to that project, everyone in it can read and continue it, and the assistant works on the lab’s shelf. Each message shows who wrote it; lab chats carry a **Lab** tag in the sidebar.' },
+    { type: 'h2', text: 'Credits' },
+    { type: 'p', text: 'Work in lab chats is paid from the owner’s credits. Admins can give a member a monthly cap; past it, the member’s own credits are used. Settings → Lab shows what each member used this month.' },
+    { type: 'callout', tone: 'note', title: 'Invitations', text: 'Email invitations work once, for that address, for 7 days. The share link works for anyone until you turn it off, and joins them as a member while seats are free.' },
+  ]),
   a('skills', 'account', 'Skills for the assistant', 'Ready-made ways of working (a literature review, a citation check) and your own instructions.', 2, [
     { type: 'p', text: 'A skill is a set of instructions the assistant follows for one message, like “write a literature review” or “check my citations”. Citezeno makes some; you can write your own, such as your lab’s citation style.' },
     {
@@ -544,6 +565,7 @@ export const DOC_ARTICLES: DocArticle[] = [
         { title: 'Add skills', text: 'Open [Settings → Customize → Skills](/app/chat?settings=customize&tab=skills&view=discover) and choose + on the ones you want.' },
         { title: 'Use one', text: 'In the chat, open **+ → Skills** and pick a skill. It shows as a chip above your message and is used for that message.' },
         { title: 'Write your own', text: 'Choose **Add → Write a skill**, or upload a Markdown file (a name and description at the top between --- lines, then the instructions).' },
+        { title: 'Share with your lab', text: 'Lab owners and admins can tick **Share with my lab** when writing a skill: every member then finds it in the **+** menu.' },
       ],
     },
     { type: 'callout', tone: 'note', title: 'Skills never change the rules', text: 'The assistant still only cites papers its tools returned, and never invents references, whatever a skill says.' },

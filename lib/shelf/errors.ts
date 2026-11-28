@@ -10,6 +10,7 @@ export type ShelfErrorCode =
   | 'storage_full' // the user's storage is full
   | 'user_limit' // a per-user daily limit was reached
   | 'invalid_file' // not a real PDF / not a reference file
+  | 'forbidden' // not allowed here (a lab guest outside their projects, or reading only)
   | 'unavailable'; // a service the feature needs is not set up or not reachable
 
 export class ShelfError extends Error {
@@ -28,6 +29,7 @@ export const isShelfError = (e: unknown): e is ShelfError => e instanceof ShelfE
 export const SHELF_STATUS: Record<ShelfErrorCode, number> = {
   bad_request: 400,
   not_found: 404,
+  forbidden: 403,
   duplicate: 409,
   name_taken: 409,
   too_large: 413,

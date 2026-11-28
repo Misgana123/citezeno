@@ -562,6 +562,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
                         ))}
                       </ul>
                     )}
+                    {!!t.user && t.author && <div className="ch-user-by">{t.author}</div>}
                     {!!t.user && <div className="ch-user">{t.user}</div>}
                     {t.parts.length > 0 && (
                       <div className="ch-ai">

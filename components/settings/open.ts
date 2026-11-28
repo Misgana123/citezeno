@@ -3,7 +3,7 @@
 /* Opening the Settings dialog from anywhere: a button calls openSettings(),
    a link uses settingsHref() (the dialog opens over the page it lands on). */
 
-export const SETTINGS_SECTIONS = ['account', 'usage', 'appearance', 'library', 'security', 'customize'] as const;
+export const SETTINGS_SECTIONS = ['account', 'usage', 'lab', 'appearance', 'library', 'security', 'customize'] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
 /* Customize (skills): which view to show */

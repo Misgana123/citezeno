@@ -5,15 +5,17 @@ export type Skill = {
   /* the name the user sees and picks ("literature-review") */
   name: string;
   description: string;
-  /* made by Citezeno (its text is ours, not editable) or by the user */
-  by: 'citezeno' | 'you';
+  /* made by Citezeno (its text is ours, not editable), by the user, or shared by their lab */
+  by: 'citezeno' | 'you' | 'lab';
   category: string | null;
   enabled: boolean;
   /* messages it was used for */
   uses: number;
   updatedAt: string;
-  /* the user's own skills only (built-in instructions stay on the server) */
+  /* the user's own and lab skills (built-in instructions stay on the server) */
   instructions?: string;
+  /* a lab skill the user may change (lab admins) */
+  canEdit?: boolean;
 };
 
 /* A built-in skill in Discover, and whether this user added it. */
@@ -24,7 +26,7 @@ export type SkillCatalog = { mine: Skill[]; discover: SkillListing[] };
 /* Limits for the user's own skills. */
 export const SKILL_LIMITS = { own: 50, nameMax: 60, descriptionMax: 300, instructionsMax: 8000 } as const;
 
-export type SkillErrorCode = 'bad_request' | 'not_found' | 'conflict' | 'limit';
+export type SkillErrorCode = 'bad_request' | 'not_found' | 'conflict' | 'limit' | 'forbidden';
 
 export class SkillError extends Error {
   constructor(
@@ -38,7 +40,7 @@ export class SkillError extends Error {
 
 export const isSkillError = (e: unknown): e is SkillError => (e as Error | null)?.name === 'SkillError' && typeof (e as SkillError).code === 'string';
 
-export const SKILL_STATUS: Record<SkillErrorCode, number> = { bad_request: 400, not_found: 404, conflict: 409, limit: 409 };
+export const SKILL_STATUS: Record<SkillErrorCode, number> = { bad_request: 400, not_found: 404, conflict: 409, limit: 409, forbidden: 403 };
 
 /* A skill's name: lower case words joined by dashes ("My lab's APA style" → "my-labs-apa-style"). */
 export function skillName(v: string): string {

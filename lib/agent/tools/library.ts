@@ -11,13 +11,14 @@ import { shelfStats } from '@/lib/shelf/store/stats';
 import { listTags } from '@/lib/shelf/store/tags';
 import { READING_STATUSES } from '@/lib/shelf/types';
 import type { AgentContext } from '../context';
+import { shelfOf } from '../context';
 import { itemBrief, paperBrief, type Groups } from './format';
 import { defineTool, tally } from './types';
 
 /* Reading the user's shelf (My shelf): the same listing, search and filters as /shelf. */
 
 export async function loadGroups(ctx: AgentContext): Promise<Groups> {
-  const [projects, folders, tags] = await Promise.all([listProjects(ctx.db, ctx.userId), listFolders(ctx.db, ctx.userId), listTags(ctx.db, ctx.userId)]);
+  const [projects, folders, tags] = await Promise.all([listProjects(ctx.db, shelfOf(ctx)), listFolders(ctx.db, shelfOf(ctx)), listTags(ctx.db, shelfOf(ctx))]);
   return { projects, folders, tags };
 }
 
@@ -68,7 +69,7 @@ export const listLibrary = defineTool({
   label: (i) => (i.search ? `Searching your shelf for “${i.search.slice(0, 60)}”` : 'Reading your shelf'),
   done: (i) => (i.search ? { did: 'Searched your shelf', about: i.search.slice(0, 80) } : { did: 'Read your shelf' }),
   async run(ctx, { page = 1, perPage = 25, ...f }) {
-    const [list, groups] = await Promise.all([listItems(ctx.db, ctx.userId, listQuery(f, page, perPage)), loadGroups(ctx)]);
+    const [list, groups] = await Promise.all([listItems(ctx.db, shelfOf(ctx), listQuery(f, page, perPage)), loadGroups(ctx)]);
     return {
       result: { total: list.total, page: list.page, hasMore: list.page * list.perPage < list.total, items: list.items.map((i) => itemBrief(i, groups)) },
       display: { items: list.items, summary: tally(list.total, 'paper') },
@@ -85,7 +86,7 @@ export const getLibraryItem = defineTool({
   label: () => 'Opening a saved paper',
   done: () => ({ did: 'Opened a saved paper' }),
   async run(ctx, { itemId }) {
-    const [item, groups] = await Promise.all([getItem(ctx.db, ctx.userId, itemId), loadGroups(ctx)]);
+    const [item, groups] = await Promise.all([getItem(ctx.db, shelfOf(ctx), itemId), loadGroups(ctx)]);
     if (!item) throw new ShelfError('not_found', 'That paper is not on your shelf.');
     return {
       result: { ...itemBrief(item, groups), note: item.note, pdfFiles: item.pdfs.map((f) => ({ pdfId: f.id, fileName: f.fileName, pages: f.pageCount })), details: paperBrief({ ...item.paper, provider: item.paper.provider ?? '' }, { fullAbstract: true }) },
@@ -124,7 +125,7 @@ export const findDuplicates = defineTool({
   label: () => 'Looking for duplicates',
   done: () => ({ did: 'Looked for duplicates' }),
   async run(ctx) {
-    const [pairs, groups] = await Promise.all([duplicatePairs(ctx.db, ctx.userId), loadGroups(ctx)]);
+    const [pairs, groups] = await Promise.all([duplicatePairs(ctx.db, shelfOf(ctx)), loadGroups(ctx)]);
     return { result: { pairs: pairs.map((p) => ({ reason: p.reason, a: itemBrief(p.a, groups), b: itemBrief(p.b, groups) })) }, display: { items: pairs.flatMap((p) => [p.a, p.b]), summary: tally(pairs.length, 'pair') } };
   },
 });
@@ -138,7 +139,7 @@ export const listNotices = defineTool({
   label: () => 'Checking retraction notices',
   done: () => ({ did: 'Checked retraction notices' }),
   async run(ctx) {
-    const r = await unreadNotices(ctx.db, ctx.userId);
+    const r = await unreadNotices(ctx.db, shelfOf(ctx));
     return { result: r, display: { summary: r.unread ? tally(r.unread, 'new notice') : 'No new notices' } };
   },
 });
@@ -153,7 +154,7 @@ export const shelfStatsTool = defineTool({
   label: () => 'Counting your shelf',
   done: () => ({ did: 'Counted your shelf' }),
   async run(ctx, { top, sort: _sort, ...f }) {
-    const stats = await shelfStats(ctx.db, ctx.userId, listQuery(f, 1, 1), top);
+    const stats = await shelfStats(ctx.db, shelfOf(ctx), listQuery(f, 1, 1), top);
     return { result: stats, display: { summary: tally(stats.total, 'paper') } };
   },
 });

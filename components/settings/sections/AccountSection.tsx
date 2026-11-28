@@ -112,7 +112,7 @@ export function AccountSection({ account }: { account: AccountState }) {
           <div className="st-line st-wrap">
             <div className="st-txt">
               <b>Delete your account</b>
-              <small>Deletes your account, your shelf, your chats and every saved trace. This can’t be undone.</small>
+              <small>Deletes your account, your shelf, your chats and every saved trace. A lab you own is deleted too: hand it over first in Settings → Lab. This can’t be undone.</small>
             </div>
             {!delOpen && (
               <button type="button" className="st-btn is-danger" onClick={() => setDelOpen(true)}>

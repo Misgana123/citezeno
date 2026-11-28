@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Project } from '@/lib/shelf/types';
 import { openSettings } from '../settings/open';
 import { shelfFetch } from '../shelf/api';
 import { useSkills } from '../skills/useSkills';
+import { useLab } from '../labs/useLab';
 import { Icon } from '../Icon';
 import { ATTACH_ACCEPT, canScreenshot } from './attach';
 
@@ -37,7 +38,9 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const { catalog } = useSkills();
-  const [projects, setProjects] = useState<Project[] | null>(null);
+  // your projects, then your lab's (a lab project makes the chat the project's, shared with its people)
+  const [projects, setProjects] = useState<(Project & { lab?: string })[] | null>(null);
+  const { lab } = useLab();
 
   useEffect(() => setShots(canScreenshot()), []);
   useEffect(() => {
@@ -65,13 +68,24 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [disabled]);
-  // the shelf's projects, the first time that submenu opens
+  // the shelf's projects (yours, then your labs'), when that submenu opens and again once your labs are known
+  const labs = useMemo(() => [...(lab?.lab && lab.role !== 'guest' ? [{ id: lab.lab.id, name: lab.lab.name }] : []), ...(lab?.guestOf ?? [])], [lab]);
+  const labsKey = labs.map((l) => l.id).join(',');
+  const loadedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (sub !== 'shelf' || projects) return;
-    shelfFetch<{ projects: Project[] }>('/api/shelf/groups')
-      .then((g) => setProjects(g.projects))
-      .catch(() => setProjects([]));
-  }, [sub, projects]);
+    if (sub !== 'shelf' || (projects && loadedFor.current === labsKey)) return;
+    loadedFor.current = labsKey;
+    Promise.all([
+      shelfFetch<{ projects: Project[] }>('/api/shelf/groups').then((g) => g.projects),
+      ...labs.map((l) =>
+        fetch('/api/shelf/groups', { cache: 'no-store', headers: { 'x-cz-space': `lab:${l.id}` } })
+          .then((r) => (r.ok ? r.json() : { projects: [] }))
+          .then((g: { projects?: Project[] }) => (g.projects ?? []).map((p) => ({ ...p, lab: l.name }))),
+      ),
+    ])
+      .then((lists) => loadedFor.current === labsKey && setProjects(lists.flat()))
+      .catch(() => setProjects((p) => p ?? []));
+  }, [sub, projects, labs, labsKey]);
 
   const done = (fn?: () => void) => {
     setOpen(false);
@@ -159,10 +173,11 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
               ) : (
                 projects.map((p) => (
                   <button key={p.id} type="button" className="ch-am-i" role="menuitemradio" aria-checked={project.value?.id === p.id} onClick={() => done(() => project.onChange(project.value?.id === p.id ? null : { id: p.id, name: p.name }))}>
-                    <Icon name="folder" />
+                    <Icon name={p.lab ? 'users' : 'folder'} />
                     <span className="ch-am-two">
                       {p.name}
                       <small>
+                        {p.lab ? `${p.lab} · ` : ''}
                         {p.count.toLocaleString()} paper{p.count === 1 ? '' : 's'}
                       </small>
                     </span>
@@ -191,7 +206,7 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
                 ) : (
                   skills.map((s) => (
                     <button key={s.id} type="button" className="ch-am-i" role="menuitemradio" aria-checked={skill.value?.id === s.id} title={s.description} onClick={() => done(() => skill.onChange(skill.value?.id === s.id ? null : { id: s.id, name: s.name }))}>
-                      <Icon name={s.by === 'you' ? 'pencil' : 'skill'} />
+                      <Icon name={s.by === 'you' ? 'pencil' : s.by === 'lab' ? 'users' : 'skill'} />
                       {s.name}
                       {skill.value?.id === s.id && (
                         <span className="ch-am-end">

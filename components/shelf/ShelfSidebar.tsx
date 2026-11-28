@@ -1,5 +1,9 @@
 'use client';
 
+import { ProjectShare } from '../labs/ProjectShare';
+import { useLab } from '../labs/useLab';
+import { shelfSpace } from './api';
+
 import { useCallback, useRef, useState } from 'react';
 import type { Project } from '@/lib/shelf/types';
 import { confirmDialog } from '../confirm';
@@ -16,8 +20,12 @@ export type ViewPick = Partial<Pick<ShelfFilters, 'collection' | 'project' | 'fo
 /* The shelf's views: the two collections (Library, My uploads), then Unsorted,
    each project (with its folders) and each tag, which narrow the collection
    picked. Projects, folders and tags are created, renamed and deleted here. */
-export function ShelfSidebar({ open, groups, filters, onPick }: { open: boolean; groups: GroupsApi; filters: ShelfFilters; onPick: (p: ViewPick) => void }) {
+export function ShelfSidebar({ open, groups, filters, onPick, top }: { open: boolean; groups: GroupsApi; filters: ShelfFilters; onPick: (p: ViewPick) => void; /* the lab switch, above the collections */ top?: React.ReactNode }) {
   const [editing, setEditing] = useState<string | null>(null); // "new-project", "new-tag", "new-folder:<projectId>", "<id>"
+  // a lab project shared with guests (lab owner and admins, on the lab's shelf)
+  const [sharing, setSharing] = useState<Project | null>(null);
+  const { lab } = useLab();
+  const canShare = !!shelfSpace() && (lab?.role === 'owner' || lab?.role === 'admin') && shelfSpace() === `lab:${lab?.lab?.id}`;
   // picking a view keeps the collection unless it names one
   const go = (p: ViewPick) => onPick({ project: '', folder: '', tag: '', retracted: false, dups: false, ...p });
   const foldersOf = (projectId: string) => groups.folders.filter((f) => f.projectId === projectId);
@@ -30,6 +38,8 @@ export function ShelfSidebar({ open, groups, filters, onPick }: { open: boolean;
 
   return (
     <nav id="sh-side" className={`sh-side${open ? ' is-open' : ''}`} aria-label="Shelf views">
+      {top}
+      {sharing && <ProjectShare projectId={sharing.id} name={sharing.name} onClose={() => setSharing(null)} />}
       <div className="sh-side-sec">
         <h2 className="sh-side-label">Collections</h2>
         <CollectionNav current={filters.dups ? null : filters.collection} counts={groups.counts} onPick={(collection) => go({ collection })} />
@@ -67,6 +77,7 @@ export function ShelfSidebar({ open, groups, filters, onPick }: { open: boolean;
                   menu={[
                     { label: 'New folder', run: () => setEditing(`new-folder:${p.id}`) },
                     { label: 'Rename', run: () => setEditing(p.id) },
+                    ...(canShare ? [{ label: 'Share with a guest…', run: () => setSharing(p) }] : []),
                     { label: 'Delete', run: () => removeProject(p), danger: true },
                   ]}
                 />

@@ -373,3 +373,6 @@ a.ch-file { text-decoration: none; }
 .ch-share-behind span { flex: 1; }
 .dialog.ch-share p.ch-share-err { margin: 14px 0 0; }
 @media (max-width: 560px) { .ch-share-btn { padding: 0 9px; } }
+
+/* lab chats: who asked (when it wasn't you) */
+.ch-user-by { align-self: flex-end; margin: 0 4px -6px auto; color: var(--ink-3); font-size: 12px; font-weight: 600; text-align: right; }

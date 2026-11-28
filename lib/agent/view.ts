@@ -8,7 +8,7 @@ import type { Feedback, StepView, StoredMessage, Waiting } from './types';
 export type AttachmentView = { kind: 'text' | 'image'; name: string; src?: string; excerpt?: string };
 
 /* an answer's seq (its saved number, for feedback), when it was written, and the user's thumbs up or down */
-export type ChatEntry = { kind: 'user'; text: string; attachments?: AttachmentView[] } | { kind: 'assistant'; text: string; seq?: number; at?: string; feedback?: Feedback; credits?: number } | { kind: 'steps'; steps: StepView[] };
+export type ChatEntry = { kind: 'user'; text: string; attachments?: AttachmentView[]; /* lab chats: who wrote it, when not the viewer */ author?: string } | { kind: 'assistant'; text: string; seq?: number; at?: string; feedback?: Feedback; credits?: number } | { kind: 'steps'; steps: StepView[] };
 
 export type ConversationView = {
   id: string;
@@ -20,15 +20,19 @@ export type ConversationView = {
   entries: ChatEntry[];
   /* a yes / no question, or a tool the browser should run (asking first, since reopening shouldn't spend credits silently) */
   waiting: Waiting | null;
+  /* a chat inside a lab project */
+  lab?: boolean;
 };
 
-export function toView(c: Conversation, messages: StoredMessage[]): ConversationView {
+/* authors: in a lab chat, the names of the people who wrote (user ID → name), and who is looking */
+export function toView(c: Conversation, messages: StoredMessage[], authors?: { names: ReadonlyMap<string, string>; viewer: string }): ConversationView {
   const entries: ChatEntry[] = [];
-  for (const { message: m, ui, seq, createdAt, feedback, meta } of messages) {
+  for (const { message: m, ui, seq, createdAt, feedback, meta, authorId } of messages) {
     if (m.role === 'user')
       entries.push({
         kind: 'user',
         text: m.text,
+        ...(authors && authorId && authorId !== authors.viewer ? { author: authors.names.get(authorId) ?? 'Someone' } : {}),
         ...(m.attachments?.length
           ? {
               attachments: m.attachments.map((a) =>
@@ -53,5 +57,6 @@ export function toView(c: Conversation, messages: StoredMessage[]): Conversation
     webSearch: c.webSearch,
     entries,
     waiting: c.pending?.waiting ?? null,
+    ...(c.labId ? { lab: true } : {}),
   };
 }

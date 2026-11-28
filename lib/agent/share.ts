@@ -110,7 +110,7 @@ function publicStep(s: StepView): StepView {
 /* A conversation's messages as the public page shows them: attachments by name only. */
 export function publicEntries(messages: StoredMessage[]): ChatEntry[] {
   const now = new Date(0).toISOString();
-  const { entries } = toView({ id: '', title: '', model: '', pinned: false, webSearch: false, pending: null, costUsd: 0, createdAt: now, updatedAt: now }, messages);
+  const { entries } = toView({ id: '', title: '', model: '', pinned: false, webSearch: false, pending: null, costUsd: 0, createdAt: now, updatedAt: now, ownerId: '', labId: null, projectId: null }, messages);
   return entries.map((e) =>
     e.kind === 'user'
       ? { kind: 'user', text: e.text, ...(e.attachments?.length ? { attachments: e.attachments.map((a) => ({ kind: a.kind, name: a.name })) } : {}) }

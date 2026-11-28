@@ -9,7 +9,8 @@ import type { Attachment } from '@/lib/providers/chat/types';
 /* Browser-side calls to /api/agent. Only our own server is called. */
 
 /* paperId: a paper's own conversation, opened in the reader */
-export type ConversationSummary = { id: string; title: string; model: string; pinned: boolean; updatedAt: string; paperId?: string | null };
+/* lab: a chat in a lab project (mine: you started it) */
+export type ConversationSummary = { id: string; title: string; model: string; pinned: boolean; updatedAt: string; paperId?: string | null; lab?: boolean; mine?: boolean };
 /* web: web search is set up (new chats start with it on) */
 export type ChatList = { conversations: ConversationSummary[]; models: PickerModel[]; defaultModel: string | null; web?: boolean };
 

@@ -214,6 +214,7 @@ function SkillsYours({ skills, filter, matches, onOpen, onBrowse, onWrite }: { s
   const found = skills.filter((s) => matches(s.name, s.description));
   const added = filter === 'off' ? [] : found.filter((s) => s.by === 'citezeno');
   const own = filter === 'on' ? [] : found.filter((s) => s.by === 'you');
+  const lab = filter === 'on' ? [] : found.filter((s) => s.by === 'lab');
   const toggle = async (s: Skill) => {
     try {
       await updateSkill(s.id, { enabled: !s.enabled });
@@ -225,27 +226,29 @@ function SkillsYours({ skills, filter, matches, onOpen, onBrowse, onWrite }: { s
   const card = (s: Skill) => (
     <div key={s.id} className="st-card is-link" role="button" tabIndex={0} onClick={() => onOpen(s.id)} onKeyDown={(e) => e.key === 'Enter' && onOpen(s.id)}>
       <span className="st-logo is-plain">
-        <Icon name={s.by === 'you' ? 'pencil' : 'skill'} />
+        <Icon name={s.by === 'you' ? 'pencil' : s.by === 'lab' ? 'users' : 'skill'} />
       </span>
       <div>
         <h5>{s.name}</h5>
         <p>{s.description || 'Your own instructions'}</p>
         <div className="st-by">
-          {s.by === 'you' ? 'by you' : 'by Citezeno'}
+          {s.by === 'you' ? 'by you' : s.by === 'lab' ? 'shared by your lab' : 'by Citezeno'}
           {s.uses ? ` · used in ${s.uses} message${s.uses === 1 ? '' : 's'}` : ''}
         </div>
       </div>
-      <button
-        type="button"
-        className={`st-switch${s.enabled ? ' is-on' : ''}`}
-        role="switch"
-        aria-checked={s.enabled}
-        aria-label={`${s.name} is on`}
-        onClick={(e) => {
-          e.stopPropagation();
-          void toggle(s);
-        }}
-      />
+      {(s.by !== 'lab' || s.canEdit) && (
+        <button
+          type="button"
+          className={`st-switch${s.enabled ? ' is-on' : ''}`}
+          role="switch"
+          aria-checked={s.enabled}
+          aria-label={`${s.name} is on`}
+          onClick={(e) => {
+            e.stopPropagation();
+            void toggle(s);
+          }}
+        />
+      )}
     </div>
   );
   return (
@@ -284,6 +287,15 @@ function SkillsYours({ skills, filter, matches, onOpen, onBrowse, onWrite }: { s
               </button>
             </div>
           )}
+        </>
+      )}
+      {lab.length > 0 && (
+        <>
+          <div className="st-sec">
+            <h4>Lab skills</h4>
+            <span className="st-count">{lab.length}</span>
+          </div>
+          <div className="st-cards">{lab.map(card)}</div>
         </>
       )}
     </>

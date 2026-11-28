@@ -16,6 +16,8 @@ import type { AgentContext } from './context';
 import { agentFiles } from './files';
 import { projectContext, readingContext, sandboxContext, skillContext, timeContext, webContext } from './prompt';
 import { takeSkill } from '@/lib/skills/store';
+import { skillLabOf } from '@/lib/skills/lab';
+import { labChatFor, labProjectFor } from '@/lib/labs/chat';
 import { listProjects } from '@/lib/shelf/store/projects';
 import { research, RESEARCH_MS } from './research';
 import { replyCredits, type ReplyCredits, type ReplyKind } from './credits';
@@ -95,7 +97,7 @@ type Start = { conversation: Conversation; run(deps: LoopDeps, history: Paramete
 /* A reply as a stream of events. The work happens while the stream is open. */
 async function streamReply(userId: string, req: Request, start: () => Promise<Start>, modelId: string | null | undefined, replyMs = REPLY_MS, kind: ReplyKind = 'assistant'): Promise<Response> {
   if (!(await allow(`agent:${userId}`, 60, PER_MINUTE))) throw new AgentHttpError(429, 'Too many messages. Please wait a moment.', 'busy');
-  const limits = await limitsOf(userId);
+  let limits = await limitsOf(userId);
   if (kind === 'research' && limits.researchBudgetCap == null) throw new AgentHttpError(403, 'Deep research needs a plan. Choose one on the pricing page.', 'plan_required');
 
   // every provider call this reply makes is charged to its credits (set once the model is known)
@@ -104,6 +106,12 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
   const meter = newMeter(hooks);
   const models = await chatModelsFor(meter);
   const { conversation, run, extraSystem, named, timeZone } = await start();
+  // a chat inside a lab project: who may write, the lab's shelf for the tools, and whose credits pay
+  const labChat = await labChatFor({ db: pool, limitsOf }, userId, conversation);
+  if (conversation.labId && !labChat) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
+  if (labChat && !labChat.canPost) throw new AgentHttpError(403, 'You can read this chat. Only people who can edit the project can write in it.', 'forbidden');
+  const payer = labChat?.payer ?? userId;
+  if (payer !== userId) limits = await limitsOf(payer);
   let model;
   try {
     // a model the plan doesn't allow: refused when asked for, replaced by the plan's default when it's the chat's own
@@ -113,20 +121,20 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     throw e;
   }
   if (!model) throw new AgentHttpError(503, 'The assistant isn’t set up yet: no AI model is available.', 'unavailable');
-  const reply = replyCredits(wallet(), { userId, kind, model, limits, ttlMs: replyMs + 5 * 60_000, meta: { conversationId: conversation.id } });
+  const reply = replyCredits(wallet(), { userId: payer, kind, model, limits, ttlMs: replyMs + 5 * 60_000, meta: { conversationId: conversation.id, ...(labChat ? { labId: labChat.lab.id, memberId: userId } : {}) } });
   try {
     await reply.start();
   } catch (e) {
-    if (e instanceof InsufficientCredits) throw new AgentHttpError(402, `${e.message} Choose a plan or top up to continue.`, 'insufficient_credits');
+    if (e instanceof InsufficientCredits) throw new AgentHttpError(402, payer !== userId ? 'The lab is out of credits for now. Ask its owner to top up.' : `${e.message}${labChat?.overCap ? ' You’ve reached your lab credit cap for this month, so your own credits are used.' : ''} Choose a plan or top up to continue.`, 'insufficient_credits');
     if (isCreditError(e)) throw new AgentHttpError(429, e.message, e.code);
     throw e;
   }
   credits = reply;
-  if (!(await claimRun(pool, userId, conversation.id, Math.ceil(replyMs / 1000) + 30))) {
+  if (!(await claimRun(pool, conversation.ownerId, conversation.id, Math.ceil(replyMs / 1000) + 30))) {
     await reply.finish({ outcome: 'busy', useful: false });
     throw new AgentHttpError(409, 'Still working on your last message.', 'busy');
   }
-  if (model.id !== conversation.model) await setModel(pool, userId, conversation.id, model.id);
+  if (model.id !== conversation.model) await setModel(pool, conversation.ownerId, conversation.id, model.id);
 
   const papers = papersServer();
   const papersConfig = papersConfigFor(papers.config, limits);
@@ -154,6 +162,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     credits: reply.meter,
     limits,
     timeZone,
+    ...(labChat ? { shelfUserId: labChat.lab.shelfUserId } : {}),
   };
 
   const encoder = new TextEncoder();
@@ -177,7 +186,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     chat: models.provider(model),
     model,
     emit,
-    save: (m) => appendMessages(pool, conversation.id, m),
+    save: (m) => appendMessages(pool, conversation.id, m, userId),
     setPending: (p) => setPending(pool, conversation.id, p),
     maxTurns: MAX_TURNS,
     deadline: Date.now() + replyMs,
@@ -187,7 +196,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
       ? {
           naming: {
             async onTitle(title: string) {
-              if (await renameConversation(pool, userId, conversation.id, title)) emit({ type: 'title', title });
+              if (await renameConversation(pool, conversation.ownerId, conversation.id, title)) emit({ type: 'title', title });
             },
           },
         }
@@ -234,7 +243,10 @@ export function replyToMessage(req: Request, userId: string, body: { conversatio
       if (body.conversationId && !conversation) throw new AgentHttpError(404, 'That conversation no longer exists.', 'not_found');
       if (!conversation) {
         const model = await newChatModel(userId, body.model);
-        conversation = await createConversation(pool, userId, titleFrom(reading?.title ?? (body.text || body.attachments?.[0]?.name || '')), model.id, reading?.id ?? null);
+        // started with a lab project picked: the chat belongs to that project (its people see it)
+        const labProject = body.projectId && !reading ? await labProjectFor(pool, userId, body.projectId).catch(() => null) : null;
+        if (labProject && !labProject.canEdit) throw new AgentHttpError(403, 'You can read this project, but not start chats in it.', 'forbidden');
+        conversation = await createConversation(pool, userId, titleFrom(reading?.title ?? (body.text || body.attachments?.[0]?.name || '')), model.id, reading?.id ?? null, labProject ? { labId: labProject.lab.id, projectId: body.projectId! } : null);
         // a chat about the open paper keeps the paper's title; others are titled by the model
         named = !reading;
       }
@@ -242,11 +254,11 @@ export function replyToMessage(req: Request, userId: string, body: { conversatio
       if (conversation.pending) await setPending(pool, conversation.id, null);
       // the Web switch, as the user left it for this message
       if (body.webSearch !== undefined && body.webSearch !== conversation.webSearch) {
-        await setWebSearch(pool, userId, conversation.id, body.webSearch);
+        await setWebSearch(pool, conversation.ownerId, conversation.id, body.webSearch);
         conversation = { ...conversation, webSearch: body.webSearch };
       }
       // a skill and a shelf project picked in the + menu, for this message
-      const extra = (reading?.context ?? '') + (await messageExtras(userId, body));
+      const extra = (reading?.context ?? '') + (await messageExtras(userId, { ...body, projectId: body.projectId ?? conversation.projectId }, conversation));
       return { conversation, run: (deps, history) => answer(deps, history, body.text, body.attachments ?? []), extraSystem: extra || undefined, named, timeZone: body.timeZone };
     },
     body.model,
@@ -270,7 +282,7 @@ export function replyWithResearch(req: Request, userId: string, body: { conversa
       }
       if (conversation.pending) await setPending(pool, conversation.id, null);
       if (body.webSearch !== undefined && body.webSearch !== conversation.webSearch) {
-        await setWebSearch(pool, userId, conversation.id, body.webSearch);
+        await setWebSearch(pool, conversation.ownerId, conversation.id, body.webSearch);
         conversation = { ...conversation, webSearch: body.webSearch };
       }
       return { conversation, run: (deps) => research(deps, body.text), named, timeZone: body.timeZone };
@@ -292,7 +304,7 @@ export function replyToRetry(req: Request, userId: string, body: { conversationI
       if (conversation.pending) await setPending(pool, conversation.id, null);
       if (!(await loadMessages(pool, conversation.id)).some((m) => m.message.role === 'user')) throw new AgentHttpError(409, 'There is no message to answer again.', 'bad_request');
       if (body.webSearch !== undefined && body.webSearch !== conversation.webSearch) {
-        await setWebSearch(pool, userId, conversation.id, body.webSearch);
+        await setWebSearch(pool, conversation.ownerId, conversation.id, body.webSearch);
         conversation = { ...conversation, webSearch: body.webSearch };
       }
       const id = conversation.id;
@@ -300,7 +312,7 @@ export function replyToRetry(req: Request, userId: string, body: { conversationI
       return {
         conversation,
         run: async (deps) => {
-          await dropAfterLastUserMessage(pool, userId, id);
+          await dropAfterLastUserMessage(pool, conversation.ownerId, id);
           await retry(deps, repairHistory((await loadMessages(pool, id)).map((m) => m.message)));
         },
       };
@@ -311,15 +323,17 @@ export function replyToRetry(req: Request, userId: string, body: { conversationI
 
 /* The skill and the shelf project picked for a message, as instructions (a
    skill that was removed or switched off, or a project that's gone, is left out). */
-async function messageExtras(userId: string, body: { skill?: string | null; projectId?: string | null }): Promise<string> {
+async function messageExtras(userId: string, body: { skill?: string | null; projectId?: string | null }, conv?: Conversation): Promise<string> {
   let out = '';
   if (body.skill) {
-    const skill = await takeSkill(pool, userId, body.skill).catch(() => null);
+    const skill = await takeSkill(pool, userId, body.skill, await skillLabOf(pool, userId).catch(() => null)).catch(() => null);
     if (skill) out += skillContext(skill);
   }
   if (body.projectId) {
-    const project = (await listProjects(pool, userId).catch(() => [] as Awaited<ReturnType<typeof listProjects>>)).find((p) => p.id === body.projectId);
-    if (project) out += projectContext(project);
+    // a lab chat's project is on the lab's shelf
+    const shelfUser = conv?.labId ? (await labProjectFor(pool, userId, conv.projectId ?? body.projectId).catch(() => null))?.lab.shelfUserId : null;
+    const project = (await listProjects(pool, shelfUser ?? userId).catch(() => [] as Awaited<ReturnType<typeof listProjects>>)).find((p) => p.id === body.projectId);
+    if (project) out += projectContext(project, !!shelfUser);
   }
   return out;
 }

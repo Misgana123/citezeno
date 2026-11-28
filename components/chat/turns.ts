@@ -5,12 +5,12 @@ import type { Entry } from './events';
    assistant did after it), for the chat page and the shared chat page. */
 
 /* Entries as turns: each user message with everything the assistant did after it. */
-export type Turn = { key: number; user: string | null; files?: AttachmentView[]; parts: Entry[] };
+export type Turn = { key: number; user: string | null; files?: AttachmentView[]; parts: Entry[]; /* lab chats: who asked, when not you */ author?: string };
 
 export function toTurns(entries: Entry[]): Turn[] {
   const turns: Turn[] = [];
   entries.forEach((e, i) => {
-    if (e.kind === 'user') turns.push({ key: i, user: e.text, files: e.attachments, parts: [] });
+    if (e.kind === 'user') turns.push({ key: i, user: e.text, files: e.attachments, parts: [], ...('author' in e && e.author ? { author: e.author } : {}) });
     else if (turns.length) turns.at(-1)!.parts.push(e);
     else turns.push({ key: i, user: null, parts: [e] });
   });

@@ -28,7 +28,7 @@ describe.skipIf(!TEST_DB_URL)('plans and payments', { timeout: 90_000 }, () => {
   const clock = () => new Date(now);
   beforeAll(async () => {
     db = await openTestDb();
-    await db.pool.query(`alter table "user" add column email text, add column name text`);
+    await db.pool.query(`alter table "user" add column if not exists email text, add column if not exists name text`);
     w = createWallet(db.pool, clock);
     b = createBilling(db.pool, w, ENV, clock);
   });

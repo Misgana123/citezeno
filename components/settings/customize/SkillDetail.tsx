@@ -6,6 +6,7 @@ import { confirmDialog } from '../../confirm';
 import { Icon } from '../../Icon';
 import { addBuiltinSkill, createSkill, removeSkill, updateSkill } from '../../skills/api';
 import { reloadSkills } from '../../skills/useSkills';
+import { useLab } from '../../labs/useLab';
 import { toast } from '../../toast';
 
 type Detail = { type: 'skill'; id: string } | { type: 'builtin'; slug: string } | { type: 'new-skill' };
@@ -16,7 +17,10 @@ export function SkillDetail({ detail, catalog, onBack, onOpen }: { detail: Detai
   const mine = detail.type === 'skill' ? catalog?.mine.find((s) => s.id === detail.id) : undefined;
   const listing = detail.type === 'builtin' ? catalog?.discover.find((l) => l.slug === detail.slug) : undefined;
   const added = listing ? catalog?.mine.find((s) => s.by === 'citezeno' && s.name === listing.slug) : undefined;
-  const own = detail.type === 'new-skill' || mine?.by === 'you';
+  const own = detail.type === 'new-skill' || mine?.by === 'you' || (mine?.by === 'lab' && !!mine.canEdit);
+  const { lab } = useLab();
+  const canShare = detail.type === 'new-skill' && (lab?.role === 'owner' || lab?.role === 'admin');
+  const [forLab, setForLab] = useState(false);
 
   const [name, setName] = useState(mine?.name ?? '');
   const [description, setDescription] = useState(mine?.description ?? '');
@@ -42,7 +46,7 @@ export function SkillDetail({ detail, catalog, onBack, onOpen }: { detail: Detai
     e.preventDefault();
     if (detail.type === 'new-skill') {
       let id = '';
-      if (await run(async () => (id = (await createSkill({ name, description, instructions })).id), 'Skill saved')) onOpen(id);
+      if (await run(async () => (id = (await createSkill({ name, description, instructions, ...(forLab ? { forLab: true } : {}) })).id), forLab ? 'Lab skill saved' : 'Skill saved')) onOpen(id);
     } else if (mine) await run(() => updateSkill(mine.id, { name, description, instructions }), 'Skill saved');
   };
 
@@ -73,7 +77,7 @@ export function SkillDetail({ detail, catalog, onBack, onOpen }: { detail: Detai
   if (own) {
     return (
       <section>
-        {header(detail.type === 'new-skill' ? 'New skill' : mine!.name, 'Your own instructions. Pick the skill in the chat’s + menu to use it for a message.', mine && (
+        {header(detail.type === 'new-skill' ? 'New skill' : mine!.name, mine?.by === 'lab' ? 'A lab skill: every member of your lab can pick it in the + menu.' : 'Your own instructions. Pick the skill in the chat’s + menu to use it for a message.', mine && (
           <button type="button" className="st-btn is-danger" disabled={busy} onClick={() => remove(mine.id, mine.name, true)}>
             Delete
           </button>
@@ -91,6 +95,11 @@ export function SkillDetail({ detail, catalog, onBack, onOpen }: { detail: Detai
             Instructions
             <textarea className="st-input" value={instructions} onChange={(e) => setInstructions(e.target.value)} maxLength={SKILL_LIMITS.instructionsMax} required placeholder={'Write the steps the assistant should follow, for example:\n1. Use APA 7 with the DOI as a link.\n2. Put the reference list at the end, sorted by author.'} />
           </label>
+          {canShare && (
+            <label className="st-check">
+              <input type="checkbox" checked={forLab} onChange={(e) => setForLab(e.target.checked)} /> Share with my lab ({lab?.lab?.name}): every member sees it in the + menu
+            </label>
+          )}
           <div className="st-acts">
             <button type="button" className="st-btn" onClick={onBack}>
               Cancel
@@ -108,6 +117,25 @@ export function SkillDetail({ detail, catalog, onBack, onOpen }: { detail: Detai
   const slug = listing?.slug ?? mine?.name ?? '';
   const about = listing?.description ?? mine?.description ?? '';
   const category = listing?.category ?? mine?.category ?? '';
+  // a lab skill a member can't change: shown as it is, nothing to switch or remove
+  if (mine?.by === 'lab')
+    return (
+      <section>
+        {header(mine.name, 'Shared by your lab. Its admins can change it.')}
+        <div className="st-group">
+          <h4>What it does</h4>
+          <p className="st-hint" style={{ margin: 0 }}>
+            {mine.description || 'Your lab’s own instructions.'}
+          </p>
+        </div>
+        {mine.instructions && (
+          <div className="st-group">
+            <h4>Instructions</h4>
+            <pre className="st-pre">{mine.instructions}</pre>
+          </div>
+        )}
+      </section>
+    );
   return (
     <section>
       {header(

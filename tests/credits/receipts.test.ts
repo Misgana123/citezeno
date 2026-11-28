@@ -5,7 +5,7 @@ import { publicEntries } from '@/lib/agent/share';
 import { createWallet, type Wallet } from '@/lib/credits/wallet';
 import { openTestDb, TEST_DB_URL, type TestDb } from '../shelf/testdb';
 
-const conv = { id: 'c', title: 't', model: 'm', pinned: false, webSearch: false, pending: null, costUsd: 0, createdAt: '', updatedAt: '' };
+const conv = { id: 'c', title: 't', model: 'm', pinned: false, webSearch: false, pending: null, costUsd: 0, createdAt: '', updatedAt: '', ownerId: 'u', labId: null, projectId: null };
 
 describe('receipts on answers', () => {
   it('puts a reply’s bill on its last answer as it arrives', () => {

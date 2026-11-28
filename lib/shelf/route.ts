@@ -14,6 +14,7 @@ import { shelfConfig, type ShelfConfig } from './config';
 import type { Db } from './db';
 import { ShelfError } from './errors';
 import { shelfErrorResponse, shelfSignedOut } from './respond';
+import { actorDb, guestGate, spaceOf, type LabSpace } from '@/lib/labs/shelf';
 
 /* Wraps every /api/shelf handler: signed-in users only, same-origin checks on
    changes, a per-user request rate, and errors turned into JSON. Paper data
@@ -22,7 +23,12 @@ import { shelfErrorResponse, shelfSignedOut } from './respond';
 
 export type ShelfContext = {
   req: Request;
+  /* whose shelf: the user's own, or their lab's shelf account in the lab space */
   userId: string;
+  /* who is acting (the signed-in user) */
+  actorId: string;
+  /* the lab space, when the request works on a lab's shelf */
+  space: LabSpace | null;
   db: Db;
   config: ShelfConfig;
   /* The enabled paper sources, primary first (as Find Papers uses them), created on first use. */
@@ -44,17 +50,29 @@ export function shelfRoute<P = Record<string, never>>(handler: (ctx: ShelfContex
     const meter = newMeter();
     let sources: PaperSources | null = null;
     let reservation: Reservation | null = null;
+    let release: (() => Promise<void>) | null = null;
     try {
       if (!(await allow(`shelf:${s.user.id}`, 60, PER_MINUTE))) {
         throw new PapersError('busy', 'Too many requests from this user.', { reason: 'user_rate', retryAfterS: 30 });
       }
+      // the lab space: the lab's shelf, under the lab owner's plan, with who acted recorded
+      const space = await spaceOf(pool, req, s.user.id);
+      let db: Db = pool;
+      if (space) {
+        await guestGate(pool, space, req);
+        const a = await actorDb(pool, s.user.id);
+        db = a.db;
+        release = a.release;
+      }
       // the plan's limits (PDF size, storage, uploads, shelf size, searches) in place of the defaults
-      const limits = await planLimits(s.user.id);
+      const limits = await planLimits(space ? space.ownerId : s.user.id);
       return await handler(
         {
           req,
-          userId: s.user.id,
-          db: pool,
+          userId: space ? space.shelfUserId : s.user.id,
+          actorId: s.user.id,
+          space,
+          db,
           config: shelfConfigFor(shelfConfig(), limits),
           sources: () => (sources ??= papersServer().sources(meter)),
           reserveSearches: async (n) => {
@@ -76,6 +94,7 @@ export function shelfRoute<P = Record<string, never>>(handler: (ctx: ShelfContex
       return shelfErrorResponse(e);
     } finally {
       await (reservation as Reservation | null)?.settle(meter.searches);
+      await (release as (() => Promise<void>) | null)?.().catch(() => {});
     }
   };
 }

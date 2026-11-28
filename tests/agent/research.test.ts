@@ -120,7 +120,7 @@ describe('deep research', () => {
     // paper searches don't list their papers; the report's sources do
     expect(last.ui!.filter((s) => s.name === 'search_papers').every((s) => !s.display?.papers)).toBe(true);
 
-    const view = toView({ id: 'c', title: 't', model: 'test', pinned: false, webSearch: false, pending: null, costUsd: 0, createdAt: '', updatedAt: '' }, h.saved);
+    const view = toView({ id: 'c', title: 't', model: 'test', pinned: false, webSearch: false, pending: null, costUsd: 0, createdAt: '', updatedAt: '', ownerId: 'u', labId: null, projectId: null }, h.saved);
     expect(view.entries.map((e) => e.kind)).toEqual(['user', 'steps', 'assistant']);
   });
 

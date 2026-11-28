@@ -6,6 +6,7 @@ import type { SettingsSection, SettingsTarget } from './open';
 import { useAccount } from './useAccount';
 import { AccountSection } from './sections/AccountSection';
 import { AppearanceSection } from './sections/AppearanceSection';
+import { LabSection } from './sections/LabSection';
 import { LibrarySection } from './sections/LibrarySection';
 import { SecuritySection } from './sections/SecuritySection';
 import { UsageSection } from './sections/UsageSection';
@@ -19,6 +20,7 @@ type NavItem = { id: SettingsSection; label: string; icon: IconName; words: stri
 const NAV: (NavItem | 'sep')[] = [
   { id: 'account', label: 'Account', icon: 'user', words: 'account profile name email delete' },
   { id: 'usage', label: 'Credits and usage', icon: 'gauge', words: 'usage credits billing plan top up receipts invoice history limits' },
+  { id: 'lab', label: 'Lab', icon: 'users', words: 'lab team group members invite workspace share seats caps' },
   'sep',
   { id: 'appearance', label: 'Appearance', icon: 'palette', words: 'appearance theme dark light system' },
   { id: 'library', label: 'Library', icon: 'book', words: 'library traces citation studio' },
@@ -67,6 +69,7 @@ export function SettingsDialog({ target, onClose }: { target: SettingsTarget; on
   else if (!account.data) body = <div className="st-loading">{account.error ?? 'Loading…'}</div>;
   else if (section === 'account') body = <AccountSection account={account} />;
   else if (section === 'usage') body = <UsageSection account={account} />;
+  else if (section === 'lab') body = <LabSection userId={account.data.user.id} />;
   else if (section === 'library') body = <LibrarySection account={account} onClose={onClose} />;
   else body = <SecuritySection account={account} />;
 

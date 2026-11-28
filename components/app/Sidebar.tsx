@@ -79,10 +79,14 @@ function ChatRow({ chat, active, onDone }: { chat: ConversationSummary; active: 
       >
         <span className="cz-chat-title">{chat.title}</span>
         {chat.paperId && <span className="cz-chat-tag">Paper</span>}
+        {chat.lab && <span className="cz-chat-tag" title="A chat in a lab project: its people can read it">Lab</span>}
       </Link>
-      <button type="button" className="cz-chat-more" aria-label={`More for “${chat.title}”`} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
-        <Icon name="dots" />
-      </button>
+      {/* someone else's lab chat: only its owner pins, renames or deletes it */}
+      {!(chat.lab && chat.mine === false) && (
+        <button type="button" className="cz-chat-more" aria-label={`More for “${chat.title}”`} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+          <Icon name="dots" />
+        </button>
+      )}
       {menu && (
         <div className="cz-menu" role="menu">
           <button type="button" role="menuitem" onClick={() => act(() => pinChat(chat.id, !chat.pinned))}>

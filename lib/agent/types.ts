@@ -29,7 +29,8 @@ export type MessageMeta = {
 
 /* A message as stored: the chat format plus what the page shows for it. */
 /* seq, createdAt and feedback come back when messages are loaded (the user's thumbs up or down on an answer) */
-export type StoredMessage = { message: ChatMessage; ui?: StepView[] | null; costUsd?: number; meta?: MessageMeta | null; seq?: number; createdAt?: string; feedback?: Feedback | null };
+/* authorId: in a lab chat, who wrote a user message (a user ID) */
+export type StoredMessage = { message: ChatMessage; ui?: StepView[] | null; costUsd?: number; meta?: MessageMeta | null; seq?: number; createdAt?: string; feedback?: Feedback | null; authorId?: string | null };
 
 export type Feedback = 'up' | 'down';
 

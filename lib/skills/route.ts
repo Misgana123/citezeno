@@ -6,11 +6,13 @@ import { json, sameOrigin } from '@/lib/http';
 import { allow } from '@/lib/ratelimit';
 import type { Db } from '@/lib/shelf/db';
 import { isSkillError, SKILL_STATUS, SkillError } from './types';
+import type { SkillLab } from './store';
+import { skillLabOf } from './lab';
 
 /* Wraps every /api/skills handler: signed-in users only, same-origin checks
    on changes, a per-user request rate, and errors turned into JSON. */
 
-export type SkillContext = { req: Request; userId: string; db: Db; body<S extends z.ZodType>(schema: S): Promise<z.infer<S>> };
+export type SkillContext = { req: Request; userId: string; db: Db; body<S extends z.ZodType>(schema: S): Promise<z.infer<S>>; /* the user's lab (its shared skills) */ lab(): Promise<SkillLab | null> };
 
 const PER_MINUTE = 60;
 
@@ -26,6 +28,7 @@ export function skillRoute<P = Record<string, never>>(handler: (ctx: SkillContex
           req,
           userId: s.user.id,
           db: pool,
+          lab: () => skillLabOf(pool, s.user.id),
           body: async (schema) => {
             const r = schema.safeParse(await req.json().catch(() => null));
             if (!r.success) throw new SkillError('bad_request', r.error.issues[0]?.message || 'The request could not be read.');

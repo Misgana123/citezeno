@@ -96,11 +96,11 @@ ${skill.instructions.replace(/<\/skill>/gi, '<\\/skill>')}
 }
 
 /* A shelf project the user picked in the + menu ("Add from shelf"). */
-export function projectContext(project: { id: string; name: string; count: number }): string {
+export function projectContext(project: { id: string; name: string; count: number }, lab = false): string {
   return `
 
 Shelf project for this message
-- The user is asking about their shelf project "${project.name.replace(/"/g, '')}" (projectId ${project.id}, ${project.count} papers). Use list_library with this projectId to see its papers before answering, and work from them first.`;
+- The user is asking about ${lab ? 'their lab’s shared project' : 'their shelf project'} "${project.name.replace(/"/g, '')}" (projectId ${project.id}, ${project.count} papers). Use list_library with this projectId to see its papers before answering, and work from them first.${lab ? ' This chat belongs to the lab project: everyone in the project can read it, and the shelf tools work on the lab’s shared shelf.' : ''}`;
 }
 
 /* Tool results as the model reads them: marked as data from the outside world. */

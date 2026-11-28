@@ -3,11 +3,19 @@ import type { ChatMessage } from '@/lib/providers/chat/types';
 import { iso, tx, type Db, type Queryable } from '@/lib/shelf/db';
 import type { Feedback, MessageMeta, Pending, StepView, StoredMessage } from './types';
 
-/* Conversations and their messages. Every query is scoped to the user. */
+/* Conversations and their messages. Every query is scoped to the user; a chat
+   inside a lab project is also open to that project's people (the lab's
+   members, and guests the project is shared with). */
 
-export type Conversation = { id: string; title: string; model: string; pinned: boolean; webSearch: boolean; pending: Pending | null; costUsd: number; createdAt: string; updatedAt: string };
-/* paperId: a paper's own conversation (opened in the reader) */
-export type ConversationSummary = Pick<Conversation, 'id' | 'title' | 'model' | 'pinned' | 'updatedAt'> & { paperId?: string | null };
+/* ownerId: who started it; labId / projectId: a chat inside a lab project */
+export type Conversation = { id: string; title: string; model: string; pinned: boolean; webSearch: boolean; pending: Pending | null; costUsd: number; createdAt: string; updatedAt: string; ownerId: string; labId: string | null; projectId: string | null };
+/* paperId: a paper's own conversation (opened in the reader); lab: a lab project's chat (mine: started by me) */
+export type ConversationSummary = Pick<Conversation, 'id' | 'title' | 'model' | 'pinned' | 'updatedAt'> & { paperId?: string | null; lab?: boolean; mine?: boolean };
+
+/* Who may open a conversation: its owner, or someone in its lab project. ($2 is the user) */
+const CAN_SEE = `(c."userId" = $2 or (c."labId" is not null and exists (
+  select 1 from lab_member m where m."labId" = c."labId" and m."userId" = $2
+    and (m.role <> 'guest' or exists (select 1 from lab_project_access a where a."projectId" = c."projectId" and a."userId" = $2)))))`;
 
 export const TITLE_MAX = 80;
 
@@ -27,29 +35,45 @@ const row = (r: Record<string, unknown>): Conversation => ({
   costUsd: Number(r.costUsd ?? 0),
   createdAt: iso(r.createdAt as Date)!,
   updatedAt: iso(r.updatedAt as Date)!,
+  ownerId: r.userId as string,
+  labId: (r.labId as string | null) ?? null,
+  projectId: (r.projectId as string | null) ?? null,
 });
 
-const COLS = `id, title, model, pinned, "webSearch", pending, "costUsd", "createdAt", "updatedAt"`;
+const COLS = `id, title, model, pinned, "webSearch", pending, "costUsd", "createdAt", "updatedAt", "userId", "labId", "projectId"`;
 
-export async function createConversation(q: Queryable, userId: string, title: string, model: string, paperId: string | null = null): Promise<Conversation> {
-  const { rows } = await q.query(`insert into agent_conversation (id, "userId", title, model, "paperId") values ($1, $2, $3, $4, $5) returning ${COLS}`, [
+export async function createConversation(q: Queryable, userId: string, title: string, model: string, paperId: string | null = null, lab: { labId: string; projectId: string } | null = null): Promise<Conversation> {
+  const { rows } = await q.query(`insert into agent_conversation (id, "userId", title, model, "paperId", "labId", "projectId") values ($1, $2, $3, $4, $5, $6, $7) returning ${COLS}`, [
     `c_${randomUUID()}`,
     userId,
     title.slice(0, TITLE_MAX),
     model,
     paperId,
+    lab?.labId ?? null,
+    lab?.projectId ?? null,
   ]);
   return row(rows[0]);
 }
 
 export async function getConversation(q: Queryable, userId: string, id: string): Promise<Conversation | null> {
-  const { rows } = await q.query(`select ${COLS} from agent_conversation where id = $1 and "userId" = $2`, [id, userId]);
+  const { rows } = await q.query(`select ${COLS} from agent_conversation c where c.id = $1 and ${CAN_SEE}`, [id, userId]);
   return rows[0] ? row(rows[0]) : null;
 }
 
 export async function listConversations(q: Queryable, userId: string, limit = 100): Promise<ConversationSummary[]> {
-  const { rows } = await q.query(`select id, title, model, pinned, "updatedAt", "paperId" from agent_conversation where "userId" = $1 order by pinned desc, "updatedAt" desc limit $2`, [userId, limit]);
-  return rows.map((r) => ({ id: r.id, title: r.title, model: r.model, pinned: r.pinned === true, updatedAt: iso(r.updatedAt)!, ...(r.paperId ? { paperId: r.paperId as string } : {}) }));
+  const { rows } = await q.query(
+    `select c.id, c.title, c.model, (c.pinned and c."userId" = $2) as pinned, c."updatedAt", c."paperId", c."labId", c."userId" from agent_conversation c where ${CAN_SEE} order by 4 desc, c."updatedAt" desc limit $1`,
+    [limit, userId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    model: r.model,
+    pinned: r.pinned === true,
+    updatedAt: iso(r.updatedAt)!,
+    ...(r.paperId ? { paperId: r.paperId as string } : {}),
+    ...(r.labId ? { lab: true, mine: r.userId === userId } : {}),
+  }));
 }
 
 export async function renameConversation(q: Queryable, userId: string, id: string, title: string): Promise<boolean> {
@@ -114,7 +138,7 @@ export async function noteCredits(db: Db, conversationId: string, bill: { credit
 }
 
 /* Add messages at the end, and their cost to the conversation's total. Returns their numbers. */
-export async function appendMessages(db: Db, conversationId: string, messages: StoredMessage[]): Promise<number[]> {
+export async function appendMessages(db: Db, conversationId: string, messages: StoredMessage[], authorId?: string): Promise<number[]> {
   if (!messages.length) return [];
   const seqs: number[] = [];
   await tx(db, async (q) => {
@@ -125,9 +149,11 @@ export async function appendMessages(db: Db, conversationId: string, messages: S
       cost += m.costUsd ?? 0;
       seqs.push(++seq);
       const values = [conversationId, seq, m.message.role, JSON.stringify(m.message), m.ui ? JSON.stringify(m.ui) : null, m.costUsd ?? 0];
+      // who wrote a user message (lab chats show it)
+      const author = m.message.role === 'user' ? (m.authorId ?? authorId ?? null) : null;
       // the reader's meta column exists once its tables are migrated; plain chats never need it
-      if (m.meta) await q.query(`insert into agent_message ("conversationId", seq, role, content, ui, "costUsd", meta) values ($1, $2, $3, $4, $5, $6, $7)`, [...values, JSON.stringify(m.meta)]);
-      else await q.query(`insert into agent_message ("conversationId", seq, role, content, ui, "costUsd") values ($1, $2, $3, $4, $5, $6)`, values);
+      if (m.meta) await q.query(`insert into agent_message ("conversationId", seq, role, content, ui, "costUsd", meta, "authorId") values ($1, $2, $3, $4, $5, $6, $7, $8)`, [...values, JSON.stringify(m.meta), author]);
+      else await q.query(`insert into agent_message ("conversationId", seq, role, content, ui, "costUsd", "authorId") values ($1, $2, $3, $4, $5, $6, $7)`, [...values, author]);
     }
     await q.query(`update agent_conversation set "costUsd" = "costUsd" + $2, "updatedAt" = now() where id = $1`, [conversationId, cost]);
   });
@@ -136,7 +162,7 @@ export async function appendMessages(db: Db, conversationId: string, messages: S
 
 /* upTo: only the messages up to this one (a shared link's snapshot) */
 export async function loadMessages(q: Queryable, conversationId: string, upTo?: number): Promise<StoredMessage[]> {
-  const { rows } = await q.query<{ seq: number; content: ChatMessage; ui: StepView[] | null; costUsd: number; createdAt: Date; feedback?: Feedback | null; meta?: MessageMeta | null }>(
+  const { rows } = await q.query<{ seq: number; content: ChatMessage; ui: StepView[] | null; costUsd: number; createdAt: Date; feedback?: Feedback | null; meta?: MessageMeta | null; authorId?: string | null }>(
     upTo === undefined ? `select * from agent_message where "conversationId" = $1 order by seq` : `select * from agent_message where "conversationId" = $1 and seq <= $2 order by seq`,
     upTo === undefined ? [conversationId] : [conversationId, upTo],
   );
@@ -148,6 +174,7 @@ export async function loadMessages(q: Queryable, conversationId: string, upTo?: 
     createdAt: iso(r.createdAt)!,
     ...(r.feedback ? { feedback: r.feedback } : {}),
     ...(r.meta ? { meta: r.meta } : {}),
+    ...(r.authorId ? { authorId: r.authorId } : {}),
   }));
 }
 

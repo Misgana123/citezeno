@@ -15,10 +15,10 @@ const patch = z.object({
 });
 
 /* Switch a skill on or off, or change one of the user's own. */
-export const PATCH = skillRoute<{ id: string }>(async ({ db, userId, body }, { id }) => json({ skill: await updateSkill(db, userId, id, await body(patch)) }));
+export const PATCH = skillRoute<{ id: string }>(async ({ db, userId, body, lab }, { id }) => json({ skill: await updateSkill(db, userId, id, await body(patch), await lab()) }));
 
 /* Remove a skill (a Citezeno skill can be added again from Discover). */
-export const DELETE = skillRoute<{ id: string }>(async ({ db, userId }, { id }) => {
-  if (!(await deleteSkill(db, userId, id))) throw new SkillError('not_found', 'That skill no longer exists.');
+export const DELETE = skillRoute<{ id: string }>(async ({ db, userId, lab }, { id }) => {
+  if (!(await deleteSkill(db, userId, id, await lab()))) throw new SkillError('not_found', 'That skill no longer exists.');
   return json({ removed: true });
 });

@@ -40,4 +40,9 @@ export type AgentContext = {
   limits?: Limits;
   /* the user's time zone (IANA, from their browser), for dates and times */
   timeZone?: string;
+  /* in a chat inside a lab project: the lab's shelf account, which the shelf tools work on */
+  shelfUserId?: string;
 };
+
+/* Whose shelf the shelf tools work on: the lab's in a lab chat, else the user's. */
+export const shelfOf = (ctx: Pick<AgentContext, 'userId' | 'shelfUserId'>) => ctx.shelfUserId ?? ctx.userId;

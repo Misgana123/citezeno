@@ -3,6 +3,7 @@ import type { SVGProps } from 'react';
 /* A small hand-drawn icon set (24px grid, 1.8 stroke) so the app has no icon dependency. */
 const PATHS: Record<string, string> = {
   /* the Settings dialog and the chat's + menu */
+  users: 'M9 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20c.9-3.4 3.4-5.2 6.5-5.2s5.6 1.8 6.5 5.2M16 4.8a3.3 3.3 0 0 1 0 6.4M18.2 14.9c1.6.7 2.7 2.4 3.3 5.1',
   palette: 'M12 3.5a8.5 8.5 0 0 0 0 17c1.2 0 1.8-.8 1.8-1.7 0-1.3-1-1.5-1-2.6 0-.9.7-1.5 1.6-1.5h2a4.1 4.1 0 0 0 4.1-4.2c0-3.9-3.8-7-8.5-7ZM8 11h.01M11 7.5h.01M15.5 8.5h.01',
   apps: 'M4 4h6.5v6.5H4zM13.5 4H20v6.5h-6.5zM4 13.5h6.5V20H4zM13.5 13.5H20V20h-6.5z',
   skill: 'M6 3.5h9l3 3V20.5H6zM9 9h6M9 12.5h6M9 16h3.5',

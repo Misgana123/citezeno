@@ -48,7 +48,7 @@ describe.skipIf(!TEST_DB_URL)('sharing a chat (Postgres)', () => {
   let t: TestDb;
   beforeAll(async () => {
     t = await openTestDb();
-    await t.pool.query(`alter table "user" add column name text`);
+    await t.pool.query(`alter table "user" add column if not exists name text`);
   });
   afterAll(() => t?.close());
 

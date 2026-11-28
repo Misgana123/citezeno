@@ -4,23 +4,28 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { SETTINGS_EVENT, targetFromParams, type SettingsTarget } from './open';
 import { SettingsDialog } from './SettingsDialog';
+import { JoinLab } from '../labs/JoinLab';
 
 /* Mounted once in the app shell: opens Settings when asked (openSettings(),
-   Ctrl+, or a link with ?settings=…). */
+   Ctrl+, or a link with ?settings=…), and the Join dialog for a lab invitation
+   link (?lab-invite=…). */
 
 function Host() {
   const router = useRouter();
   const path = usePathname();
   const params = useSearchParams();
   const [target, setTarget] = useState<SettingsTarget | null>(null);
+  const [invite, setInvite] = useState<string | null>(null);
 
-  // a link asked for Settings
+  // a link asked for Settings, or is a lab invitation
   useEffect(() => {
     const asked = targetFromParams(params);
-    if (!asked) return;
-    setTarget(asked);
+    const token = params.get('lab-invite');
+    if (!asked && !token) return;
+    if (asked) setTarget(asked);
+    if (token) setInvite(token);
     const next = new URLSearchParams(params);
-    for (const k of ['settings', 'view']) next.delete(k);
+    for (const k of ['settings', 'view', 'lab-invite']) next.delete(k);
     const q = next.toString();
     router.replace(`${path}${q ? `?${q}` : ''}${window.location.hash}`, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -42,7 +47,12 @@ function Host() {
     };
   }, []);
 
-  return target ? <SettingsDialog target={target} onClose={() => setTarget(null)} /> : null;
+  return (
+    <>
+      {target && <SettingsDialog target={target} onClose={() => setTarget(null)} />}
+      {invite && <JoinLab token={invite} onClose={() => setInvite(null)} />}
+    </>
+  );
 }
 
 export function SettingsHost() {

@@ -10,7 +10,7 @@ describe.skipIf(!TEST_DB_URL)('owner reporting', { timeout: 120_000 }, () => {
   let w: Wallet;
   beforeAll(async () => {
     db = await openTestDb();
-    await db.pool.query(`alter table "user" add column email text, add column name text`);
+    await db.pool.query(`alter table "user" add column if not exists email text, add column if not exists name text`);
     w = createWallet(db.pool);
   });
   afterAll(async () => db?.close());
