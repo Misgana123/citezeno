@@ -17,6 +17,7 @@ import { refreshChats, useChatIndex } from './chat-index';
 import { runClientTool } from './citations';
 import { AttachCard } from './AttachCard';
 import { Composer } from './Composer';
+import type { Picked } from './AddMenu';
 import { FilePanel } from './file/FilePanel';
 import { FilePanelProvider, useFilePanelState } from './file/panel-state';
 import { readPaper } from './file/read-paper';
@@ -163,6 +164,9 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
   const [webChoice, setWebSearch] = useState<boolean | null>(null);
   /* Deep research chosen from the + menu, for the next message only */
   const [deepResearch, setDeepResearch] = useState(false);
+  // a skill and a shelf project picked in the + menu, for the next message
+  const [skill, setSkill] = useState<Picked>(null);
+  const [project, setProject] = useState<Picked>(null);
   const abort = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -384,7 +388,10 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
     }
     setEntries((prev) => [...prev, { kind: 'user', text: typed, ...(shown.length ? { attachments: shown } : {}) }]);
     const paperId = asking && panel.files.some((f) => f.paperId === asking) ? asking : null;
-    await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId, webSearch, ...(attachments.length ? { attachments } : {}) }, onEvent, signal));
+    const extras = { ...(skill ? { skill: skill.id } : {}), ...(project ? { projectId: project.id } : {}) };
+    setSkill(null);
+    setProject(null);
+    await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId, webSearch, ...extras, ...(attachments.length ? { attachments } : {}) }, onEvent, signal));
   };
 
   /* Try again: the last answer goes, the last message is answered afresh, then the chat is reloaded as saved. */
@@ -444,6 +451,10 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
       onWebSearch={setWebSearch}
       deepResearch={deepResearch}
       onDeepResearch={setDeepResearch}
+      skill={skill}
+      onSkill={setSkill}
+      project={project}
+      onProject={setProject}
       onSend={() => send()}
       onStop={() => abort.current?.abort()}
     />

@@ -57,9 +57,16 @@ export async function runTool(ctx: AgentContext, name: string, rawInput: unknown
   if (tool.kind === 'client') return { tool, input, label, outcome: { status: 'client' } };
 
   try {
-    if (!opts.confirmed && tool.confirm) {
-      const ask = await tool.confirm(input, ctx);
+    // a connected app's tool: what the user lets the assistant do with it (Settings → Customize)
+    const perm = tool.needs ? ctx.connectors?.permission?.(tool.needs, tool.kind) : undefined;
+    if (perm === 'never') {
+      const app = ctx.connectors?.connected.get(tool.needs!)?.label ?? 'this app';
+      return { tool, input, label, outcome: { status: 'error', message: `The user turned this off for ${app} in Settings → Customize → Connectors.`, code: 'denied' } };
+    }
+    if (!opts.confirmed && perm !== 'allow' && (tool.confirm || perm === 'ask')) {
+      const ask = tool.confirm ? await tool.confirm(input, ctx) : null;
       if (ask) return { tool, input, label, outcome: { status: 'needs_confirmation', ...(typeof ask === 'string' ? { question: ask } : ask) } };
+      if (perm === 'ask') return { tool, input, label, outcome: { status: 'needs_confirmation', question: `Allow this step in ${ctx.connectors?.connected.get(tool.needs!)?.label ?? 'the connected app'}: ${label}?` } };
     }
     return { tool, input, label, outcome: { status: 'done', output: await tool.run(ctx, input) } };
   } catch (e) {

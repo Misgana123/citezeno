@@ -77,7 +77,7 @@ export async function streamReply(url: string, body: unknown, onEvent: (e: Agent
 }
 
 export const sendMessage = (
-  body: { conversationId: string | null; text: string; model: string | null; paperId?: string | null; attachments?: Attachment[]; webSearch?: boolean },
+  body: { conversationId: string | null; text: string; model: string | null; paperId?: string | null; attachments?: Attachment[]; webSearch?: boolean; skill?: string | null; projectId?: string | null },
   onEvent: (e: AgentEvent) => void,
   signal?: AbortSignal,
 ) => streamReply('/api/agent/chat', body, onEvent, signal);

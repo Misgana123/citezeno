@@ -53,10 +53,10 @@ export async function credentialsFor(d: ConnectorDeps, userId: string, name: str
   const { def, connector, keys } = requireConnector(d, name);
   const now = (d.now ?? Date.now)();
   const row = await secretFor(d.db, keys, userId, name);
-  if (!row) throw new ConnectorError('not_connected', `${def.label} isn’t connected. Connect it in Account → Connected apps.`, name);
+  if (!row) throw new ConnectorError('not_connected', `${def.label} isn’t connected. Connect it in Settings → Customize → Connectors.`, name);
   if (row.status === 'needs_reconnect' || !row.credentials) {
     if (!row.credentials && row.status === 'ok') await markNeedsReconnect(d.db, userId, name);
-    throw new ConnectorError('needs_reconnect', `${def.label} needs to be connected again (Account → Connected apps).`, name);
+    throw new ConnectorError('needs_reconnect', `${def.label} needs to be connected again (Settings → Customize → Connectors).`, name);
   }
   if (!expiring(row.credentials, now)) return row.credentials;
 
@@ -65,7 +65,7 @@ export async function credentialsFor(d: ConnectorDeps, userId: string, name: str
   if (!refresh || !row.credentials.refreshToken) {
     if (row.credentials.expiresAt! > now) return row.credentials;
     await markNeedsReconnect(d.db, userId, name);
-    throw new ConnectorError('needs_reconnect', `${def.label} needs to be connected again (Account → Connected apps).`, name);
+    throw new ConnectorError('needs_reconnect', `${def.label} needs to be connected again (Settings → Customize → Connectors).`, name);
   }
   try {
     return await tx(d.db, async (q) => {
@@ -81,7 +81,7 @@ export async function credentialsFor(d: ConnectorDeps, userId: string, name: str
   } catch (e) {
     if (isConnectorAuthError(e)) {
       await markNeedsReconnect(d.db, userId, name);
-      throw new ConnectorError('needs_reconnect', `${def.label} needs to be connected again (Account → Connected apps).`, name);
+      throw new ConnectorError('needs_reconnect', `${def.label} needs to be connected again (Settings → Customize → Connectors).`, name);
     }
     throw e;
   }
@@ -105,13 +105,14 @@ function guarded<T extends object>(api: T, onAuth: () => Promise<never>): T {
   });
 }
 
-/* The connected apps that give each capability, for this user (connections that work). */
-export async function connectedCapabilities(d: ConnectorDeps, userId: string): Promise<Map<Capability, string>> {
+/* The connected apps that give each capability, for this user (connections
+   that work). assistant: only those the user lets the assistant use. */
+export async function connectedCapabilities(d: ConnectorDeps, userId: string, opts: { assistant?: boolean } = {}): Promise<Map<Capability, string>> {
   const out = new Map<Capability, string>();
   if (!d.keys) return out;
   const reg = registryOf(d);
   for (const c of await listConnections(d.db, userId)) {
-    if (c.status !== 'ok' || !Object.hasOwn(reg, c.connector) || !d.build(c.connector)) continue;
+    if (c.status !== 'ok' || (opts.assistant && !c.assistant) || !Object.hasOwn(reg, c.connector) || !d.build(c.connector)) continue;
     for (const cap of reg[c.connector].capabilities) if (!out.has(cap)) out.set(cap, c.connector);
   }
   return out;
@@ -125,7 +126,7 @@ export async function openConnector<C extends Capability>(d: ConnectorDeps, user
   if (!api) throw new ConnectorError('bad_request', `${def.label} can’t do this.`, name);
   return guarded(api as Capabilities[C] & object, async () => {
     await markNeedsReconnect(d.db, userId, name);
-    throw new ConnectorError('needs_reconnect', `${def.label} needs to be connected again (Account → Connected apps).`, name);
+    throw new ConnectorError('needs_reconnect', `${def.label} needs to be connected again (Settings → Customize → Connectors).`, name);
   });
 }
 
@@ -141,7 +142,7 @@ export const capabilityOpener =
 /* The capability from whichever connected app gives it. */
 export async function openCapability<C extends Capability>(d: ConnectorDeps, userId: string, cap: C): Promise<{ api: Capabilities[C]; connector: string; label: string }> {
   const name = (await connectedCapabilities(d, userId)).get(cap);
-  if (!name) throw new ConnectorError('not_connected', `No connected app can do this yet. Connect one in Account → Connected apps.`);
+  if (!name) throw new ConnectorError('not_connected', `No connected app can do this yet. Connect one in Settings → Customize → Connectors.`);
   return { api: await openConnector(d, userId, name, cap), connector: name, label: definitionOf(d, name).label };
 }
 

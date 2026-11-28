@@ -57,9 +57,9 @@ describe('sign-in state', () => {
 
   it('only sends users back to our own pages', () => {
     expect(safeBack('/app/shelf')).toBe('/app/shelf');
-    expect(safeBack('//evil.com')).toBe('/app/account#apps');
-    expect(safeBack('https://evil.com')).toBe('/app/account#apps');
-    expect(safeBack(null)).toBe('/app/account#apps');
+    expect(safeBack('//evil.com')).toBe('/app/chat?settings=customize');
+    expect(safeBack('https://evil.com')).toBe('/app/chat?settings=customize');
+    expect(safeBack(null)).toBe('/app/chat?settings=customize');
   });
 });
 

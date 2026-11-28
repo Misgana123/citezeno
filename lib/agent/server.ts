@@ -15,7 +15,9 @@ import { agentConnectors } from '@/lib/connectors/agent';
 import { shelfConfig } from '@/lib/shelf/config';
 import type { AgentContext } from './context';
 import { agentFiles } from './files';
-import { connectorsContext, readingContext, webContext } from './prompt';
+import { connectorsContext, projectContext, readingContext, skillContext, webContext } from './prompt';
+import { takeSkill } from '@/lib/skills/store';
+import { listProjects } from '@/lib/shelf/store/projects';
 import { research, RESEARCH_MS } from './research';
 import { replyCredits, type ReplyCredits, type ReplyKind } from './credits';
 import { modelAccess, ModelLocked } from './models';
@@ -184,7 +186,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     maxTurns: MAX_TURNS,
     deadline: Date.now() + replyMs,
     extraSystem: (extraSystem ?? '') + (conversation.webSearch ? webContext() : '') + connectorsContext(connectors?.connected),
-    tools: offeredTools({ web: conversation.webSearch, connected: connectors?.connected }),
+    tools: offeredTools({ web: conversation.webSearch, connected: connectors?.connected, permission: connectors?.permission }),
     ...(named
       ? {
           naming: {
@@ -224,7 +226,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
 }
 
 /* A new message, in a new conversation or an existing one. */
-export function replyToMessage(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null; paperId?: string | null; attachments?: Attachment[]; webSearch?: boolean }) {
+export function replyToMessage(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null; paperId?: string | null; attachments?: Attachment[]; webSearch?: boolean; skill?: string | null; projectId?: string | null }) {
   return streamReply(
     userId,
     req,
@@ -247,7 +249,9 @@ export function replyToMessage(req: Request, userId: string, body: { conversatio
         await setWebSearch(pool, userId, conversation.id, body.webSearch);
         conversation = { ...conversation, webSearch: body.webSearch };
       }
-      return { conversation, run: (deps, history) => answer(deps, history, body.text, body.attachments ?? []), extraSystem: reading?.context, named };
+      // a skill and a shelf project picked in the + menu, for this message
+      const extra = (reading?.context ?? '') + (await messageExtras(userId, body));
+      return { conversation, run: (deps, history) => answer(deps, history, body.text, body.attachments ?? []), extraSystem: extra || undefined, named };
     },
     body.model,
   );
@@ -307,6 +311,21 @@ export function replyToRetry(req: Request, userId: string, body: { conversationI
     },
     body.model,
   );
+}
+
+/* The skill and the shelf project picked for a message, as instructions (a
+   skill that was removed or switched off, or a project that's gone, is left out). */
+async function messageExtras(userId: string, body: { skill?: string | null; projectId?: string | null }): Promise<string> {
+  let out = '';
+  if (body.skill) {
+    const skill = await takeSkill(pool, userId, body.skill).catch(() => null);
+    if (skill) out += skillContext(skill);
+  }
+  if (body.projectId) {
+    const project = (await listProjects(pool, userId).catch(() => [])).find((p) => p.id === body.projectId);
+    if (project) out += projectContext(project);
+  }
+  return out;
 }
 
 /* The paper open in the reader, as context for the assistant (null when it can't be found). */

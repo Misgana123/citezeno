@@ -48,5 +48,7 @@ export type AgentContext = {
 export type AgentConnectors = {
   /* capability → the app's name, for the connections that work */
   connected: ReadonlyMap<Capability, { name: string; label: string }>;
+  /* what the user lets the assistant do with the app giving this capability */
+  permission?(cap: Capability, kind: 'read' | 'write'): 'allow' | 'ask' | 'never';
   open<C extends Capability>(cap: C): Promise<{ api: Capabilities[C]; connector: string; label: string }>;
 };

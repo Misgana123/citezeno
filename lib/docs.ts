@@ -98,7 +98,7 @@ export const DOC_ARTICLES: DocArticle[] = [
     { type: 'p', text: 'After signing in you land in the research assistant, ready to ask.' },
     { type: 'h2', text: 'Signing in' },
     { type: 'list', items: ['Tick **Keep me signed in** to stay signed in on that device for up to 30 days.', 'Forgot it? Choose **Forgot password?** on the sign-in page.', 'If you signed up with Google or GitHub and later use the same email, the accounts are linked.'] },
-    { type: 'callout', tone: 'tip', title: 'Turn on two-factor', text: 'Add an authenticator app under **Sign-in and security** on your [account page](/app/account). You also get 10 backup codes in case you lose your phone.' },
+    { type: 'callout', tone: 'tip', title: 'Turn on two-factor', text: 'Add an authenticator app in [Settings → Security](/app/chat?settings=security). You also get 10 backup codes in case you lose your phone.' },
   ]),
   a('ask-your-first-question', 'getting-started', 'Ask your first question', 'What happens when you ask, and how to send a good question.', 3, [
     { type: 'h2', text: 'Ask' },
@@ -513,21 +513,20 @@ export const DOC_ARTICLES: DocArticle[] = [
     { type: 'h2', text: 'Always free' },
     { type: 'p', text: 'Reading, highlighting, citation styles, exports, imports, citation checks and share links never cost anything. Without a plan you can still sign in, read, export and share everything you’ve made.' },
     { type: 'h2', text: 'Change or cancel' },
-    { type: 'p', text: 'Choose **Plans and top-ups** on your [account page](/app/account) to change plan, and **Receipts and subscriptions** to manage billing or cancel. Payments are handled by Polar, which also takes care of sales tax and VAT.' },
+    { type: 'p', text: 'Choose **Plans and top-ups** in [Settings → Credits and usage](/app/chat?settings=usage) to change plan, and **Receipts and subscriptions** to manage billing or cancel. Payments are handled by Polar, which also takes care of sales tax and VAT.' },
   ]),
   a('account-and-security', 'account', 'Account and security', 'Your profile, password, two-factor, devices and history.', 2, [
-    { type: 'p', text: 'Your [account page](/app/account) has these sections:' },
+    { type: 'p', text: 'Open [Settings](/app/chat?settings=account) from your name at the bottom of the sidebar, or press **Ctrl+,** (⌘, on a Mac). It has these sections:' },
     {
       type: 'table',
       head: ['Section', 'What’s there'],
       rows: [
-        ['Profile', 'Your name and email'],
-        ['Credits and billing', 'Your plan, renewal date and receipts'],
+        ['Account', 'Your name and email, and deleting your account'],
+        ['Credits and usage', 'Your plan, renewal date, credits, your plan’s limits, recent activity and receipts'],
+        ['Appearance', 'Light, dark, or the same as your device'],
         ['Library', 'How many traces you’ve saved and sources cited'],
-        ['Connected apps', 'Google Drive, Notion and Zotero, connected to your account ([more](/docs/connected-apps))'],
-        ['Sign-in and security', 'Connected accounts, change password, two-factor'],
-        ['Devices', 'Sign out one device, or all others'],
-        ['Delete account', 'Removes your account and saved work'],
+        ['Security', 'Sign-in methods, change password, two-factor, and the devices you’re signed in on'],
+        ['Customize', 'Connectors (Google Drive, Docs, Sheets, Notion, Zotero) and skills for the assistant ([connectors](/docs/connected-apps), [skills](/docs/skills))'],
       ],
     },
     { type: 'h2', text: 'Activity history' },
@@ -535,7 +534,7 @@ export const DOC_ARTICLES: DocArticle[] = [
     { type: 'callout', tone: 'warn', title: 'Deleting your account', text: 'This can’t be undone. Export your shelf and download your drafts first.' },
   ]),
   a('connected-apps', 'account', 'Connect Google Drive, Notion and Zotero', 'Bring papers and files in from your apps, and send your work back.', 3, [
-    { type: 'p', text: 'Open [Account → Connected apps](/app/account#apps) and choose **Connect**. You sign in on the app’s own page and choose what Citezeno may see. Disconnect at any time; nothing in the app or on your shelf is deleted.' },
+    { type: 'p', text: 'Open [Settings → Customize → Connectors](/app/chat?settings=customize&tab=connectors) and choose **Connect** (or + on an app’s card). You sign in on the app’s own page and choose what Citezeno may see. Disconnect at any time; nothing in the app or on your shelf is deleted.' },
     {
       type: 'table',
       head: ['App', 'What you can do'],
@@ -546,7 +545,8 @@ export const DOC_ARTICLES: DocArticle[] = [
       ],
     },
     { type: 'h2', text: 'In the assistant' },
-    { type: 'p', text: 'Once an app is connected, ask in plain words: “Make a Google Sheet of the papers in my Thesis project”, “Read my Notion page Lab meeting notes”, or “Sync my Zotero library”. The assistant always asks before it changes anything in your apps.' },
+    { type: 'p', text: 'Once an app is connected, ask in plain words: “Make a Google Sheet of the papers in my Thesis project”, “Read my Notion page Lab meeting notes”, or “Sync my Zotero library”. The assistant asks before it changes anything in your apps.' },
+    { type: 'p', text: 'To choose what the assistant may do, open an app in Customize → Connectors. Each kind of action (reading, making or changing things) can be **Always allow**, **Ask first** or **Never**. Turn an app off for the assistant with its switch there, or in the chat’s **+ → Connectors** menu.' },
     { type: 'h2', text: 'What Citezeno can see' },
     {
       type: 'steps',
@@ -557,6 +557,18 @@ export const DOC_ARTICLES: DocArticle[] = [
       ],
     },
     { type: 'callout', tone: 'note', title: 'Your connections stay private', text: 'Access tokens are stored encrypted and never shown in your browser or to the AI. Connected apps cost no credits; the assistant’s replies are charged as usual.' },
+  ]),
+  a('skills', 'account', 'Skills for the assistant', 'Ready-made ways of working (a literature review, a citation check) and your own instructions.', 2, [
+    { type: 'p', text: 'A skill is a set of instructions the assistant follows for one message, like “write a literature review” or “check my citations”. Citezeno makes some; you can write your own, such as your lab’s citation style.' },
+    {
+      type: 'steps',
+      items: [
+        { title: 'Add skills', text: 'Open [Settings → Customize → Skills](/app/chat?settings=customize&tab=skills&view=discover) and choose + on the ones you want.' },
+        { title: 'Use one', text: 'In the chat, open **+ → Skills** and pick a skill. It shows as a chip above your message and is used for that message.' },
+        { title: 'Write your own', text: 'Choose **Add → Write a skill**, or upload a Markdown file (a name and description at the top between --- lines, then the instructions).' },
+      ],
+    },
+    { type: 'callout', tone: 'note', title: 'Skills never change the rules', text: 'The assistant still only cites papers its tools returned, and never invents references, whatever a skill says.' },
   ]),
 ];
 

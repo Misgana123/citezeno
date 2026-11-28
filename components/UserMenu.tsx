@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { signOut, useSession } from '@/lib/auth-client';
 import { Icon } from './Icon';
+import { settingsHref } from './settings/open';
 import { toast } from './toast';
 import { useCredits } from './useCredits';
 
@@ -73,8 +74,8 @@ export function UserMenu() {
               </span>
             )}
           </div>
-          <Link href="/app/account" role="menuitem">
-            <Icon name="user" /> Account
+          <Link href={settingsHref('account')} role="menuitem">
+            <Icon name="gear" /> Settings
           </Link>
           <Link href="/pricing" role="menuitem">
             <Icon name="bolt" /> Pricing and credits

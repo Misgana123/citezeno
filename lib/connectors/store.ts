@@ -1,6 +1,7 @@
 import type { Credentials } from '@/lib/providers/connectors/types';
 import { iso, type Queryable } from '@/lib/shelf/db';
 import { seal, unseal, type ConnectorKeys } from './crypto';
+import type { Permission } from './permissions';
 
 /* connector_account: one connection per user and app. The tokens or key stay
    sealed; only `secretFor` opens them, on the server, for one call. */
@@ -8,18 +9,20 @@ import { seal, unseal, type ConnectorKeys } from './crypto';
 export type ConnectionStatus = 'ok' | 'needs_reconnect';
 
 /* A connection as the app shows it (never the secret). */
-export type Connection = { connector: string; label: string; status: ConnectionStatus; scopes: string[]; connectedAt: string };
+/* assistant: the assistant may use it; permissions: per kind of action (lib/connectors/permissions.ts) */
+export type Connection = { connector: string; label: string; status: ConnectionStatus; scopes: string[]; connectedAt: string; assistant: boolean; permissions: Record<string, Permission> };
 
-type Row = { connector: string; label: string; status: ConnectionStatus; scopes: string[]; createdAt: Date };
-const view = (r: Row): Connection => ({ connector: r.connector, label: r.label, status: r.status, scopes: r.scopes, connectedAt: iso(r.createdAt)! });
+type Row = { connector: string; label: string; status: ConnectionStatus; scopes: string[]; createdAt: Date; assistant: boolean; permissions: Record<string, Permission> | null };
+const view = (r: Row): Connection => ({ connector: r.connector, label: r.label, status: r.status, scopes: r.scopes, connectedAt: iso(r.createdAt)!, assistant: r.assistant, permissions: r.permissions ?? {} });
+const COLS = `connector, label, status, scopes, "createdAt", assistant, permissions`;
 
 export async function listConnections(q: Queryable, userId: string): Promise<Connection[]> {
-  const { rows } = await q.query<Row>(`select connector, label, status, scopes, "createdAt" from connector_account where "userId" = $1 order by connector`, [userId]);
+  const { rows } = await q.query<Row>(`select ${COLS} from connector_account where "userId" = $1 order by connector`, [userId]);
   return rows.map(view);
 }
 
 export async function getConnection(q: Queryable, userId: string, connector: string): Promise<Connection | null> {
-  const { rows } = await q.query<Row>(`select connector, label, status, scopes, "createdAt" from connector_account where "userId" = $1 and connector = $2`, [userId, connector]);
+  const { rows } = await q.query<Row>(`select ${COLS} from connector_account where "userId" = $1 and connector = $2`, [userId, connector]);
   return rows[0] ? view(rows[0]) : null;
 }
 
@@ -30,7 +33,7 @@ export async function saveConnection(q: Queryable, keys: ConnectorKeys, userId: 
      values ($1, $2, $3, $4, $5, $6, $7, 'ok')
      on conflict ("userId", connector) do update set "accountId" = excluded."accountId", label = excluded.label, secret = excluded.secret,
        scopes = excluded.scopes, "expiresAt" = excluded."expiresAt", status = 'ok', "createdAt" = now(), "updatedAt" = now()
-     returning connector, label, status, scopes, "createdAt"`,
+     returning ${COLS}`,
     [userId, connector, c.account.id.slice(0, 200), c.account.label.slice(0, 200) || connector, seal(c, keys), c.scopes ?? [], c.expiresAt ? new Date(c.expiresAt) : null],
   );
   return view(rows[0]);
@@ -57,6 +60,16 @@ export async function updateCredentials(q: Queryable, keys: ConnectorKeys, userI
 
 export async function markNeedsReconnect(q: Queryable, userId: string, connector: string): Promise<void> {
   await q.query(`update connector_account set status = 'needs_reconnect', "updatedAt" = now() where "userId" = $1 and connector = $2`, [userId, connector]);
+}
+
+/* Whether the assistant may use the app, and what it may do (merged into what was set). */
+export async function saveSettings(q: Queryable, userId: string, connector: string, s: { assistant?: boolean; permissions?: Record<string, Permission> }): Promise<Connection | null> {
+  const { rows } = await q.query<Row>(
+    `update connector_account set assistant = coalesce($3, assistant), permissions = permissions || $4::jsonb, "updatedAt" = now()
+     where "userId" = $1 and connector = $2 returning ${COLS}`,
+    [userId, connector, s.assistant ?? null, JSON.stringify(s.permissions ?? {})],
+  );
+  return rows[0] ? view(rows[0]) : null;
 }
 
 export async function deleteConnection(q: Queryable, userId: string, connector: string): Promise<boolean> {

@@ -46,7 +46,7 @@ describe('offering connected-app tools', () => {
 
   it('tells the assistant what is connected, or where to connect', () => {
     expect(connectorsContext(new Map([['files', { label: 'Google Drive' }], ['sheets', { label: 'Google Drive' }], ['references', { label: 'Zotero' }]]))).toContain('Google Drive (files, sheets); Zotero (references)');
-    expect(connectorsContext(undefined)).toContain('Account → Connected apps');
+    expect(connectorsContext(undefined)).toContain('Settings → Customize → Connectors');
   });
 });
 
@@ -80,7 +80,7 @@ describe('connected-app tools', () => {
 
   it('says plainly when the app isn’t connected, or what the app refused', async () => {
     const { ctx } = ctxWith({});
-    expect((await runTool(ctx, 'cloud_files_list', {})).outcome).toMatchObject({ status: 'error', code: 'not_connected', message: expect.stringContaining('Connected apps') });
+    expect((await runTool(ctx, 'cloud_files_list', {})).outcome).toMatchObject({ status: 'error', code: 'not_connected', message: expect.stringContaining('Customize → Connectors') });
     const refusing = ctxWith({ pages: { search: async () => Promise.reject(new ProviderError('not_found', 'Notion couldn’t find that, or it isn’t shared with Citezeno.', { provider: 'notion' })) } as unknown as NotesPages }, { pages: 'Notion' });
     expect((await runTool(refusing.ctx, 'notes_search', {})).outcome).toMatchObject({ status: 'error', code: 'not_found', message: 'Notion couldn’t find that, or it isn’t shared with Citezeno.' });
   });

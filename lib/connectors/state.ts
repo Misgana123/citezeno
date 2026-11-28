@@ -52,4 +52,4 @@ export function readState(cookie: string | undefined, keys: ConnectorKeys, expec
 }
 
 /* Only a path on our own site, never another site. */
-export const safeBack = (v: string | null | undefined, fallback = '/app/account#apps') => (v && v.length <= 300 ? safeNext(v, fallback) : fallback);
+export const safeBack = (v: string | null | undefined, fallback = '/app/chat?settings=customize') => (v && v.length <= 300 ? safeNext(v, fallback) : fallback);

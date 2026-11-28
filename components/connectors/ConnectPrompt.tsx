@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import type { ConnectorView } from '@/lib/connectors/catalog';
 import { connectHref } from './api';
+import { settingsHref } from '../settings/open';
 
 /* "Connect <app>" where a feature needs an app that isn't connected (or
-   stopped working): its sign-in, or Account → Connected apps for a key. */
+   stopped working): its sign-in, or Settings → Customize → Connectors for a key. */
 export function ConnectPrompt({ app, back, children }: { app: ConnectorView; back: string; children?: React.ReactNode }) {
   const stale = app.connection?.status === 'needs_reconnect';
   return (
@@ -17,8 +18,8 @@ export function ConnectPrompt({ app, back, children }: { app: ConnectorView; bac
           {stale ? `Connect ${app.label} again` : `Connect ${app.label}`}
         </a>
       ) : (
-        <Link className="btn btn-sm" href="/app/account#apps">
-          Connect {app.label} in your account
+        <Link className="btn btn-sm" href={settingsHref('customize', { kind: 'connectors' })}>
+          Connect {app.label} in Settings
         </Link>
       )}
     </div>

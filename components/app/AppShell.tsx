@@ -8,6 +8,7 @@ import { useCredits } from '../useCredits';
 import { RAIL_EVENT } from '../chat/file/panel-state';
 import { type AppSection } from './sections';
 import { openPalette, Sidebar } from './Sidebar';
+import { SettingsHost } from '../settings/SettingsHost';
 
 /* The workspace frame shared by every signed-in page: the sidebar (New chat,
    Search, the tools, the user's chats and account) and the page beside it,
@@ -185,6 +186,7 @@ export function AppShell({
         <Sidebar current={current} compact={small && !drawer} onToggle={() => (isPhone() ? setDrawer(false) : folded ? setFolded(false) : setCompact(!compact))} onNavigate={() => setDrawer(false)} />
         {!small && <SidebarResizer width={sideWidth} onWidth={setSideWidth} onDragging={setResizing} />}
         {drawer && <button type="button" className="cz-scrim" aria-label="Close the menu" onClick={() => setDrawer(false)} />}
+        <SettingsHost />
 
         <div className="cz-main">
           <header className="cz-bar">

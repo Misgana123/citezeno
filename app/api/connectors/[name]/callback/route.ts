@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request, { params }: { params: Promise<{ name: string }> }) {
   const { name } = await params;
   const s = await auth.api.getSession({ headers: req.headers });
-  if (!s) return Response.redirect(`${siteURL}/sign-in?next=${encodeURIComponent('/app/account#apps')}`, 302);
+  if (!s) return Response.redirect(`${siteURL}/sign-in?next=${encodeURIComponent('/app/chat?settings=customize')}`, 302);
   const cookie = (await cookies()).get(STATE_COOKIE)?.value;
   const keys = connectorKeys();
   // where to go back to, even when the sign-in fails

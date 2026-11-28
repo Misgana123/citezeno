@@ -40,17 +40,50 @@
 .ch-input::placeholder { color: var(--ink-3); }
 .ch-compose-bar { display: flex; align-items: center; gap: 6px; }
 .ch-grow { flex: 1; }
-.ch-add { display: grid; place-items: center; width: 32px; height: 32px; margin-left: -6px; border: 0; border-radius: 9px; background: transparent; color: var(--ink-2); }
+.ch-add { display: grid; place-items: center; width: 32px; height: 32px; margin-left: -6px; border: 1px solid var(--ch-add-line, #e6e6e3); border-radius: 9px; background: transparent; color: var(--ink-2); }
+[data-theme='dark'] .ch-add { --ch-add-line: #21405f; }
 .ch-add:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); }
-.ch-add svg { width: 18px; height: 18px; }
+.ch-add svg { width: 17px; height: 17px; }
 .ch-add:disabled { opacity: 0.45; cursor: not-allowed; }
 .ch-add[aria-expanded='true'] { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); }
 .ch-add-wrap { position: relative; }
-/* the + menu opens upward, over the thread, so it never runs off the bottom */
-.ch-add-menu { top: auto; bottom: calc(100% + 6px); left: -6px; right: auto; width: 220px; }
-/* a switch in the + menu (web search): the label, then an on / off track */
-.ch-add-toggle .ch-switch { margin-left: auto; }
-.ch-add-toggle .ch-add-check { margin-left: auto; color: var(--ink); }
+
+/* the + menu (components/chat/AddMenu.tsx): files, Drive, a screenshot, the
+   shelf, skills and connectors (each a submenu), research and web search.
+   On the home page it opens down; in a chat it opens up, over the thread. */
+.ch-am {
+  --am-accent: #2f6fdb; --am-line: #e6e6e3; --am-hover: var(--cz-hover, rgba(20, 20, 19, 0.045));
+  --am-shadow: 0 0 0 1px rgba(20, 20, 19, 0.06), 0 4px 10px -2px rgba(20, 20, 19, 0.06), 0 14px 32px -8px rgba(20, 20, 19, 0.16);
+  position: absolute; z-index: 90; display: flex; flex-direction: column; padding: 6px; border-radius: 14px; background: var(--cz-white, #fff); box-shadow: var(--am-shadow); animation: ch-am-pop 0.12s ease-out;
+}
+[data-theme='dark'] .ch-am { --am-accent: #7fb0ff; --am-line: #21405f; --am-shadow: 0 0 0 1px rgba(233, 241, 246, 0.07), 0 14px 32px -8px rgba(0, 0, 0, 0.6); }
+@keyframes ch-am-pop { from { opacity: 0; transform: translateY(4px) scale(0.98); } }
+.ch-am-main { left: -6px; width: 308px; bottom: calc(100% + 8px); }
+.ch-am-main.is-down { bottom: auto; top: calc(100% + 8px); }
+.ch-am-sub { left: calc(100% + 4px); top: -6px; width: 232px; max-height: 360px; overflow: auto; }
+.ch-am-sub.is-wide { width: 270px; }
+.ch-am-i { position: relative; display: flex; align-items: center; gap: 11px; width: 100%; min-height: 32px; padding: 6px 10px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: inherit; font-size: 14px; line-height: 1.25; text-align: left; text-decoration: none; cursor: pointer; }
+.ch-am-i:hover, .ch-am-i:focus-visible, .ch-am-i.is-open { background: var(--am-hover); outline: none; }
+.ch-am-i:disabled { color: var(--ink-3); cursor: default; background: none; }
+.ch-am-i > svg:first-child { width: 16px; height: 16px; color: var(--ink-2); }
+.ch-am-i .st-logo { border-color: var(--am-line); }
+.ch-am-end { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 12.5px; }
+.ch-am-chev { width: 14px; height: 14px; color: var(--ink-3); }
+.ch-am-tick { width: 16px; height: 16px; color: var(--am-accent); stroke-width: 2.2; }
+.ch-am-two { display: grid; gap: 1px; min-width: 0; }
+.ch-am-two small { overflow: hidden; color: var(--ink-3); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.ch-am-i.is-indent { padding-left: 37px; cursor: default; }
+.ch-am-i.is-indent:hover { background: none; }
+.ch-am-pill { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: 0; border-radius: 7px; background: var(--cz-active, rgba(20, 20, 19, 0.075)); color: var(--ink); font: inherit; font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; }
+.ch-am-pill:hover { background: color-mix(in srgb, var(--ink) 12%, transparent); }
+.ch-am-sep { flex: none; height: 1px; margin: 5px 8px; background: var(--am-line); }
+.ch-am-note { padding: 6px 10px; color: var(--ink-3); font-size: 13px; }
+.ch-am .ch-switch.is-on { background: var(--am-accent); }
+@media (max-width: 860px) {
+  .ch-am-main { width: min(308px, calc(100vw - 32px)); }
+  /* on phones a submenu covers the menu instead of opening beside it */
+  .ch-am-sub, .ch-am-sub.is-wide { left: -6px; top: -6px; width: calc(100% + 12px); }
+}
 .ch-switch { position: relative; flex: none; width: 28px; height: 16px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 18%, transparent); transition: background 0.15s; }
 .ch-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: transform 0.15s; }
 .ch-switch.is-on { background: var(--prussian); }

@@ -886,6 +886,7 @@ input:focus-visible + .at-switch { outline: 2px solid var(--focus); outline-offs
 .cz-acct-who small { font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cz-acct-pill { flex: none; padding: 3px 7px; border-radius: 7px; background: var(--cz-hover); font: 500 11.5px var(--f-mono); color: var(--ink-3); }
 .cz-acct-pop { bottom: calc(100% + 6px); left: 0; right: 0; min-width: 240px; }
+.cz-acct-kbd { margin-left: auto; padding: 0; border: 0; background: none; font: inherit; font-size: 12px; color: var(--ink-3); }
 .cz-acct-head { display: grid; gap: 8px; padding: 8px 10px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--rule-2); }
 .cz-acct-email { font-size: 13px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; }
 .cz-acct-credits { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13.5px; }

@@ -8,9 +8,10 @@ import { Icon } from '../Icon';
 import { toast } from '../toast';
 import { useCredits } from '../useCredits';
 import { initials } from '../UserMenu';
+import { openSettings } from '../settings/open';
 
 /* The account at the bottom of the sidebar: who is signed in and their
-   credits (a quiet pill); it opens a menu (upwards) with account settings, credits, the
+   credits (a quiet pill); it opens a menu (upwards) with Settings, credits, the
    theme, help and signing out. `compact`: the avatar alone. */
 
 function useTheme(): [boolean, () => void] {
@@ -95,12 +96,12 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
               </span>
             )}
           </div>
-          <Link href="/app/account" role="menuitem">
-            <Icon name="user" /> Account settings
-          </Link>
-          <Link href="/pricing" role="menuitem">
-            <Icon name="bolt" /> Pricing and credits
-          </Link>
+          <button type="button" role="menuitem" onClick={() => (setOpen(false), openSettings('account'))}>
+            <Icon name="gear" /> Settings <kbd className="cz-acct-kbd">Ctrl+,</kbd>
+          </button>
+          <button type="button" role="menuitem" onClick={() => (setOpen(false), openSettings('usage'))}>
+            <Icon name="bolt" /> Credits and usage
+          </button>
           <button type="button" role="menuitem" onClick={flipTheme}>
             <Icon name={dark ? 'sun' : 'moon'} /> {dark ? 'Light theme' : 'Dark theme'}
           </button>

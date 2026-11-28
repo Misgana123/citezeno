@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useEffect, useRef, useState } from 'react';
+import { forwardRef } from 'react';
 import type { ModelChoice } from '@/lib/agent/models';
 import type { ModelInfo } from '@/lib/providers/chat/catalog';
 
@@ -14,7 +14,8 @@ const cost = (m: PickerModel) => {
 };
 import { Icon } from '../Icon';
 import { Select, type SelectItems } from '../Select';
-import { ATTACH_ACCEPT, canScreenshot, type AttachItem } from './attach';
+import { AddMenu, type Picked } from './AddMenu';
+import type { AttachItem } from './attach';
 import { AttachCard } from './AttachCard';
 import { ModelIcon } from './ModelIcon';
 
@@ -61,113 +62,13 @@ type Props = {
   /* Deep research for the next message (in the + menu, shown as a chip while chosen) */
   deepResearch?: boolean;
   onDeepResearch?(on: boolean): void;
+  /* a skill picked in the + menu for the next message (shown as a chip) */
+  skill?: Picked;
+  onSkill?(v: Picked): void;
+  /* a shelf project picked in the + menu as the message's context (shown as a chip) */
+  project?: Picked;
+  onProject?(v: Picked): void;
 };
-
-type Web = { on: boolean; onChange(on: boolean): void };
-
-/* The + button: upload files, take a screenshot, or turn web search on or off. */
-function AddMenu({ disabled, onAddFiles, onScreenshot, web, research }: { disabled?: boolean; onAddFiles(files: File[]): void; onScreenshot(): void; web?: Web; research?: Web }) {
-  const [open, setOpen] = useState(false);
-  const [shots, setShots] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  const input = useRef<HTMLInputElement>(null);
-  useEffect(() => setShots(canScreenshot()), []);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !box.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', close);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', close);
-    };
-  }, [open]);
-
-  return (
-    <div className="ch-add-wrap" ref={box}>
-      <button
-        type="button"
-        className="ch-add"
-        aria-label="Add files, a screenshot, web search or deep research"
-        title="Add files, a screenshot, web search or deep research"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        disabled={disabled}
-        onClick={() => setOpen(!open)}
-      >
-        <Icon name="plus" />
-      </button>
-      {open && (
-        <div className="cz-menu ch-add-menu" role="menu">
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              input.current?.click();
-            }}
-          >
-            <Icon name="upload" /> Upload files
-          </button>
-          {shots && (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onScreenshot();
-              }}
-            >
-              <Icon name="screenshot" /> Take a screenshot
-            </button>
-          )}
-          {web && (
-            <button
-              type="button"
-              role="menuitemcheckbox"
-              aria-checked={web.on}
-              className="ch-add-toggle"
-              onClick={() => {
-                setOpen(false);
-                web.onChange(!web.on);
-              }}
-            >
-              <Icon name="globe" /> Web search <span className={`ch-switch${web.on ? ' is-on' : ''}`} aria-hidden="true" />
-            </button>
-          )}
-          {research && (
-            <button
-              type="button"
-              role="menuitemcheckbox"
-              aria-checked={research.on}
-              className="ch-add-toggle"
-              onClick={() => {
-                setOpen(false);
-                research.onChange(!research.on);
-              }}
-            >
-              <Icon name="compass" /> Deep research {research.on && <Icon name="check" className="ch-add-check" />}
-            </button>
-          )}
-        </div>
-      )}
-      <input
-        ref={input}
-        type="file"
-        multiple
-        hidden
-        accept={ATTACH_ACCEPT}
-        onChange={(e) => {
-          const files = Array.from(e.target.files ?? []);
-          e.target.value = '';
-          if (files.length) onAddFiles(files);
-        }}
-      />
-    </div>
-  );
-}
 
 /* The files added to the message, each with a way to take it out. */
 function AttachList({ items, onRemove }: { items: AttachItem[]; onRemove?(id: string): void }) {
@@ -222,10 +123,37 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
         disabled={p.disabled}
       />
       <div className="ch-compose-bar">
-        {p.onAddFiles && p.onScreenshot && <AddMenu disabled={p.disabled} onAddFiles={p.onAddFiles} onScreenshot={p.onScreenshot} web={p.onWebSearch ? { on: !!p.webSearch, onChange: p.onWebSearch } : undefined} research={p.onDeepResearch ? { on: !!p.deepResearch, onChange: p.onDeepResearch } : undefined} />}
+        {p.onAddFiles && p.onScreenshot && (
+          <AddMenu
+            disabled={p.disabled}
+            down={p.big}
+            onAddFiles={p.onAddFiles}
+            onScreenshot={p.onScreenshot}
+            web={p.onWebSearch ? { on: !!p.webSearch, onChange: p.onWebSearch } : undefined}
+            research={p.onDeepResearch ? { on: !!p.deepResearch, onChange: p.onDeepResearch } : undefined}
+            skill={p.onSkill ? { value: p.skill ?? null, onChange: p.onSkill } : undefined}
+            project={p.onProject ? { value: p.project ?? null, onChange: p.onProject } : undefined}
+          />
+        )}
+        {p.skill && p.onSkill && (
+          <span className="ch-chip" title="Skill for this message">
+            <Icon name="skill" /> {p.skill.name}
+            <button type="button" onClick={() => p.onSkill!(null)} aria-label={`Don’t use ${p.skill.name}`} title="Don’t use this skill">
+              <Icon name="x" />
+            </button>
+          </span>
+        )}
+        {p.project && p.onProject && (
+          <span className="ch-chip" title="Shelf project for this message">
+            <Icon name="layers" /> {p.project.name}
+            <button type="button" onClick={() => p.onProject!(null)} aria-label={`Ask without ${p.project.name}`} title="Ask without this project">
+              <Icon name="x" />
+            </button>
+          </span>
+        )}
         {p.deepResearch && p.onDeepResearch && (
           <span className="ch-chip">
-            <Icon name="compass" /> Deep research
+            <Icon name="research" /> Research
             <button type="button" onClick={() => p.onDeepResearch!(false)} aria-label="Turn off deep research" title="Turn off deep research">
               <Icon name="x" />
             </button>

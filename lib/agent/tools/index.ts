@@ -31,9 +31,14 @@ const byName = new Map<string, AgentTool | ClientTool>([...AGENT_TOOLS, ...CLIEN
 export const findTool = (name: string): AgentTool | ClientTool | null => byName.get(name) ?? null;
 
 /* The tools offered for one reply: the web tools only while the user has web
-   search on, a connected app's tools only while one giving them is connected. */
-export const offeredTools = (opts: { web: boolean; connected?: ReadonlySet<Capability> | ReadonlyMap<Capability, unknown> }): (AgentTool | ClientTool)[] =>
-  [...AGENT_TOOLS, ...CLIENT_TOOLS].filter((t) => (opts.web || !WEB_TOOL_NAMES.has(t.name)) && (!('needs' in t) || !t.needs || !!opts.connected?.has(t.needs)));
+   search on, a connected app's tools only while one giving them is connected
+   and the user hasn't said "never" for that kind of action. */
+export const offeredTools = (opts: { web: boolean; connected?: ReadonlySet<Capability> | ReadonlyMap<Capability, unknown>; permission?(cap: Capability, kind: 'read' | 'write'): 'allow' | 'ask' | 'never' }): (AgentTool | ClientTool)[] =>
+  [...AGENT_TOOLS, ...CLIENT_TOOLS].filter((t) => {
+    if (!opts.web && WEB_TOOL_NAMES.has(t.name)) return false;
+    if (!('needs' in t) || !t.needs) return true;
+    return !!opts.connected?.has(t.needs) && opts.permission?.(t.needs, t.kind) !== 'never';
+  });
 
 /* A tool's input as JSON Schema, for the model. */
 export function inputSchema(tool: AgentTool | ClientTool): Record<string, unknown> {

@@ -18,6 +18,10 @@ create table if not exists connector_account (
   "updatedAt"  timestamptz not null default now(),
   primary key ("userId", connector)
 );
+-- the assistant may use this app (the + menu's Connectors switch), and what it
+-- may do per kind of action: {"pages.write": "ask" | "allow" | "never", …}
+alter table connector_account add column if not exists assistant boolean not null default true;
+alter table connector_account add column if not exists permissions jsonb not null default '{}';
 
 -- How far "Sync now" got, per library or collection: the reference manager's
 -- library version, so the next sync asks only for what changed since.

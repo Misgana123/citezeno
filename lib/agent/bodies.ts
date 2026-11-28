@@ -28,6 +28,10 @@ export const messageBody = z
     paperId: z.string().trim().max(300).nullish(),
     /* the Web switch in the + menu: web search on for this chat */
     webSearch: z.boolean().optional(),
+    /* a skill picked in the + menu, for this message (its ID) */
+    skill: ID.nullish(),
+    /* a shelf project picked in the + menu ("Add from shelf"): what the message is about */
+    projectId: ID.nullish(),
     attachments: z.array(attachmentSchema).max(ATTACH_MAX, `Add at most ${ATTACH_MAX} files to a message.`).optional(),
   })
   .refine((b) => b.text || b.attachments?.length, 'Type a message.')
