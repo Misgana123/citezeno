@@ -7,10 +7,15 @@ import { accountPayer, labChatFor, labPayerFor, labProjectFor } from '@/lib/labs
 import { actorDb, guestGate, guestMayRead, spaceOf } from '@/lib/labs/shelf';
 import * as labs from '@/lib/labs/service';
 import { membershipOf } from '@/lib/labs/store';
-import { limitsFor, NO_PLAN, type Limits } from '@/lib/plans';
+import { limitsFor, NO_PLAN, PLAN_KEYS, PLANS, type Limits } from '@/lib/plans';
 import { skillLabOf } from '@/lib/skills/lab';
 import { createOwn, listSkills, takeSkill, updateSkill } from '@/lib/skills/store';
 import { createProject } from '@/lib/shelf/store/projects';
+import { papersToRefresh } from '@/lib/shelf/service/refresh';
+import { labUnreadNotices, noticeRetracted } from '@/lib/shelf/store/notices';
+import { addItem } from '@/lib/shelf/store/items';
+import { putShared } from '@/lib/shelf/store/papers';
+import { paper } from '../shelf/fixtures';
 import { openTestDb, TEST_DB_URL, type TestDb } from '../shelf/testdb';
 
 describe.skipIf(!TEST_DB_URL)('labs (postgres)', () => {
@@ -215,6 +220,27 @@ describe.skipIf(!TEST_DB_URL)('labs (postgres)', () => {
     // embedding a lab upload is charged to the lab's owner; anyone else pays for their own
     expect(await accountPayer(t.pool, lab.shelfUserId)).toBe(owner.id);
     expect(await accountPayer(t.pool, mem.id)).toBe(mem.id);
+  });
+
+  it('lab shelves refresh on the owner’s plan; members see the lab’s retraction notices in their badge', async () => {
+    const w = await world();
+    const owner = await w.person('o11@x.org', limitsFor('lab'));
+    const lab = await labs.createLab(w.d, owner.id, 'Lab K');
+    const mem = await w.person('mem11@x.org');
+    await labs.acceptInvite(w.d, mem, w.tokenOf((await labs.setShareLink(w.d, owner.id, true))!));
+    await putShared(t.pool, paper('openalex:LK1'));
+    await t.pool.query(`update shelf_paper set "refreshedAt" = now() - interval '3 days' where id = 'openalex:LK1'`);
+    await addItem(t.pool, lab.shelfUserId, 'openalex:LK1', 'search');
+    const byPlan = Object.fromEntries(PLAN_KEYS.map((k) => [k, PLANS[k].limits.shelfRefreshDays]));
+    const due = async () => (await papersToRefresh(t.pool, ['openalex'], 7, 500, byPlan)).some((p) => p.id === 'openalex:LK1');
+    expect(await due()).toBe(false);
+    await t.pool.query(`insert into credit_plan ("userId", plan, "interval", status, "subscriptionId", "productId", "periodEnd") values ($1, 'lab', 'month', 'active', $2, 'p', now() + interval '20 days')`, [owner.id, `s-${owner.id}`]);
+    expect(await due()).toBe(true);
+
+    expect(await noticeRetracted(t.pool, 'openalex:LK1', 'Paper LK1')).toBe(1);
+    expect(await labUnreadNotices(t.pool, mem.id)).toBe(1);
+    expect(await labUnreadNotices(t.pool, owner.id)).toBe(1);
+    expect(await labUnreadNotices(t.pool, (await w.person('out11@x.org')).id)).toBe(0);
   });
 
   it('lab skills: admins write them, members use them, guests and outsiders don’t see them', async () => {
