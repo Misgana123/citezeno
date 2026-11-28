@@ -157,7 +157,7 @@ export const DOC_ARTICLES: DocArticle[] = [
       rows: [
         ['Starter', true, true, false, 'Economy'],
         ['Scholar', true, true, false, 'Standard'],
-        ['Lab', true, true, true, 'Standard'],
+        ['Pro and Lab', true, true, true, 'Standard'],
       ],
     },
     { type: 'p', text: 'New chats use the last model you picked, as long as your plan still includes it.' },
@@ -174,14 +174,14 @@ export const DOC_ARTICLES: DocArticle[] = [
       rows: [
         ['Starter', '4'],
         ['Scholar', '8'],
-        ['Lab', '15'],
+        ['Pro and Lab', '15'],
       ],
     },
     { type: 'h2', text: 'Reading papers' },
     { type: 'p', text: 'When it reads a paper, the assistant uses the full text when there’s one, and otherwise the abstract. The step tells you which.' },
     { type: 'h2', text: 'Your shelf' },
     { type: 'p', text: 'Ask about the papers you’ve saved, search them, check for retraction notices, find duplicates, or have the assistant save, tag and sort papers for you.' },
-    { type: 'callout', tone: 'note', title: 'Daily paper searches', text: 'Paper searches count toward a daily limit: 50 on Starter, 150 on Scholar and 400 on Lab. It resets at midnight UTC.' },
+    { type: 'callout', tone: 'note', title: 'Daily paper searches', text: 'Paper searches count toward a daily limit: 50 on Starter, 150 on Scholar and 400 on Pro and Lab. It resets at midnight UTC.' },
   ]),
   a('attach-files', 'assistant', 'Attach files to a chat', 'Add PDFs, images and data files to a message.', 2, [
     { type: 'steps', items: [{ title: 'Open the + menu', text: 'In the message box, choose **+**, then **Upload files**. Where your browser allows it, **Take a screenshot** is there too.' }, { title: 'Add up to 5 files', text: 'They appear as cards on your message. Nothing is uploaded until you send.' }, { title: 'Ask about them', text: 'Ask a question that refers to the files, then press `Enter`.' }] },
@@ -214,6 +214,7 @@ export const DOC_ARTICLES: DocArticle[] = [
     },
     { type: 'h2', text: 'Analysing data with Python' },
     { type: 'p', text: 'Attach a CSV or spreadsheet and ask for statistics or a plot. The assistant runs Python in a private sandbox with pandas, numpy and matplotlib, and shows the code and output in a **Python** step you can open. Each run is short, up to about 40 seconds; files and variables carry over between runs for a few minutes. A heavier run (a longer time limit, three or more files, or installing packages) asks you first, with a **Show code** link so you can see what it will run.' },
+    { type: 'callout', tone: 'note', title: 'On the Lab plan', text: 'Python runs, and turning Word, Excel and PowerPoint files into other formats, use the code sandbox, which comes with the [Lab plan](/pricing). Charts, documents, slides and spreadsheets work on every plan.' },
     { type: 'callout', tone: 'tip', title: 'Tip', text: 'Say what you want the result to look like, for example “a bar chart of mean scores by group, as a PNG”.' },
   ]),
   a('manage-and-share-chats', 'assistant', 'Manage and share chats', 'Find old chats, pin, rename, delete and share them.', 2, [
@@ -353,14 +354,14 @@ export const DOC_ARTICLES: DocArticle[] = [
     { type: 'h2', text: 'Find things' },
     { type: 'list', items: ['Sort by recently added, year, title or most cited.', 'Quick filters: **Open access**, **Has your PDF**, **Since 2020**, **Retracted**.', 'Select several papers to set status, move, tag, export or delete them together.', '**Possible duplicates** appears when two entries look like the same paper.'] },
     { type: 'h2', text: 'Kept up to date' },
-    { type: 'p', text: 'Your shelf is checked against its sources for new citation counts and details: monthly on Starter, weekly on Scholar and daily on Lab. If a saved paper is retracted, you get a notice.' },
+    { type: 'p', text: 'Your shelf is checked against its sources for new citation counts and details: monthly on Starter, weekly on Scholar and daily on Pro and Lab. If a saved paper is retracted, you get a notice.' },
     {
       type: 'table',
       head: ['Plan', 'Papers on your shelf'],
       rows: [
         ['Starter', '1,000'],
         ['Scholar', '5,000'],
-        ['Lab', '25,000'],
+        ['Pro and Lab', '25,000'],
       ],
     },
   ]),
@@ -374,7 +375,7 @@ export const DOC_ARTICLES: DocArticle[] = [
       rows: [
         ['Starter', '15 MB', '300 MB', '20'],
         ['Scholar', '30 MB', '1 GB', '60'],
-        ['Lab', '50 MB', '5 GB', '150'],
+        ['Pro and Lab', '50 MB', '5 GB', '150'],
       ],
     },
     { type: 'p', text: 'Only real PDF files are accepted. Choose the storage meter to see **Your PDFs**, where you can read, download or delete each file. Deleting a PDF keeps the paper on your shelf.' },
@@ -483,7 +484,7 @@ export const DOC_ARTICLES: DocArticle[] = [
       rows: [
         ['Starter', '100'],
         ['Scholar', '500'],
-        ['Lab', '2,000'],
+        ['Pro and Lab', '2,000'],
       ],
     },
     { type: 'h2', text: 'Share a trace' },
@@ -492,21 +493,24 @@ export const DOC_ARTICLES: DocArticle[] = [
   ]),
 
   /* ---------------- account & plans ---------------- */
-  a('plans', 'account', 'Plans', 'What Starter, Scholar and Lab include.', 3, [
-    { type: 'p', text: 'There are three plans, billed monthly, or yearly for 20% less. Compare prices on the [pricing page](/pricing).' },
+  a('plans', 'account', 'Plans', 'What Starter, Scholar, Pro and Lab include.', 3, [
+    { type: 'p', text: 'There are four plans, billed monthly, or yearly for 20% less. Compare prices on the [pricing page](/pricing). Lab is the plan for research groups: it adds a shared lab and Python runs.' },
     {
       type: 'table',
-      head: ['', 'Starter', 'Scholar', 'Lab'],
+      head: ['', 'Starter', 'Scholar', 'Pro', 'Lab'],
       rows: [
-        ['AI models', 'Economy + Standard', 'Economy + Standard', 'All, Premium too'],
-        ['Deep research', true, true, true],
-        ['Web searches per answer', '4', '8', '15'],
-        ['Paper searches a day', '50', '150', '400'],
-        ['Papers on your shelf', '1,000', '5,000', '25,000'],
-        ['PDF storage', '300 MB', '1 GB', '5 GB'],
-        ['Largest PDF', '15 MB', '30 MB', '50 MB'],
-        ['Saved traces', '100', '500', '2,000'],
-        ['Shelf kept up to date', 'Monthly', 'Weekly', 'Daily'],
+        ['Credits a month', '700', '1,900', '3,900', '7,900 (shared by the lab)'],
+        ['AI models', 'Economy + Standard', 'Economy + Standard', 'All, Premium too', 'All, Premium too'],
+        ['Deep research', true, true, true, true],
+        ['Shared lab (you + 5 people)', false, false, false, true],
+        ['Python runs and office file conversion', false, false, false, true],
+        ['Web searches per answer', '4', '8', '15', '15'],
+        ['Paper searches a day', '50', '150', '400', '400'],
+        ['Papers on your shelf', '1,000', '5,000', '25,000', '25,000'],
+        ['PDF storage', '300 MB', '1 GB', '5 GB', '5 GB'],
+        ['Largest PDF', '15 MB', '30 MB', '50 MB', '50 MB'],
+        ['Saved traces', '100', '500', '2,000', '2,000'],
+        ['Shelf kept up to date', 'Monthly', 'Weekly', 'Daily', 'Daily'],
       ],
     },
     { type: 'h2', text: 'Always free' },

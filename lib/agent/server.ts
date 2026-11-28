@@ -14,7 +14,7 @@ import { allow } from '@/lib/ratelimit';
 import { shelfConfig } from '@/lib/shelf/config';
 import type { AgentContext } from './context';
 import { agentFiles } from './files';
-import { projectContext, readingContext, skillContext, timeContext, webContext } from './prompt';
+import { projectContext, readingContext, sandboxContext, skillContext, timeContext, webContext } from './prompt';
 import { takeSkill } from '@/lib/skills/store';
 import { listProjects } from '@/lib/shelf/store/projects';
 import { research, RESEARCH_MS } from './research';
@@ -144,7 +144,9 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     webFiles: () => webFiles(process.env, meter),
     pdfText: () => pdfTextReader(),
     chatAttachments: async () => (await loadMessages(pool, conversation.id)).flatMap(({ message: m }) => (m.role === 'user' ? (m.attachments ?? []) : [])),
+    // the code sandbox (Python runs, office conversions) comes with the Lab plan only
     code: () => {
+      if (!limits.codeSandbox) return null;
       const sandbox = codeSandboxFor(meter);
       return sandbox ? codeRunner(sandbox, pool, { userId, conversationId: conversation.id }) : null;
     },
@@ -179,8 +181,8 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     setPending: (p) => setPending(pool, conversation.id, p),
     maxTurns: MAX_TURNS,
     deadline: Date.now() + replyMs,
-    extraSystem: (extraSystem ?? '') + timeContext(timeZone) + (conversation.webSearch ? webContext() : ''),
-    tools: offeredTools({ web: conversation.webSearch }),
+    extraSystem: (extraSystem ?? '') + timeContext(timeZone) + (conversation.webSearch ? webContext() : '') + (limits.codeSandbox ? '' : sandboxContext()),
+    tools: offeredTools({ web: conversation.webSearch, sandbox: limits.codeSandbox }),
     ...(named
       ? {
           naming: {

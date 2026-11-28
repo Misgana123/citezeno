@@ -32,7 +32,7 @@ const FAQ: [string, string][] = [
   ],
   [
     'Which AI models does it use?',
-    'Models from Google, Anthropic, OpenAI and others. Economy and Standard models come with every plan, Premium models with Lab, and you can switch model in any chat.',
+    'Models from Google, Anthropic, OpenAI and others. Economy and Standard models come with every plan, Premium models with Pro and Lab, and you can switch model in any chat.',
   ],
   [
     'Can I upload my own PDFs?',
@@ -125,8 +125,8 @@ const BUILT_FOR = [
   },
   {
     who: 'Labs',
-    sub: 'Big projects and the strongest models.',
-    uses: ['Projects and folders for every paper and thesis', 'Run Python on your own data files', 'Share any chat with a single link'],
+    sub: 'A shared lab for your group, and Python on your data.',
+    uses: ['Shared projects, papers and chats for the whole group', 'Run Python on your own data files', 'One credit pool, with a cap per member if you want one'],
     ask: 'Compare these 5 PDFs on sample size and method.',
   },
 ];

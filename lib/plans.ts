@@ -1,4 +1,6 @@
-/* The plans (Starter, Scholar, Lab), what each one allows, and the top-up packs.
+/* The plans (Starter, Scholar, Pro, Lab), what each one allows, and the top-up packs.
+   Lab is the plan for research groups: it adds the shared lab workspace and
+   Python runs (the code sandbox), which no other plan has.
 
    There is no free plan. An account without a plan keeps its work and the
    always-free features (reading, exporting, styles, sharing) but can't spend
@@ -8,9 +10,9 @@
    environment variables so they can change without a code change (see
    .env.example):
 
-     POLAR_{STARTER,SCHOLAR,LAB}_{MONTHLY,ANNUAL}_PRODUCT_ID
-     {STARTER,SCHOLAR,LAB}_MONTHLY_CREDITS     credits added each month (700 / 1900 / 3900)
-     {STARTER,SCHOLAR,LAB}_{MONTHLY,ANNUAL}_PRICE   display prices before Polar is set up
+     POLAR_{STARTER,SCHOLAR,PRO,LAB}_{MONTHLY,ANNUAL}_PRODUCT_ID
+     {STARTER,SCHOLAR,PRO,LAB}_MONTHLY_CREDITS     credits added each month (700 / 1900 / 3900 / 7900)
+     {STARTER,SCHOLAR,PRO,LAB}_{MONTHLY,ANNUAL}_PRICE   display prices before Polar is set up
      POLAR_TOPUP_{SMALL,MEDIUM,LARGE}_PRODUCT_ID, TOPUP_*_CREDITS, TOPUP_*_PRICE
 
    One credit is worth $0.01 of the monthly price on every plan: bigger plans
@@ -18,8 +20,8 @@
    cost 20% less and still add their credits one month at a time. */
 
 export type Interval = 'month' | 'year';
-export type PlanKey = 'starter' | 'scholar' | 'lab';
-export const PLAN_KEYS: PlanKey[] = ['starter', 'scholar', 'lab'];
+export type PlanKey = 'starter' | 'scholar' | 'pro' | 'lab';
+export const PLAN_KEYS: PlanKey[] = ['starter', 'scholar', 'pro', 'lab'];
 
 /* Model price tiers by output price per million tokens. */
 export type Tier = 'economy' | 'standard' | 'premium';
@@ -46,6 +48,10 @@ export type Limits = {
   researchBudgetCap: number | null;
   webSearchesPerReply: number;
   pythonSecondsPerRun: number;
+  /* Python runs in the code sandbox (run_python): the Lab plan only */
+  codeSandbox: boolean;
+  /* people besides the owner in the plan's shared lab workspace; 0 = no lab */
+  labMembers: number;
   dailySpendCap: number;
   tiers: Tier[];
   defaultTier: Tier;
@@ -57,7 +63,7 @@ const GB = 1024 * MB;
 export const NO_PLAN: Limits = {
   searchesPerDay: 10, uploadsPerDay: 3, pdfMaxBytes: 10 * MB, pdfStorageBytes: 25 * MB, agentFilesBytes: 10 * MB, savedTraces: 10, shelfPapers: 100,
   shelfRefreshDays: null, embedsPerMonth: 2, chatContextTokens: 16_000, concurrentActions: 1, replyBudgetCap: 10, researchBudgetCap: null,
-  webSearchesPerReply: 2, pythonSecondsPerRun: 30, dailySpendCap: 50, tiers: ['economy'], defaultTier: 'economy',
+  webSearchesPerReply: 2, pythonSecondsPerRun: 30, codeSandbox: false, labMembers: 0, dailySpendCap: 50, tiers: ['economy'], defaultTier: 'economy',
 };
 
 type PlanText = { name: string; blurb: string; featured: boolean; monthlyCredits: number; price: { month: number; year: number }; limits: Limits };
@@ -68,7 +74,7 @@ export const PLANS: Record<PlanKey, PlanText> = {
     limits: {
       searchesPerDay: 50, uploadsPerDay: 20, pdfMaxBytes: 15 * MB, pdfStorageBytes: 300 * MB, agentFilesBytes: 100 * MB, savedTraces: 100, shelfPapers: 1_000,
       shelfRefreshDays: 30, embedsPerMonth: 15, chatContextTokens: 32_000, concurrentActions: 2, replyBudgetCap: 20, researchBudgetCap: 80,
-      webSearchesPerReply: 4, pythonSecondsPerRun: 60, dailySpendCap: 200, tiers: ['economy', 'standard'], defaultTier: 'economy',
+      webSearchesPerReply: 4, pythonSecondsPerRun: 60, codeSandbox: false, labMembers: 0, dailySpendCap: 200, tiers: ['economy', 'standard'], defaultTier: 'economy',
     },
   },
   scholar: {
@@ -76,15 +82,25 @@ export const PLANS: Record<PlanKey, PlanText> = {
     limits: {
       searchesPerDay: 150, uploadsPerDay: 60, pdfMaxBytes: 30 * MB, pdfStorageBytes: 1 * GB, agentFilesBytes: 500 * MB, savedTraces: 500, shelfPapers: 5_000,
       shelfRefreshDays: 7, embedsPerMonth: 60, chatContextTokens: 100_000, concurrentActions: 4, replyBudgetCap: 60, researchBudgetCap: 250,
-      webSearchesPerReply: 8, pythonSecondsPerRun: 120, dailySpendCap: 500, tiers: ['economy', 'standard'], defaultTier: 'standard',
+      webSearchesPerReply: 8, pythonSecondsPerRun: 120, codeSandbox: false, labMembers: 0, dailySpendCap: 500, tiers: ['economy', 'standard'], defaultTier: 'standard',
     },
   },
-  lab: {
-    name: 'Lab', blurb: 'For theses, papers and research every day.', featured: false, monthlyCredits: 3_900, price: { month: 39, year: 375 },
+  pro: {
+    name: 'Pro', blurb: 'For theses, papers and research every day.', featured: false, monthlyCredits: 3_900, price: { month: 39, year: 375 },
     limits: {
       searchesPerDay: 400, uploadsPerDay: 150, pdfMaxBytes: 50 * MB, pdfStorageBytes: 5 * GB, agentFilesBytes: 2 * GB, savedTraces: 2_000, shelfPapers: 25_000,
       shelfRefreshDays: 1, embedsPerMonth: 250, chatContextTokens: 200_000, concurrentActions: 8, replyBudgetCap: 150, researchBudgetCap: 600,
-      webSearchesPerReply: 15, pythonSecondsPerRun: 300, dailySpendCap: 1_200, tiers: ['economy', 'standard', 'premium'], defaultTier: 'standard',
+      webSearchesPerReply: 15, pythonSecondsPerRun: 300, codeSandbox: false, labMembers: 0, dailySpendCap: 1_200, tiers: ['economy', 'standard', 'premium'], defaultTier: 'standard',
+    },
+  },
+  // Pro's limits for each person, a lab of up to 5 more people sharing its credits, and Python runs;
+  // more running at once and a higher daily cap, as the whole group spends from one pool
+  lab: {
+    name: 'Lab', blurb: 'For research groups: a shared lab and Python runs.', featured: false, monthlyCredits: 7_900, price: { month: 79, year: 758 },
+    limits: {
+      searchesPerDay: 400, uploadsPerDay: 150, pdfMaxBytes: 50 * MB, pdfStorageBytes: 5 * GB, agentFilesBytes: 2 * GB, savedTraces: 2_000, shelfPapers: 25_000,
+      shelfRefreshDays: 1, embedsPerMonth: 250, chatContextTokens: 200_000, concurrentActions: 16, replyBudgetCap: 150, researchBudgetCap: 600,
+      webSearchesPerReply: 15, pythonSecondsPerRun: 300, codeSandbox: true, labMembers: 5, dailySpendCap: 3_000, tiers: ['economy', 'standard', 'premium'], defaultTier: 'standard',
     },
   },
 };

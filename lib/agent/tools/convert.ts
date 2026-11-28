@@ -110,7 +110,7 @@ export const convertFile = defineTool({
     }
 
     const runner = ctx.code();
-    if (!runner) throw new ShelfError('unavailable', 'Converting this kind of file isn’t set up yet.');
+    if (!runner) throw new ShelfError('unavailable', ctx.limits && !ctx.limits.codeSandbox ? `Converting ${src.ext.toUpperCase()} files uses the code sandbox, which comes with the Lab plan (see /pricing). Text and Markdown files convert on every plan.` : 'Converting this kind of file isn’t set up yet.');
     const inExt = src.textOnly ? 'txt' : src.ext;
     const usePandoc = i.to === 'md' || i.to === 'txt';
     const out = `convert/out/source.${i.to}`;

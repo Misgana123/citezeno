@@ -120,7 +120,7 @@ export const runPython = defineTool({
   },
   async run(ctx, i) {
     const runner = ctx.code();
-    if (!runner) throw new ShelfError('unavailable', 'Running code isn’t set up yet.');
+    if (!runner) throw new ShelfError('unavailable', ctx.limits && !ctx.limits.codeSandbox ? SANDBOX_PLAN_NOTE : 'Running code isn’t set up yet.');
     const upload = await gather(ctx, i.inputs ?? []);
     const out = await runner.run({ code: i.code, upload, download: i.downloads ?? [], timeoutMs: runSeconds(ctx, i.timeoutSeconds) * 1000 });
 
@@ -155,5 +155,8 @@ export const runPython = defineTool({
     };
   },
 });
+
+/* What the user hears when their plan has no code sandbox. */
+export const SANDBOX_PLAN_NOTE = 'Python runs come with the Lab plan (see /pricing).';
 
 export const CODE_TOOLS = [runPython];

@@ -102,6 +102,8 @@
 .pr-rate { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr) minmax(0, 1fr); max-width: 1140px; margin: 0 auto; border-radius: 28px; background: var(--sheet); box-shadow: 0 0 0 1px var(--rule-2), 0 50px 90px -60px rgba(11, 38, 69, 0.55); }
 .pr-rate.n-1 { grid-template-columns: minmax(0, 420px); justify-content: center; background: none; box-shadow: none; }
 .pr-rate.n-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 800px; }
+/* four plans: the featured one (Scholar) a little wider */
+.pr-rate.n-4 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr) minmax(0, 1fr) minmax(0, 1fr); max-width: 1320px; }
 .pr-rcol { position: relative; display: flex; flex-direction: column; padding: 44px 40px 38px; }
 .pr-rcol + .pr-rcol { border-left: 1px solid var(--rule-2); }
 .pr-rcol.is-featured {
@@ -137,8 +139,14 @@
   .pr-rflag { left: 26px; }
   .pr-rprice b { font-size: 62px; }
 }
+/* four plans in two rows on a mid-size screen */
+@media (max-width: 1240px) {
+  .pr-rate.n-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 820px; }
+  .pr-rate.n-4 .pr-rcol:nth-child(3) { border-left: 0; }
+  .pr-rate.n-4 .pr-rcol:nth-child(n + 3) { border-top: 1px solid var(--rule-2); }
+}
 @media (max-width: 860px) {
-  .pr-rate, .pr-rate.n-2 { grid-template-columns: 1fr; max-width: 520px; }
+  .pr-rate, .pr-rate.n-2, .pr-rate.n-4 { grid-template-columns: 1fr; max-width: 520px; }
   .pr-rcol + .pr-rcol { border-left: 0; border-top: 1px solid var(--rule-2); }
   .pr-rcol.is-featured { margin: 0 -6px; }
   .pr-rcol.is-featured + .pr-rcol { border-top: 0; }
