@@ -389,7 +389,6 @@ a.sh-chip.is-mine:hover { background: color-mix(in srgb, var(--thread) 30%, tran
 .sh-drop:hover, .sh-drop.is-over, .sh-drop:focus-within { border-color: var(--thread); background: var(--thread-soft); }
 .sh-drop svg { width: 26px; height: 26px; color: var(--thread); }
 .sh-up { display: grid; gap: 12px; }
-.sh-up-cloud { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; color: var(--ink-3); }
 .sh-up-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .sh-up-row { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--rule-2); background: var(--sheet); }
 .sh-up-head { display: flex; align-items: center; gap: 8px; min-width: 0; }

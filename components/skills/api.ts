@@ -1,12 +1,12 @@
 'use client';
 
 import type { Skill, SkillCatalog } from '@/lib/skills/types';
-import { ConnectorApiError, connectorFetch } from '../connectors/api';
+import { ApiError, apiFetch } from '../api-fetch';
 
-/* Browser-side calls to /api/skills (same JSON error shape as the connectors'). */
+/* Browser-side calls to /api/skills. */
 
-export const skillFetch = connectorFetch;
-export { ConnectorApiError as SkillApiError };
+export const skillFetch = apiFetch;
+export { ApiError as SkillApiError };
 
 export const loadSkills = () => skillFetch<SkillCatalog>('/api/skills');
 export const addBuiltinSkill = (slug: string) => skillFetch<{ skill: Skill }>('/api/skills', { method: 'POST', body: { builtin: slug } }).then((r) => r.skill);

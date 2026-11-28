@@ -5,7 +5,6 @@ import { getMigrations } from 'better-auth/db/migration';
 import { authOptions } from '../lib/auth';
 import { pool } from '../lib/db';
 import { AGENT_SQL } from '../lib/agent/schema';
-import { CONNECTORS_SQL } from '../lib/connectors/schema';
 import { SKILLS_SQL } from '../lib/skills/schema';
 import { CREDITS_CARRY_OVER_SQL, CREDITS_SQL } from '../lib/credits/schema';
 import { embeddingSettings } from '../lib/providers/embeddings/embedder';
@@ -185,7 +184,6 @@ async function main() {
   }
   await pool.query(SHELF_SQL);
   await pool.query(AGENT_SQL);
-  await pool.query(CONNECTORS_SQL);
   await pool.query(SKILLS_SQL);
   await pool.query(READER_SQL);
   await pool.query(CREDITS_SQL);

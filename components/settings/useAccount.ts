@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { AccountOverview } from '@/lib/account/overview';
-import { connectorFetch } from '../connectors/api';
+import { apiFetch } from '../api-fetch';
 
 /* The account as Settings shows it, loaded when the dialog opens. */
 export function useAccount() {
@@ -10,7 +10,7 @@ export function useAccount() {
   const [error, setError] = useState<string | null>(null);
   const reload = useCallback(async () => {
     try {
-      setData(await connectorFetch<AccountOverview>('/api/account'));
+      setData(await apiFetch<AccountOverview>('/api/account'));
       setError(null);
     } catch (e) {
       setError((e as Error).message);

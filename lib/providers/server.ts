@@ -3,8 +3,6 @@ import { loadChatModels, type ChatModels } from './chat/catalog';
 import { CODE_SANDBOX_PROVIDERS, DEFAULT_CODE_SANDBOX } from './code-sandbox/registry';
 import type { CodeSandbox } from './code-sandbox/types';
 import { chooseProviders, choose } from './config';
-import { CONNECTORS } from './connectors/registry';
-import type { Connector } from './connectors/types';
 import { embedder, type Embedder } from './embeddings/embedder';
 import { DEFAULT_ENRICHERS, ENRICH_PROVIDERS } from './enrich/registry';
 import type { PaperEnricher } from './enrich/types';
@@ -122,11 +120,4 @@ export function webSearchFor(meter: Meter = newMeter(), env: Env = process.env):
 export function codeSandboxFor(meter: Meter = newMeter(), env: Env = process.env): CodeSandbox | null {
   const [def] = chooseProviders(CODE_SANDBOX_PROVIDERS, choose.codeSandbox(env), DEFAULT_CODE_SANDBOX, 'code sandbox');
   return def.create(env, gateFor(meter));
-}
-
-/* One connected-app adapter (CONNECTORS), wired through the gateway with this
-   request's meter; null when it isn't in the registry or isn't set up. */
-export function connectorFor(name: string, meter: Meter = newMeter(), env: Env = process.env): Connector | null {
-  const def = Object.hasOwn(CONNECTORS, name) ? CONNECTORS[name] : null;
-  return def ? def.create(env, gateFor(meter)) : null;
 }

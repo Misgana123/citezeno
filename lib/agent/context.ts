@@ -2,7 +2,6 @@ import type { Meter } from '@/lib/credits/meter';
 import type { PapersConfig } from '@/lib/papers/config';
 import type { Limits } from '@/lib/plans';
 import type { Attachment } from '@/lib/providers/chat/types';
-import type { Capabilities, Capability } from '@/lib/providers/connectors/types';
 import type { PaperSources } from '@/lib/providers/papers/sources';
 import type { PdfTextReader } from '@/lib/providers/pdf-text/types';
 import type { WebFiles } from '@/lib/providers/web-files/types';
@@ -39,25 +38,6 @@ export type AgentContext = {
   credits?: Meter;
   /* What the user's plan allows (web searches per reply, Python time…). */
   limits?: Limits;
-  /* The user's connected apps (Google Drive, Notion, Zotero…): which capability
-     each gives, and one ready to call (as the user, through the gateway).
-     Absent → none connected. */
-  connectors?: AgentConnectors;
-  /* the user's time zone (IANA, from their browser), for dates and the calendar */
+  /* the user's time zone (IANA, from their browser), for dates and times */
   timeZone?: string;
-};
-
-export type ConnectedApp = { name: string; label: string };
-
-export type AgentConnectors = {
-  /* capability → its first connected app (the default), for the connections that work */
-  connected: ReadonlyMap<Capability, ConnectedApp>;
-  /* capability → every connected app that gives it, in order */
-  apps?: ReadonlyMap<Capability, readonly ConnectedApp[]>;
-  /* what the user lets the assistant do with an app (default: the app pick() would choose).
-     Without an app, "never" means every app giving the capability is "never". */
-  permission?(cap: Capability, kind: 'read' | 'write', app?: string): 'allow' | 'ask' | 'never';
-  /* the app to use: the one asked for, else the first the user hasn't said "never" to */
-  pick?(cap: Capability, kind: 'read' | 'write', app?: string | null): ConnectedApp | null;
-  open<C extends Capability>(cap: C, app?: string | null): Promise<{ api: Capabilities[C]; connector: string; label: string }>;
 };

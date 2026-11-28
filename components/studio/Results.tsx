@@ -3,9 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { DocOptions } from '@/lib/docmodel';
 import { richHTML, type Rendered } from '@/lib/engine';
-import { DOCX_MIME, downloadPdf, downloadWord, wordFile } from '@/lib/exportdoc';
-import { connectHref } from '../connectors/api';
-import { useConnectors } from '../connectors/useConnectors';
+import { downloadPdf, downloadWord } from '@/lib/exportdoc';
 import { STYLES, STYLE_GROUPS } from '@/lib/styles';
 import type { Mode, Prefs, Result, Source } from '@/lib/types';
 import { Icon, type IconName } from '../Icon';
@@ -116,9 +114,7 @@ export function Results({
   edits: SourceEdits;
 }) {
   const { root, onMouseOver, onMouseOut } = useLinking();
-  const [busy, setBusy] = useState<'' | 'word' | 'pdf' | 'cloud'>('');
-  const apps = useConnectors();
-  const docsApp = apps.connectors?.find((c) => c.services.includes('Docs')) ?? null;
+  const [busy, setBusy] = useState<'' | 'word' | 'pdf'>('');
 
   const scores: number[] = [];
   rendered.list.forEach((s) => {
@@ -151,28 +147,6 @@ export function Results({
       }
       setBusy('');
     }, 30);
-  };
-  /* the same Word file, saved as an editable Google Doc */
-  const toDocs = async () => {
-    setBusy('cloud');
-    // opened now, while the click still counts, so the browser doesn't block it
-    const tab = window.open('', '_blank');
-    try {
-      const { bytes, name } = wordFile(result, prefs.style, prefs.mode, annotations.current, doc);
-      const form = new FormData();
-      form.append('file', new Blob([bytes as BlobPart], { type: DOCX_MIME }), name);
-      form.append('title', doc.title || 'Manuscript');
-      const res = await fetch('/api/connectors/documents', { method: 'POST', body: form });
-      const out = (await res.json().catch(() => null)) as { document?: { url: string | null }; app?: string; error?: string } | null;
-      if (!res.ok || !out?.document) throw new Error(out?.error ?? 'The document couldn’t be saved.');
-      if (out.document.url && tab) tab.location.href = out.document.url;
-      else tab?.close();
-      toast(`Saved to ${out.app ?? 'your Drive'}`);
-    } catch (e) {
-      tab?.close();
-      toast((e as Error).message, true);
-    }
-    setBusy('');
   };
   const pdf = async () => {
     setBusy('pdf');
@@ -313,16 +287,7 @@ export function Results({
         {tab === 'insights' && <Insights result={result} rendered={rendered} />}
 
         {tab === 'export' && (
-          <ExportPanel
-            rendered={rendered}
-            doc={doc}
-            setDoc={setDoc}
-            onWord={word}
-            onPdf={pdf}
-            busy={busy}
-            style={prefs.style}
-            cloud={docsApp ? { label: docsApp.label, connected: docsApp.connection?.status === 'ok', connectHref: connectHref(docsApp.name, '/app/citation'), onSave: toDocs } : null}
-          />
+          <ExportPanel rendered={rendered} doc={doc} setDoc={setDoc} onWord={word} onPdf={pdf} busy={busy} style={prefs.style} />
         )}
       </div>
     </section>

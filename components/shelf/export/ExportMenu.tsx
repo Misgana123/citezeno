@@ -7,31 +7,15 @@ import { toast } from '../../toast';
 import { useDismiss } from '../useDismiss';
 import type { Groups } from '../useShelfGroups';
 import { exportEverything, exportFile } from './run-export';
-import { SendDialog, type SendKind } from '../../connectors/SendDialog';
-import { useConnectors } from '../../connectors/useConnectors';
-import type { ConnectorView } from '@/lib/connectors/catalog';
 
 /* Export the papers in view (or a selection) as BibTeX, RIS or CSV, or the
-   whole shelf with notes and PDFs as one ZIP; or send them to a connected app. */
-
-const SEND_LABEL: Record<SendKind, (app: ConnectorView) => string> = { references: (a) => `Send to ${a.label}`, sheets: () => 'Send to Google Sheets', pages: (a) => `Send to a ${a.label} database`, tasks: (a) => `Reading list in ${a.label}` };
-
-export function ExportMenu({ groups, query, baseName, label = 'Export', everything = true, compact = false, count = null }: { groups: Groups; query: URLSearchParams; baseName: string; label?: string; everything?: boolean; compact?: boolean; count?: number | null }) {
+   whole shelf with notes and PDFs as one ZIP. */
+export function ExportMenu({ groups, query, baseName, label = 'Export', everything = true, compact = false }: { groups: Groups; query: URLSearchParams; baseName: string; label?: string; everything?: boolean; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);
   useDismiss(box, open, close);
-  const apps = useConnectors();
-  const sendTo = [
-    ...(['references', 'sheets', 'pages'] as SendKind[]).flatMap((kind) => {
-      const app = apps.forCapability(kind);
-      return app?.connection?.status === 'ok' ? [{ kind, app }] : [];
-    }),
-    // every connected task app (Todoist, Linear): a reading list, one task per paper
-    ...apps.appsFor('tasks').flatMap((app) => (app.connection?.status === 'ok' ? [{ kind: 'tasks' as SendKind, app }] : [])),
-  ];
-  const [sending, setSending] = useState<{ kind: SendKind; app: ConnectorView } | null>(null);
 
   const one = async (format: ExportFormat) => {
     setOpen(false);
@@ -82,23 +66,8 @@ export function ExportMenu({ groups, query, baseName, label = 'Export', everythi
               <Icon name="zip" /> Everything (ZIP with notes and PDFs)
             </button>
           )}
-          {sendTo.map(({ kind, app }, i) => (
-            <button
-              key={`${kind}-${app.name}`}
-              type="button"
-              role="menuitem"
-              className={i === 0 ? 'sh-export-all' : undefined}
-              onClick={() => {
-                setOpen(false);
-                setSending({ kind, app });
-              }}
-            >
-              <Icon name="upload" /> {SEND_LABEL[kind](app)}
-            </button>
-          ))}
         </div>
       )}
-      {sending && <SendDialog app={sending.app} kind={sending.kind} query={query} count={count} defaultTitle={baseName.replace(/^citezeno-?/, '').replace(/-/g, ' ').trim() || 'Citezeno papers'} onClose={() => setSending(null)} />}
     </div>
   );
 }

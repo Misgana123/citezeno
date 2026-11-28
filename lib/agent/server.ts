@@ -11,11 +11,10 @@ import { newMeter, type CallCredits } from '@/lib/providers/gateway/meter';
 import type { Attachment } from '@/lib/providers/chat/types';
 import { chatModelsFor, codeSandboxFor, fileStorage, pdfTextReader, webFiles, webSearchFor } from '@/lib/providers/server';
 import { allow } from '@/lib/ratelimit';
-import { agentConnectors } from '@/lib/connectors/agent';
 import { shelfConfig } from '@/lib/shelf/config';
 import type { AgentContext } from './context';
 import { agentFiles } from './files';
-import { connectorsContext, projectContext, readingContext, skillContext, timeContext, webContext } from './prompt';
+import { projectContext, readingContext, skillContext, timeContext, webContext } from './prompt';
 import { takeSkill } from '@/lib/skills/store';
 import { listProjects } from '@/lib/shelf/store/projects';
 import { research, RESEARCH_MS } from './research';
@@ -134,11 +133,6 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
   const searches = searchReservations(papers.usage, userId, papersConfig.dailySearchesPerUser);
   let sources: ReturnType<typeof papers.sources> | null = null;
   let web: ReturnType<typeof webSearchFor> | undefined;
-  // the user's connected apps (their tools are offered only while connected)
-  const connectors = await agentConnectors(userId, meter).catch((e) => {
-    console.warn('[citezeno] agent: connected apps unavailable', (e as Error).message);
-    return undefined;
-  });
   const ctx: AgentContext = {
     userId,
     db: pool,
@@ -157,7 +151,6 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     files: agentFiles({ db: pool, store: fileStorage(), maxTotalBytes: limits.agentFilesBytes }, { userId, conversationId: conversation.id }),
     credits: reply.meter,
     limits,
-    connectors,
     timeZone,
   };
 
@@ -186,8 +179,8 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     setPending: (p) => setPending(pool, conversation.id, p),
     maxTurns: MAX_TURNS,
     deadline: Date.now() + replyMs,
-    extraSystem: (extraSystem ?? '') + timeContext(timeZone) + (conversation.webSearch ? webContext() : '') + connectorsContext(connectors?.apps ?? connectors?.connected),
-    tools: offeredTools({ web: conversation.webSearch, connected: connectors?.connected, permission: connectors?.permission }),
+    extraSystem: (extraSystem ?? '') + timeContext(timeZone) + (conversation.webSearch ? webContext() : ''),
+    tools: offeredTools({ web: conversation.webSearch }),
     ...(named
       ? {
           naming: {

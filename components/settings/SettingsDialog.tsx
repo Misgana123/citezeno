@@ -24,7 +24,7 @@ const NAV: (NavItem | 'sep')[] = [
   { id: 'library', label: 'Library', icon: 'book', words: 'library traces citation studio' },
   { id: 'security', label: 'Security', icon: 'shield', words: 'security sign-in password two-step 2fa devices sessions google github' },
   'sep',
-  { id: 'customize', label: 'Customize', icon: 'sliders', words: 'customize connectors skills apps google drive docs sheets calendar notion zotero microsoft outlook onedrive mail github slack todoist linear tasks' },
+  { id: 'customize', label: 'Customize', icon: 'sliders', words: 'customize skills instructions' },
 ];
 
 export function SettingsDialog({ target, onClose }: { target: SettingsTarget; onClose(): void }) {
@@ -62,7 +62,7 @@ export function SettingsDialog({ target, onClose }: { target: SettingsTarget; on
   const shown = NAV.filter((n): n is NavItem => n !== 'sep' && (!q || n.words.includes(q) || n.label.toLowerCase().includes(q)));
 
   let body: ReactNode;
-  if (section === 'customize') body = <CustomizeSection kind={target.kind} view={target.view} key={`${target.kind}-${target.view}`} />;
+  if (section === 'customize') body = <CustomizeSection view={target.view} key={target.view ?? 'discover'} />;
   else if (section === 'appearance') body = <AppearanceSection />;
   else if (!account.data) body = <div className="st-loading">{account.error ?? 'Loading…'}</div>;
   else if (section === 'account') body = <AccountSection account={account} />;

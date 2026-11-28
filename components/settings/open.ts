@@ -6,30 +6,27 @@
 export const SETTINGS_SECTIONS = ['account', 'usage', 'appearance', 'library', 'security', 'customize'] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
-/* Customize: which tab and view to show */
-export type CustomizeKind = 'connectors' | 'skills';
+/* Customize (skills): which view to show */
 export type CustomizeView = 'yours' | 'discover';
-export type SettingsTarget = { section: SettingsSection; kind?: CustomizeKind; view?: CustomizeView };
+export type SettingsTarget = { section: SettingsSection; view?: CustomizeView };
 
 export const SETTINGS_EVENT = 'citezeno:settings';
 
-export const openSettings = (section: SettingsSection = 'account', opts: { kind?: CustomizeKind; view?: CustomizeView } = {}) =>
+export const openSettings = (section: SettingsSection = 'account', opts: { view?: CustomizeView } = {}) =>
   window.dispatchEvent(new CustomEvent<SettingsTarget>(SETTINGS_EVENT, { detail: { section, ...opts } }));
 
 /* A link that opens Settings (on the assistant's page unless another page is given). */
-export function settingsHref(section: SettingsSection = 'account', opts: { kind?: CustomizeKind; view?: CustomizeView; path?: string } = {}): string {
+export function settingsHref(section: SettingsSection = 'account', opts: { view?: CustomizeView; path?: string } = {}): string {
   const q = new URLSearchParams({ settings: section });
-  if (opts.kind) q.set('tab', opts.kind);
   if (opts.view) q.set('view', opts.view);
   return `${opts.path ?? '/app/chat'}?${q}`;
 }
 
-/* The target a link asked for (?settings=…&tab=…&view=…), or null. */
+/* The target a link asked for (?settings=…&view=…), or null. */
 export function targetFromParams(p: URLSearchParams): SettingsTarget | null {
   const s = p.get('settings');
   if (s == null) return null;
   const section = (SETTINGS_SECTIONS as readonly string[]).includes(s) ? (s as SettingsSection) : 'account';
-  const tab = p.get('tab');
   const view = p.get('view');
-  return { section, ...(tab === 'connectors' || tab === 'skills' ? { kind: tab } : {}), ...(view === 'yours' || view === 'discover' ? { view } : {}) };
+  return { section, ...(view === 'yours' || view === 'discover' ? { view } : {}) };
 }

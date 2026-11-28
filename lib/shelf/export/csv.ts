@@ -13,33 +13,32 @@ export function csvCell(v: string | number | boolean | null | undefined): string
 
 export const CSV_COLUMNS = ['Title', 'Authors', 'Year', 'Source', 'Type', 'DOI', 'Link', 'Paper ID', 'Citations', 'Open access', 'Retracted', 'Reading status', 'Added', 'Projects', 'Folders', 'Tags', 'Note', 'PDF files'];
 
-/* One paper's values, in CSV_COLUMNS order (for CSV, and for spreadsheets in connected apps). */
-export function rowValues({ item, projects, folders, tags }: ExportRow): (string | number | boolean | null)[] {
-  const p = item.paper;
-  return [
-    p.title,
-    p.authors.map((a) => a.name).join('; '),
-    p.year,
-    p.source,
-    p.type,
-    p.doi,
-    p.landingUrl ?? (p.doi ? `https://doi.org/${p.doi}` : ''),
-    p.provider ? p.id : '',
-    p.origin === 'provider' ? p.citedByCount : '',
-    p.isOpenAccess,
-    p.isRetracted,
-    STATUS[item.readingStatus],
-    item.addedAt.slice(0, 10),
-    projects.join('; '),
-    folders.join('; '),
-    tags.join('; '),
-    item.note,
-    item.pdfs.map((f) => f.fileName).join('; '),
-  ].map((v) => (v === undefined ? null : v));
-}
-
 export function toCsv(rows: ExportRow[]): string {
-  const lines = rows.map((r) => rowValues(r).map(csvCell).join(','));
+  const lines = rows.map(({ item, projects, folders, tags }) => {
+    const p = item.paper;
+    return [
+      p.title,
+      p.authors.map((a) => a.name).join('; '),
+      p.year,
+      p.source,
+      p.type,
+      p.doi,
+      p.landingUrl ?? (p.doi ? `https://doi.org/${p.doi}` : ''),
+      p.provider ? p.id : '',
+      p.origin === 'provider' ? p.citedByCount : '',
+      p.isOpenAccess,
+      p.isRetracted,
+      STATUS[item.readingStatus],
+      item.addedAt.slice(0, 10),
+      projects.join('; '),
+      folders.join('; '),
+      tags.join('; '),
+      item.note,
+      item.pdfs.map((f) => f.fileName).join('; '),
+    ]
+      .map(csvCell)
+      .join(',');
+  });
   // the byte-order mark makes Excel read the file as UTF-8
   return `\uFEFF${[CSV_COLUMNS.join(','), ...lines].join('\r\n')}\r\n`;
 }

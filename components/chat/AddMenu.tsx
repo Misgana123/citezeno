@@ -1,23 +1,16 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Project } from '@/lib/shelf/types';
-import { AppLogo } from '../connectors/AppLogo';
-import { setAssistant, signInHref } from '../connectors/actions';
-import { connectHref } from '../connectors/api';
-import { pickCloudFiles } from '../connectors/pick';
-import { useConnectors } from '../connectors/useConnectors';
-import { logoFor, serviceFor } from '../settings/customize/cards';
 import { openSettings } from '../settings/open';
 import { shelfFetch } from '../shelf/api';
 import { useSkills } from '../skills/useSkills';
-import { toast } from '../toast';
 import { Icon } from '../Icon';
 import { ATTACH_ACCEPT, canScreenshot } from './attach';
 
-/* The + button in the message box. Its menu: upload files, add from Google
-   Drive, take a screenshot, add a shelf project as context; Skills and
-   Connectors (each a submenu with Manage and Browse); Research and Web search. */
+/* The + button in the message box. Its menu: upload files, take a screenshot,
+   add a shelf project as context; Skills (a submenu with Manage and Browse);
+   Research and Web search. */
 
 export type Toggle = { on: boolean; onChange(on: boolean): void };
 export type Picked = { id: string; name: string } | null;
@@ -35,7 +28,7 @@ type Props = {
   project?: Pick;
 };
 
-type Sub = 'shelf' | 'skills' | 'connectors' | null;
+type Sub = 'shelf' | 'skills' | null;
 
 export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, research, skill, project }: Props) {
   const [open, setOpen] = useState(false);
@@ -43,7 +36,6 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
   const [shots, setShots] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
-  const { connectors, appsFor } = useConnectors();
   const { catalog } = useSkills();
   const [projects, setProjects] = useState<Project[] | null>(null);
 
@@ -86,31 +78,10 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
     fn?.();
   };
 
-  /* Google Drive, OneDrive (each app with cloud files): pick, then add each file as an upload would be */
-  const clouds = appsFor('files');
-  const addFromCloud = async (app: string, label: string, logo: string) => {
-    setOpen(false);
-    try {
-      const picked = await pickCloudFiles(app, { multiple: true, title: 'Add files to the message', label, logo });
-      const files = await Promise.all(
-        picked.map(async (p) => {
-          const res = await fetch('/api/connectors/files/download', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fileId: p.id, app }) });
-          if (!res.ok) throw new Error(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? `“${p.name}” couldn’t be added.`);
-          const name = decodeURIComponent(/filename\*=UTF-8''([^;]+)/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? p.name);
-          return new File([await res.blob()], name, { type: res.headers.get('content-type') ?? p.mime });
-        }),
-      );
-      if (files.length) onAddFiles(files);
-    } catch (e) {
-      toast((e as Error).message, true);
-    }
-  };
-
   const skills = catalog?.mine.filter((s) => s.enabled) ?? [];
-  const apps = connectors?.filter((c) => c.connection) ?? [];
 
   /* a row that opens a submenu beside it (hover, click, or → on the keyboard) */
-  const subRow = (id: Exclude<Sub, null>, icon: Parameters<typeof Icon>[0]['name'], label: string, children: ReactNode, wide = false) => (
+  const subRow = (id: Exclude<Sub, null>, icon: Parameters<typeof Icon>[0]['name'], label: string, children: ReactNode) => (
     <div
       className={`ch-am-i${sub === id ? ' is-open' : ''}`}
       role="menuitem"
@@ -141,7 +112,7 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
         <Icon name="chevron" className="ch-am-chev" />
       </span>
       {sub === id && (
-        <div className={`ch-am ch-am-sub${wide ? ' is-wide' : ''}`} role="menu">
+        <div className="ch-am ch-am-sub" role="menu">
           {children}
         </div>
       )}
@@ -154,8 +125,8 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
       <button
         type="button"
         className="ch-add"
-        aria-label="Add files, skills, connectors and more"
-        title="Add files, skills, connectors and more"
+        aria-label="Add files, skills and more"
+        title="Add files, skills and more"
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={disabled}
@@ -170,31 +141,6 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
             Upload or add files
             <span className="ch-am-end">Ctrl+U</span>
           </button>
-          {clouds.map((c) => {
-            const on = c.connection?.status === 'ok';
-            const { title, logo } = serviceFor(c, 'files');
-            return (
-              <Fragment key={c.name}>
-                <button type="button" className="ch-am-i" role="menuitem" onMouseEnter={flat} onClick={on ? () => addFromCloud(c.name, title, logo) : () => c.signIn && (window.location.href = connectHref(c.name, window.location.pathname))}>
-                  <AppLogo app={logo} size={20} />
-                  <span className="ch-am-two">
-                    Add from {title}
-                    <small>{on ? c.connection!.label : c.connection ? 'Connect again' : 'Not connected'}</small>
-                  </span>
-                </button>
-                {!on && c.signIn && (
-                  <div className="ch-am-i is-indent" onMouseEnter={flat}>
-                    Log in to {title}
-                    <span className="ch-am-end">
-                      <a className="ch-am-pill" href={connectHref(c.name, window.location.pathname)}>
-                        Connect
-                      </a>
-                    </span>
-                  </div>
-                )}
-              </Fragment>
-            );
-          })}
           {shots && (
             <button type="button" className="ch-am-i" role="menuitem" onMouseEnter={flat} onClick={() => done(onScreenshot)}>
               <Icon name="camera" />
@@ -256,66 +202,16 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
                   ))
                 )}
                 <div className="ch-am-sep" />
-                <button type="button" className="ch-am-i" role="menuitem" onClick={() => done(() => openSettings('customize', { kind: 'skills', view: 'yours' }))}>
+                <button type="button" className="ch-am-i" role="menuitem" onClick={() => done(() => openSettings('customize', { view: 'yours' }))}>
                   <Icon name="briefcase" />
                   Manage skills
                 </button>
-                <button type="button" className="ch-am-i" role="menuitem" onClick={() => done(() => openSettings('customize', { kind: 'skills', view: 'discover' }))}>
+                <button type="button" className="ch-am-i" role="menuitem" onClick={() => done(() => openSettings('customize', { view: 'discover' }))}>
                   <Icon name="plus" />
                   Browse skills
                 </button>
               </>,
             )}
-
-          {subRow(
-            'connectors',
-            'apps',
-            'Connectors',
-            <>
-              {connectors == null ? (
-                <div className="ch-am-note">Loading…</div>
-              ) : apps.length === 0 ? (
-                <div className="ch-am-note">{connectors.length ? 'No apps connected yet.' : 'Connecting apps isn’t set up yet.'}</div>
-              ) : (
-                apps.map((c) =>
-                  c.connection!.status === 'ok' ? (
-                    <button key={c.name} type="button" className="ch-am-i" role="menuitemcheckbox" aria-checked={c.connection!.assistant} onClick={() => setAssistant(c, !c.connection!.assistant)}>
-                      <AppLogo app={logoFor(c)} size={20} />
-                      {c.label}
-                      <span className="ch-am-end">
-                        <span className={`ch-switch${c.connection!.assistant ? ' is-on' : ''}`} aria-hidden="true" />
-                      </span>
-                    </button>
-                  ) : (
-                    <div key={c.name} className="ch-am-i">
-                      <AppLogo app={logoFor(c)} size={20} />
-                      <span className="ch-am-two">
-                        {c.label}
-                        <small>Connect again</small>
-                      </span>
-                      {c.signIn && (
-                        <span className="ch-am-end">
-                          <a className="ch-am-pill" href={signInHref(c.name)}>
-                            Connect
-                          </a>
-                        </span>
-                      )}
-                    </div>
-                  ),
-                )
-              )}
-              <div className="ch-am-sep" />
-              <button type="button" className="ch-am-i" role="menuitem" onClick={() => done(() => openSettings('customize', { kind: 'connectors', view: 'yours' }))}>
-                <Icon name="briefcase" />
-                Manage connectors
-              </button>
-              <button type="button" className="ch-am-i" role="menuitem" onClick={() => done(() => openSettings('customize', { kind: 'connectors', view: 'discover' }))}>
-                <Icon name="plus" />
-                Browse connectors
-              </button>
-            </>,
-            true,
-          )}
 
           {(research || web) && <div className="ch-am-sep" />}
           {research && (

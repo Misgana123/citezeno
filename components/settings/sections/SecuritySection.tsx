@@ -6,7 +6,7 @@ import { timeAgo } from '@/lib/library';
 import { useRouter } from 'next/navigation';
 import { Notice, PasswordField } from '../../auth/bits';
 import { TwoFactorPanel } from '../../account/TwoFactorPanel';
-import { AppLogo } from '../../connectors/AppLogo';
+import { AppLogo } from '../../AppLogo';
 import { Icon } from '../../Icon';
 import { toast } from '../../toast';
 import type { AccountState } from '../useAccount';

@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { AGENT_SQL } from '@/lib/agent/schema';
-import { CONNECTORS_SQL } from '@/lib/connectors/schema';
 import { SKILLS_SQL } from '@/lib/skills/schema';
 import { CREDITS_SQL } from '@/lib/credits/schema';
 import { READER_SQL } from '@/lib/reader/schema';
@@ -29,7 +28,6 @@ export async function openTestDb(): Promise<TestDb> {
   await pool.query(AGENT_SQL);
   await pool.query(READER_SQL);
   await pool.query(CREDITS_SQL);
-  await pool.query(CONNECTORS_SQL);
   await pool.query(SKILLS_SQL);
   return {
     pool,
