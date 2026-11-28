@@ -19,9 +19,10 @@ export type LabSpace = {
   guest: Map<string, 'view' | 'edit'> | null;
 };
 
-/* The lab a request asks for, checked against the user's membership (null: their own shelf). */
+/* The lab a request asks for (the header, or ?space= on links that can't carry
+   one), checked against the user's membership (null: their own shelf). */
 export async function spaceOf(db: Db, req: Request, userId: string): Promise<LabSpace | null> {
-  const raw = req.headers.get(SPACE_HEADER)?.trim();
+  const raw = (req.headers.get(SPACE_HEADER) ?? new URL(req.url).searchParams.get('space'))?.trim();
   if (!raw || raw === 'personal') return null;
   const labId = raw.startsWith('lab:') ? raw.slice(4) : '';
   const m = labId ? await memberIn(db, labId, userId) : null;
@@ -92,4 +93,17 @@ export async function guestGate(db: Db, space: LabSpace, req: Request): Promise<
     return;
   }
   throw new ShelfError('forbidden', GUEST_FORBIDDEN);
+}
+
+/* Reading a paper from a lab's shelf: a guest may only open papers in the
+   projects shared with them (reading is enough; their highlights are their own). */
+export async function guestMayRead(db: Db, space: LabSpace, paperId: string): Promise<boolean> {
+  if (!space.guest) return true;
+  const projects = [...space.guest.keys()];
+  if (!projects.length) return false;
+  const { rowCount } = await db.query(
+    `select 1 from shelf_item i join shelf_item_project ip on ip."itemId" = i.id where i."userId" = $1 and i."paperId" = $2 and ip."projectId" = any($3::text[]) limit 1`,
+    [space.shelfUserId, paperId, projects],
+  );
+  return (rowCount ?? 0) > 0;
 }

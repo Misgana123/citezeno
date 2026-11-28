@@ -3,8 +3,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 
 import { createConversation, getConversation, listConversations, loadMessages, appendMessages } from '@/lib/agent/store';
-import { labChatFor, labProjectFor } from '@/lib/labs/chat';
-import { actorDb, guestGate, spaceOf } from '@/lib/labs/shelf';
+import { accountPayer, labChatFor, labPayerFor, labProjectFor } from '@/lib/labs/chat';
+import { actorDb, guestGate, guestMayRead, spaceOf } from '@/lib/labs/shelf';
 import * as labs from '@/lib/labs/service';
 import { membershipOf } from '@/lib/labs/store';
 import { limitsFor, NO_PLAN, type Limits } from '@/lib/plans';
@@ -186,6 +186,35 @@ describe.skipIf(!TEST_DB_URL)('labs (postgres)', () => {
 
     await appendMessages(t.pool, c.id, [{ message: { role: 'user', text: 'hi' } }, { message: { role: 'assistant', text: 'hello', toolCalls: [] } }], mem.id);
     expect((await loadMessages(t.pool, c.id)).map((m) => m.authorId ?? null)).toEqual([mem.id, null]);
+  });
+
+  it('lab reading: guests read only papers in their projects; who pays for reading and the lab’s embeddings', async () => {
+    const w = await world();
+    const owner = await w.person('o10@x.org', limitsFor('lab'));
+    const lab = await labs.createLab(w.d, owner.id, 'Lab J');
+    const shared = await createProject(t.pool, lab.shelfUserId, 'Shared');
+    await t.pool.query(`insert into shelf_paper (id, "ownerId", title, origin, data) values ('p_j1', $1, 'In', 'manual', '{}'), ('p_j2', $1, 'Out', 'manual', '{}')`, [lab.shelfUserId]);
+    await t.pool.query(`insert into shelf_item (id, "userId", "paperId", "addedVia") values ('i_j1', $1, 'p_j1', 'manual'), ('i_j2', $1, 'p_j2', 'manual')`, [lab.shelfUserId]);
+    await t.pool.query(`insert into shelf_item_project ("itemId", "projectId") values ('i_j1', $1)`, [shared.id]);
+    const gus = await w.person('gus10@x.org');
+    await labs.invite(w.d, owner.id, { email: gus.email, role: 'guest', projectId: shared.id, access: 'view', inviterName: 'O' });
+    await labs.acceptInvite(w.d, gus, w.tokenOf(w.sent.at(-1)!.url));
+    const mem = await w.person('mem10@x.org');
+    await labs.acceptInvite(w.d, mem, w.tokenOf((await labs.setShareLink(w.d, owner.id, true))!));
+
+    // the reader asks with ?space= (links can't carry the header)
+    const req = new Request(`https://cz.test/api/reader/p_j2?space=${encodeURIComponent(`lab:${lab.id}`)}`);
+    const guest = (await spaceOf(t.pool, req, gus.id))!;
+    expect(await guestMayRead(t.pool, guest, 'p_j1')).toBe(true);
+    expect(await guestMayRead(t.pool, guest, 'p_j2')).toBe(false);
+    expect(await guestMayRead(t.pool, (await spaceOf(t.pool, req, mem.id))!, 'p_j2')).toBe(true);
+
+    expect(await labPayerFor(w.d, mem.id, lab.id)).toMatchObject({ role: 'member', payer: owner.id });
+    expect(await labPayerFor(w.d, gus.id, lab.id)).toMatchObject({ role: 'guest', payer: gus.id });
+    expect(await labPayerFor(w.d, (await w.person('out10@x.org')).id, lab.id)).toBeNull();
+    // embedding a lab upload is charged to the lab's owner; anyone else pays for their own
+    expect(await accountPayer(t.pool, lab.shelfUserId)).toBe(owner.id);
+    expect(await accountPayer(t.pool, mem.id)).toBe(mem.id);
   });
 
   it('lab skills: admins write them, members use them, guests and outsiders don’t see them', async () => {

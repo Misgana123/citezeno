@@ -5,7 +5,7 @@ import { resolvePaperId } from '@/lib/providers/papers/sources';
 import { getItemByPaper } from '@/lib/shelf/store/items';
 import type { ShelfItem } from '@/lib/shelf/types';
 import { ReaderError } from '../errors';
-import type { ReaderDeps } from '../deps';
+import { shelfOwner, type ReaderDeps } from '../deps';
 
 /* The paper the reader opens: the user's shelf copy when it is there (it may
    be a paper only the shelf knows, added by hand or imported), otherwise from
@@ -49,15 +49,17 @@ export function readPaperId(raw: string): string {
   return id;
 }
 
-export async function loadPaper(deps: Pick<ReaderDeps, 'db' | 'sources'>, userId: string, rawId: string): Promise<LoadedPaper> {
+export async function loadPaper(deps: Pick<ReaderDeps, 'db' | 'sources' | 'shelfUserId'>, userId: string, rawId: string): Promise<LoadedPaper> {
   const id = readPaperId(rawId);
-  const onShelf = await getItemByPaper(deps.db, userId, id);
+  // the paper on the shelf being read from (a lab's, or the reader's own)
+  const owner = shelfOwner(deps, userId);
+  const onShelf = await getItemByPaper(deps.db, owner, id);
   if (onShelf) return { paper: toReaderPaper(onShelf.paper), item: onShelf };
   const target = resolvePaperId(deps.sources(), id);
   if (!target) throw new ReaderError('not_found', 'We couldn’t find that paper.');
   const canonical = qualify(target.source.name, target.id);
   if (canonical !== id) {
-    const item = await getItemByPaper(deps.db, userId, canonical);
+    const item = await getItemByPaper(deps.db, owner, canonical);
     if (item) return { paper: toReaderPaper(item.paper), item };
   }
   const { paper } = await getPaper(target);

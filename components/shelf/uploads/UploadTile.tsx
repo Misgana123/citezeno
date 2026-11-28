@@ -6,6 +6,7 @@ import { Icon } from '../../Icon';
 import { readHref } from '../../reader/api';
 import { UploadCover } from './UploadCover';
 import { tileInfo } from './tile-info';
+import { shelfSpace } from '../api';
 
 /* One upload in the gallery: the cover opens it in the reader, the title opens
    its details (tags, notes, status, remove), and the box selects it. */
@@ -30,7 +31,7 @@ export function UploadTile({
   return (
     <li id={`item-${item.id}`} className={`sh-tile${active ? ' is-active' : ''}${selected ? ' is-selected' : ''}${fresh ? ' is-fresh' : ''}${p.isRetracted ? ' is-retracted' : ''}`}>
       <div className="sh-tile-frame">
-        <Link href={readHref(p.id, t.pdfId)} prefetch={false} className="sh-tile-read" aria-label={`${t.action} “${p.title}”`} title={t.where ?? undefined}>
+        <Link href={readHref(p.id, t.pdfId, shelfSpace())} prefetch={false} className="sh-tile-read" aria-label={`${t.action} “${p.title}”`} title={t.where ?? undefined}>
           <UploadCover title={p.title} progress={t.progress} />
           <span className="sh-tile-hover">
             <span className="btn btn-thread btn-sm">

@@ -1,7 +1,7 @@
 import { changeItem } from '@/lib/shelf/service/update-item';
 import { getPdfRow } from '@/lib/shelf/store/pdfs';
 import type { ReadingStatus } from '@/lib/shelf/types';
-import type { ReaderDeps } from '../deps';
+import { shelfOwner, type ReaderDeps } from '../deps';
 import { isReusableLicense } from '../license';
 import { signFileLink } from '../sign';
 import { getPosition, touchPosition } from '../store/positions';
@@ -51,11 +51,13 @@ export async function openPaper(deps: ReaderDeps, userId: string, rawId: string,
 
   // a chosen upload of this paper, else the newest
   const upload = (opts.pdfId ? item?.pdfs.find((f) => f.id === opts.pdfId) : undefined) ?? item?.pdfs.at(-1);
-  const uploadRow = upload ? await getPdfRow(deps.db, userId, upload.id) : null;
+  // the PDF and its text belong to the shelf's owner (a lab's shelf account when reading from a lab)
+  const owner = shelfOwner(deps, userId);
+  const uploadRow = upload ? await getPdfRow(deps.db, owner, upload.id) : null;
   if (uploadRow && uploadRow.status === 'ready') {
     if (!deps.store) pdf = { kind: 'none', reason: 'storage_off' };
     else {
-      text = await ensureUploadText(deps.db, { userId, pdfId: uploadRow.id, paperId: paper.id, title: paper.title });
+      text = await ensureUploadText(deps.db, { userId: owner, pdfId: uploadRow.id, paperId: paper.id, title: paper.title });
       // embedding stopped for want of credits (or this month's embeds): try again now the paper is open
       if (text.error && KEYWORDS_ONLY.includes(text.error) && emb && (await requeueKeywordsOnly(deps.db, text.id))) text = { ...text, stage: 'embed', error: null };
       pdf = { kind: 'upload', key: `upload:${uploadRow.id}`, url: deps.store.downloadUrl(uploadRow.storageKey, { ttlS: LINK_TTL_S, inline: true, fileName: uploadRow.fileName }), fileName: uploadRow.fileName, stored: true };
@@ -71,9 +73,9 @@ export async function openPaper(deps: ReaderDeps, userId: string, rawId: string,
     }
   }
 
-  // opening a paper starts it: "To read" → "Reading"
+  // opening a paper starts it: "To read" → "Reading" (on your own shelf only: a lab's status is the lab's to set)
   let shelf = item ? { itemId: item.id, readingStatus: item.readingStatus } : null;
-  if (item && item.readingStatus === 'to_read') {
+  if (item && item.readingStatus === 'to_read' && !deps.shelfUserId) {
     const changed = await changeItem(deps.db, userId, item.id, { readingStatus: 'reading' });
     shelf = { itemId: changed.id, readingStatus: changed.readingStatus };
   }

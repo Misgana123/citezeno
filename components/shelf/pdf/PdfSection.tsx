@@ -7,7 +7,7 @@ import { confirmDialog } from '../../confirm';
 import { Icon } from '../../Icon';
 import { readHref } from '../../reader/api';
 import { toast } from '../../toast';
-import { shelfFetch } from '../api';
+import { shelfFetch, shelfSpace } from '../api';
 import { fileSize, pdfHref, uploadPdf } from './upload';
 
 /* The drawer's PDF section: the paper's PDFs (download, delete) and "Attach a PDF". */
@@ -53,7 +53,7 @@ export function PdfSection({ item, onChange }: { item: ShelfItem; onChange: (ite
             <li key={f.id}>
               <Icon name="pdf" />
               <span className="sh-pdf-name">
-                <Link href={readHref(item.paper.id, f.id)} prefetch={false} title="Read it">
+                <Link href={readHref(item.paper.id, f.id, shelfSpace())} prefetch={false} title="Read it">
                   {f.fileName}
                 </Link>
                 <span className="small">

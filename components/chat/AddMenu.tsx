@@ -14,7 +14,8 @@ import { ATTACH_ACCEPT, canScreenshot } from './attach';
    Research and Web search. */
 
 export type Toggle = { on: boolean; onChange(on: boolean): void };
-export type Picked = { id: string; name: string } | null;
+/* labId: a lab project (the chat becomes the project's) */
+export type Picked = { id: string; name: string; labId?: string } | null;
 export type Pick = { value: Picked; onChange(v: Picked): void };
 
 type Props = {
@@ -39,7 +40,7 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
   const input = useRef<HTMLInputElement>(null);
   const { catalog } = useSkills();
   // your projects, then your lab's (a lab project makes the chat the project's, shared with its people)
-  const [projects, setProjects] = useState<(Project & { lab?: string })[] | null>(null);
+  const [projects, setProjects] = useState<(Project & { lab?: string; labId?: string })[] | null>(null);
   const { lab } = useLab();
 
   useEffect(() => setShots(canScreenshot()), []);
@@ -80,7 +81,7 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
       ...labs.map((l) =>
         fetch('/api/shelf/groups', { cache: 'no-store', headers: { 'x-cz-space': `lab:${l.id}` } })
           .then((r) => (r.ok ? r.json() : { projects: [] }))
-          .then((g: { projects?: Project[] }) => (g.projects ?? []).map((p) => ({ ...p, lab: l.name }))),
+          .then((g: { projects?: Project[] }) => (g.projects ?? []).map((p) => ({ ...p, lab: l.name, labId: l.id }))),
       ),
     ])
       .then((lists) => loadedFor.current === labsKey && setProjects(lists.flat()))
@@ -172,7 +173,7 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
                 <div className="ch-am-note">No projects on your shelf yet.</div>
               ) : (
                 projects.map((p) => (
-                  <button key={p.id} type="button" className="ch-am-i" role="menuitemradio" aria-checked={project.value?.id === p.id} onClick={() => done(() => project.onChange(project.value?.id === p.id ? null : { id: p.id, name: p.name }))}>
+                  <button key={p.id} type="button" className="ch-am-i" role="menuitemradio" aria-checked={project.value?.id === p.id} onClick={() => done(() => project.onChange(project.value?.id === p.id ? null : { id: p.id, name: p.name, ...(p.labId ? { labId: p.labId } : {}) }))}>
                     <Icon name={p.lab ? 'users' : 'folder'} />
                     <span className="ch-am-two">
                       {p.name}

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Icon } from '../Icon';
 import { readHref } from './api';
 import './read-button.css';
+import { shelfSpace } from '../shelf/api';
 
 /* Open a paper in the reader, from anywhere (Find Papers, the shelf, the
    assistant). A plain link: same tab, and Ctrl/middle-click opens a new one.
@@ -35,7 +36,7 @@ export function ReadButton({
   return (
     <Link
       className={`btn ${main ? 'btn-thread' : 'btn-ghost'} btn-sm rd-read-btn${open ? ' is-open' : ''} ${className}`.trim()}
-      href={`${readHref(paperId, pdfId)}${chatId ? `${pdfId ? '&' : '?'}chat=${encodeURIComponent(chatId)}` : ''}`}
+      href={((h) => (chatId ? `${h}${h.includes('?') ? '&' : '?'}chat=${encodeURIComponent(chatId)}` : h))(readHref(paperId, pdfId, shelfSpace()))}
       prefetch={false}
       aria-pressed={onOpen ? open : undefined}
       onClick={(e) => {

@@ -17,6 +17,7 @@ import { refreshChats, useChatIndex } from './chat-index';
 import { runClientTool } from './citations';
 import { AttachCard } from './AttachCard';
 import { Composer } from './Composer';
+import { setReaderSpace } from '../reader/api';
 import type { Picked } from './AddMenu';
 
 /* The browser's time zone, so the assistant's "tomorrow at 9" is the user's. */
@@ -257,6 +258,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
       setWaiting(null);
       setBusy(false);
       if (!id) {
+        setReaderSpace(null);
         setEntries([]);
         setTitle(null);
         setModel(startModel());
@@ -273,6 +275,8 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
         setWaiting(c.waiting);
         setModel(c.model);
         setWebSearch(c.webSearch === true);
+        // a lab project's chat: papers open from the lab's shelf
+        setReaderSpace(c.labId ? `lab:${c.labId}` : null);
       } catch (e) {
         setError((e as Error).message);
         setEntries([]);
@@ -398,6 +402,8 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
     setEntries((prev) => [...prev, { kind: 'user', text: typed, ...(shown.length ? { attachments: shown } : {}) }]);
     const paperId = asking && panel.files.some((f) => f.paperId === asking) ? asking : null;
     const extras = { ...(skill ? { skill: skill.id } : {}), ...(project ? { projectId: project.id } : {}) };
+    // a new chat in a lab project reads its papers from the lab's shelf
+    if (!activeId && project?.labId) setReaderSpace(`lab:${project.labId}`);
     setSkill(null);
     setProject(null);
     await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId, webSearch, timeZone: userTimeZone(), ...extras, ...(attachments.length ? { attachments } : {}) }, onEvent, signal));

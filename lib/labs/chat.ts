@@ -43,21 +43,35 @@ export async function labSpendByMember(q: Queryable, lab: Pick<Lab, 'id' | 'owne
   return new Map(rows.map((r) => [r.memberId, Number(r.n)]));
 }
 
+/* Whose credits pay for a member's lab work: the owner's (the Lab plan's
+   pool) up to the member's monthly cap; past it, a guest, or a lab whose owner
+   left the Lab plan, the person's own. */
+export async function labPayerFor(d: { db: Queryable; limitsOf(userId: string): Promise<Limits> }, userId: string, labId: string): Promise<{ lab: Lab; role: LabRole; payer: string; overCap: boolean } | null> {
+  const m = await memberIn(d.db, labId, userId);
+  if (!m) return null;
+  if (m.role === 'guest' || (await d.limitsOf(m.lab.ownerId)).labMembers <= 0) return { lab: m.lab, role: m.role, payer: userId, overCap: false };
+  if (m.role === 'owner') return { lab: m.lab, role: m.role, payer: m.lab.ownerId, overCap: false };
+  const overCap = m.creditCap != null && (await labSpend(d.db, m.lab, userId)) >= m.creditCap;
+  return { lab: m.lab, role: m.role, payer: overCap ? userId : m.lab.ownerId, overCap };
+}
+
+/* Who pays for work charged to an account: a lab's shelf account is paid for by the lab's owner. */
+export async function accountPayer(q: Queryable, userId: string): Promise<string> {
+  const { rows } = await q.query<{ ownerId: string }>(`select "ownerId" from lab where "shelfUserId" = $1`, [userId]);
+  return rows[0]?.ownerId ?? userId;
+}
+
 export type LabChat = { lab: Lab; role: LabRole; canPost: boolean; payer: string; overCap: boolean };
 
 /* For a reply in a lab chat: can this user write, and whose credits pay. */
 export async function labChatFor(d: { db: Queryable; limitsOf(userId: string): Promise<Limits> }, userId: string, conv: { labId: string | null; projectId: string | null }): Promise<LabChat | null> {
   if (!conv.labId) return null;
-  const m = await memberIn(d.db, conv.labId, userId);
-  if (!m) return null;
-  let canPost = m.role !== 'guest';
+  const pay = await labPayerFor(d, userId, conv.labId);
+  if (!pay) return null;
+  let canPost = pay.role !== 'guest';
   if (!canPost && conv.projectId) {
     const { rows } = await d.db.query<{ access: string }>(`select access from lab_project_access where "projectId" = $1 and "userId" = $2`, [conv.projectId, userId]);
     canPost = rows[0]?.access === 'edit';
   }
-  // guests, and a lab whose owner left the Lab plan, pay with their own credits
-  if (m.role === 'guest' || (await d.limitsOf(m.lab.ownerId)).labMembers <= 0) return { lab: m.lab, role: m.role, canPost, payer: userId, overCap: false };
-  if (m.role === 'owner') return { lab: m.lab, role: m.role, canPost, payer: m.lab.ownerId, overCap: false };
-  const overCap = m.creditCap != null && (await labSpend(d.db, m.lab, userId)) >= m.creditCap;
-  return { lab: m.lab, role: m.role, canPost, payer: overCap ? userId : m.lab.ownerId, overCap };
+  return { ...pay, canPost };
 }

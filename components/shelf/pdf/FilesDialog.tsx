@@ -7,7 +7,7 @@ import { confirmDialog } from '../../confirm';
 import { Icon } from '../../Icon';
 import { readHref } from '../../reader/api';
 import { toast } from '../../toast';
-import { shelfFetch } from '../api';
+import { shelfFetch, shelfSpace } from '../api';
 import { fileSize, pdfHref } from './upload';
 
 type Files = { files: (PdfRow & { paperTitle: string | null; paperId: string | null })[]; usedBytes: number; limitBytes: number; enabled: boolean };
@@ -75,7 +75,7 @@ export function FilesDialog({ onClose, onDeleted }: { onClose: () => void; onDel
                     <Icon name="pdf" />
                     <span className="sh-pdf-name">
                       {f.paperId ? (
-                        <Link href={readHref(f.paperId, f.id)} prefetch={false} title="Read it">
+                        <Link href={readHref(f.paperId, f.id, shelfSpace())} prefetch={false} title="Read it">
                           {f.fileName}
                         </Link>
                       ) : (

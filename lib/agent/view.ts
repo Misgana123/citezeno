@@ -20,8 +20,9 @@ export type ConversationView = {
   entries: ChatEntry[];
   /* a yes / no question, or a tool the browser should run (asking first, since reopening shouldn't spend credits silently) */
   waiting: Waiting | null;
-  /* a chat inside a lab project */
+  /* a chat inside a lab project (its lab: papers open from the lab's shelf) */
   lab?: boolean;
+  labId?: string;
 };
 
 /* authors: in a lab chat, the names of the people who wrote (user ID → name), and who is looking */
@@ -57,6 +58,6 @@ export function toView(c: Conversation, messages: StoredMessage[], authors?: { n
     webSearch: c.webSearch,
     entries,
     waiting: c.pending?.waiting ?? null,
-    ...(c.labId ? { lab: true } : {}),
+    ...(c.labId ? { lab: true, labId: c.labId } : {}),
   };
 }

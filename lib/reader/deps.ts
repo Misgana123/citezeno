@@ -24,10 +24,16 @@ export type ReaderDeps = {
   meter?: Meter;
   /* The one-time charge for embedding a user's own upload (made once per text,
      resumed across job runs). Absent → embedding is free (the owner's cost). */
-  embedMeter?: (t: { userId: string; textId: string; paperId: string }) => Meter;
+  embedMeter?: (t: { userId: string; textId: string; paperId: string }) => Meter | Promise<Meter>;
   /* Whether the user's plan has room for embedding another upload this month. Absent → always. */
   embedAllowed?: (userId: string, textId: string) => Promise<boolean>;
   /* Largest PDF the reader opens or processes, in bytes. */
   maxPdfBytes: number;
   now?: () => number;
+  /* Reading from a lab's shelf: the lab's shelf account, which holds the paper,
+     its PDFs and their text. Highlights, notes, position and chats stay the reader's. */
+  shelfUserId?: string;
 };
+
+/* Whose shelf the reader looks papers and PDFs up on: the lab's, or the reader's own. */
+export const shelfOwner = (deps: Pick<ReaderDeps, 'shelfUserId'>, userId: string) => deps.shelfUserId ?? userId;

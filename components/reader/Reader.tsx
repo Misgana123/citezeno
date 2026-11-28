@@ -7,7 +7,7 @@ import { shelfFetch } from '../shelf/api';
 import { toast } from '../toast';
 import { useMediaQuery } from '../useMediaQuery';
 import { usePersistent } from '../usePersistent';
-import { ReaderApiError, readerFetch, readerUrl, type ReaderData, type ReaderTextState } from './api';
+import { ReaderApiError, readerFetch, readerUrl, setReaderSpace, type ReaderData, type ReaderTextState } from './api';
 import { Details, originalHref, RetractedNotice } from './Details';
 import { LeftPanel } from './LeftPanel';
 import { NoPdf } from './NoPdf';
@@ -36,14 +36,18 @@ export function Reader({
   pdfId = null,
   chatId = null,
   slots,
+  space = null,
 }: {
   paperId: string;
   pdfId?: string | null;
+  /* reading from a lab's shelf: "lab:<id>" */
+  space?: string | null;
   /* a conversation to continue in the side panel (from the assistant or the sidebar) */
   chatId?: string | null;
   slots?: { chat?: ReactNode; notes?: ReactNode; summary?: ReactNode };
 }) {
   const router = useRouter();
+  useReaderSpace(space);
   const [data, setData] = useState<ReaderData | null>(null);
   const [error, setError] = useState<ReaderApiError | null>(null);
   const [reload, setReload] = useState(0);
@@ -607,4 +611,18 @@ function ReaderError({ error, onBack, onRetry }: { error: ReaderApiError; onBack
       </div>
     </div>
   );
+}
+
+/* The reader's requests carry the lab while this page is open (React's
+   development double mount runs the cleanup once without leaving). */
+export function useReaderSpace(space: string | null) {
+  setReaderSpace(space);
+  const alive = useRef(false);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      setTimeout(() => !alive.current && setReaderSpace(null), 0);
+    };
+  }, []);
 }

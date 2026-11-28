@@ -14,14 +14,23 @@ import { isShelfError, SHELF_STATUS } from '@/lib/shelf/errors';
 import type { ReaderDeps } from './deps';
 import { isReaderError, READER_STATUS, ReaderError } from './errors';
 import { readerDeps } from './server';
+import { pool } from '@/lib/db';
+import { guestMayRead, spaceOf, type LabSpace } from '@/lib/labs/shelf';
+import { labPayerFor } from '@/lib/labs/chat';
+import { readPaperId } from './service/paper';
 
 /* Wraps every /api/reader handler: signed-in users only, same-origin checks on
    changes, a per-user request rate, and errors turned into JSON. Every request
-   is scoped to the signed-in user; private data is only ever theirs. */
+   is scoped to the signed-in user; private data is only ever theirs. In a
+   lab's space the paper and its PDFs come from the lab's shelf (a guest only
+   from the projects shared with them); the rest stays the reader's. */
 
 export type ReaderContext = {
   req: Request;
+  /* who is reading (their highlights, notes, position, chats) */
   userId: string;
+  /* reading from a lab's shelf (x-cz-space: lab:<id>): the lab, its shelf account in deps.shelfUserId */
+  space: LabSpace | null;
   deps: ReaderDeps;
   body<S extends z.ZodType>(schema: S): Promise<z.infer<S>>;
 };
@@ -52,11 +61,19 @@ export function readerRoute<P = Record<string, never>>(handler: (ctx: ReaderCont
     if (!s) return json({ error: 'Sign in to read papers.', code: 'signed_out' }, 401);
     try {
       if (!(await allow(`reader:${s.user.id}`, 60, PER_MINUTE))) throw new ReaderError('unavailable', 'Too many requests. Please wait a moment.', { reason: 'user_rate' });
+      const p = await params;
+      const space = await spaceOf(pool, req, s.user.id).catch(() => {
+        throw new ReaderError('not_found', 'You aren’t in that lab.');
+      });
+      const paperId = (p as { paperId?: string } | undefined)?.paperId;
+      if (space && paperId && !(await guestMayRead(pool, space, readPaperId(paperId)))) throw new ReaderError('not_found', 'That paper isn’t in a project shared with you.');
+      const deps = readerDeps();
       return await handler(
         {
           req,
           userId: s.user.id,
-          deps: readerDeps(),
+          space,
+          deps: space ? { ...deps, shelfUserId: space.shelfUserId } : deps,
           body: async (schema) => {
             const raw = await req.json().catch(() => {
               throw new ReaderError('bad_request', 'The request could not be read.');
@@ -66,7 +83,7 @@ export function readerRoute<P = Record<string, never>>(handler: (ctx: ReaderCont
             return r.data;
           },
         },
-        await params,
+        p,
       );
     } catch (e) {
       return readerErrorResponse(e);
@@ -77,8 +94,11 @@ export function readerRoute<P = Record<string, never>>(handler: (ctx: ReaderCont
 /* One paid reader request (a summary, an answer, an explanation): the deps
    carry its credit meter, and `finish` settles it at the real cost — nothing
    when it failed, nothing when it turned out free (a saved summary). */
-export function metered(ctx: ReaderContext, kind: string, meta: Record<string, unknown> = {}): { deps: ReaderDeps; meter: Meter; finish(ok: boolean): Promise<number | null> } {
-  const meter = createMeter(wallet(), { userId: ctx.userId, kind, meta, guard: async () => guardFor(await planLimits(ctx.userId)) });
+export async function metered(ctx: ReaderContext, kind: string, meta: Record<string, unknown> = {}): Promise<{ deps: ReaderDeps; meter: Meter; finish(ok: boolean): Promise<number | null> }> {
+  // reading from a lab: the lab's credits pay (up to the member's cap), as in lab chats
+  const lab = ctx.space ? await labPayerFor({ db: pool, limitsOf: planLimits }, ctx.userId, ctx.space.labId) : null;
+  const payer = lab?.payer ?? ctx.userId;
+  const meter = createMeter(wallet(), { userId: payer, kind, meta: { ...meta, ...(lab ? { labId: lab.lab.id, memberId: ctx.userId } : {}) }, guard: async () => guardFor(await planLimits(payer)) });
   return {
     deps: { ...ctx.deps, meter },
     meter,
@@ -92,7 +112,7 @@ export function metered(ctx: ReaderContext, kind: string, meta: Record<string, u
 /* Run a paid reader request and settle its credits whatever happens. The
    result carries what it cost (`credits`, 0 when it was free). */
 export async function charged<T extends object>(ctx: ReaderContext, kind: string, meta: Record<string, unknown>, run: (deps: ReaderDeps) => Promise<T>): Promise<T & { credits: number }> {
-  const m = metered(ctx, kind, meta);
+  const m = await metered(ctx, kind, meta);
   let out: T;
   try {
     out = await run(m.deps);

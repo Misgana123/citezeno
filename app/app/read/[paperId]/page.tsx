@@ -18,6 +18,8 @@ export default async function ReadPage({ params, searchParams }: Props) {
   const sp = await searchParams;
   const pdfId = typeof sp.pdf === 'string' && sp.pdf.length <= 80 ? sp.pdf : null;
   const chatId = typeof sp.chat === 'string' && sp.chat.length <= 80 ? sp.chat : null;
+  // reading from a lab's shelf (the server checks the user is in it)
+  const lab = typeof sp.lab === 'string' && /^lab_[\w-]{1,80}$/.test(sp.lab) ? sp.lab : null;
   let paperId = raw;
   try {
     paperId = decodeURIComponent(raw);
@@ -27,7 +29,7 @@ export default async function ReadPage({ params, searchParams }: Props) {
   await requireSession(`/app/read/${encodeURIComponent(paperId)}`);
   return (
     <AppShell current={null} title="Reader" variant="panel" rail>
-      <Reader paperId={paperId} pdfId={pdfId} chatId={chatId} />
+      <Reader paperId={paperId} pdfId={pdfId} chatId={chatId} space={lab ? `lab:${lab}` : null} />
     </AppShell>
   );
 }

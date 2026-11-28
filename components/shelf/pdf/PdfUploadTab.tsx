@@ -10,7 +10,7 @@ import { Icon } from '../../Icon';
 import { authorsShort } from '../../papers/format';
 import { readHref } from '../../reader/api';
 import { draftToInput, emptyDraft, ManualForm } from '../add/ManualForm';
-import { ShelfApiError, shelfFetch } from '../api';
+import { ShelfApiError, shelfFetch, shelfSpace } from '../api';
 import { savedToast } from '../dup-hint';
 import { markSaved } from '../saved-store';
 import { fileSize, uploadPdf, type UploadStage } from './upload';
@@ -174,7 +174,7 @@ export function PdfUploadTab({
               <p className="sh-up-done">
                 <Icon name="check" /> Added as <b>{r.item.paper.title}</b>
                 {r.result && (
-                  <Link className="sh-up-open" href={readHref(r.item.paper.id, r.result.pdf.id)} prefetch={false}>
+                  <Link className="sh-up-open" href={readHref(r.item.paper.id, r.result.pdf.id, shelfSpace())} prefetch={false}>
                     Open
                   </Link>
                 )}
