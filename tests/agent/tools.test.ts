@@ -172,8 +172,9 @@ describe.skipIf(!TEST_DB_URL)('shelf tools (Postgres)', () => {
     await runTool(ctx(), 'add_paper_manually', { details: { title: 'Field notes on rivers', authors: ['Me'], year: 2021 } });
     const stats = done(await runTool(ctx(), 'shelf_stats', {}));
     expect(stats).toMatchObject({ total: 2, byYear: [{ year: 2020, count: 1 }, { year: 2021, count: 1 }], noYear: 0, authors: [{ name: 'Ada Lovelace', count: 1 }, { name: 'Me', count: 1 }] });
-    expect(stats.titleWords).toEqual(expect.arrayContaining([{ name: 'rivers', count: 1 }, { name: 'paper', count: 1 }]));
-    expect(stats.titleWords).not.toEqual(expect.arrayContaining([expect.objectContaining({ name: 'on' })]));
+    expect(stats.titleWords).toEqual(expect.arrayContaining([{ name: 'rivers', count: 1 }, { name: 'field', count: 1 }]));
+    // short and common words ("on", "paper") aren't counted
+    for (const w of ['on', 'paper']) expect(stats.titleWords).not.toEqual(expect.arrayContaining([expect.objectContaining({ name: w })]));
     expect(done(await runTool(ctx(), 'shelf_stats', { yearFrom: 2021 }))).toMatchObject({ total: 1, byYear: [{ year: 2021, count: 1 }] });
     expect(done(await runTool(context(other, db.pool), 'shelf_stats', {}))).toMatchObject({ total: 0, byYear: [], authors: [] });
   });

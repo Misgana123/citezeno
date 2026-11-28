@@ -6,7 +6,7 @@ Paste text from any AI model. Citezeno picks out the sentences that make factual
 
 ## Run it
 
-You need Node.js 20 or newer and a Postgres database (a free one from [Neon](https://neon.tech) works, or add Neon/Supabase from the Vercel Marketplace).
+You need Node.js 22 or newer and a Postgres database (a free one from [Neon](https://neon.tech) works, or add Neon/Supabase from the Vercel Marketplace).
 
 ```bash
 npm install
