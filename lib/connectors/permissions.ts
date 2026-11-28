@@ -20,6 +20,11 @@ export const PERMISSION_ROWS: Record<Capability, Partial<Record<ActionKind, { la
   sheets: { read: { label: 'Read spreadsheets', hint: 'Open and quote a sheet you picked' }, write: { label: 'Change spreadsheets', hint: 'Add rows, or make a new sheet' } },
   pages: { read: { label: 'Read pages', hint: 'Search and read the pages you shared' }, write: { label: 'Write pages', hint: 'Make pages and add rows to databases' } },
   references: { read: { label: 'Read your library', hint: 'Search references and collections' }, write: { label: 'Import and add references', hint: 'Import onto your shelf, or add papers to your library' } },
+  mail: { read: { label: 'Read mail', hint: 'Search and read your messages and their attachments' }, write: { label: 'Write drafts', hint: 'Save a draft in your mailbox (never sent)' } },
+  calendar: { read: { label: 'Read your calendar', hint: 'See your events and when you’re free' }, write: { label: 'Add events', hint: 'Put an event in your calendar (no one is invited)' } },
+  repos: { read: { label: 'Read repositories', hint: 'Read files, search code, read issues' }, write: { label: 'Open issues', hint: 'Open a new issue in a repository' } },
+  messages: { read: { label: 'Read messages', hint: 'Search messages and read threads' }, write: { label: 'Post messages', hint: 'Post in a channel as you' } },
+  tasks: { read: { label: 'Read tasks', hint: 'See your projects and tasks' }, write: { label: 'Change tasks', hint: 'Add, change and complete tasks' } },
 };
 
 export const permissionKey = (cap: Capability, kind: ActionKind): PermissionKey => `${cap}.${kind}`;

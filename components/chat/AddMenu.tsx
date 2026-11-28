@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Project } from '@/lib/shelf/types';
 import { AppLogo } from '../connectors/AppLogo';
 import { setAssistant, signInHref } from '../connectors/actions';
 import { connectHref } from '../connectors/api';
 import { pickCloudFiles } from '../connectors/pick';
 import { useConnectors } from '../connectors/useConnectors';
-import { logoFor } from '../settings/customize/cards';
+import { logoFor, serviceFor } from '../settings/customize/cards';
 import { openSettings } from '../settings/open';
 import { shelfFetch } from '../shelf/api';
 import { useSkills } from '../skills/useSkills';
@@ -43,7 +43,7 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
   const [shots, setShots] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
-  const { connectors, forCapability } = useConnectors();
+  const { connectors, appsFor } = useConnectors();
   const { catalog } = useSkills();
   const [projects, setProjects] = useState<Project[] | null>(null);
 
@@ -86,17 +86,15 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
     fn?.();
   };
 
-  /* Drive (or whichever app gives cloud files): pick, then add each file as an upload would be */
-  const drive = forCapability('files');
-  const driveOn = drive?.connection?.status === 'ok';
-  const addFromDrive = async () => {
-    if (!drive) return;
+  /* Google Drive, OneDrive (each app with cloud files): pick, then add each file as an upload would be */
+  const clouds = appsFor('files');
+  const addFromCloud = async (app: string, label: string, logo: string) => {
     setOpen(false);
     try {
-      const picked = await pickCloudFiles(drive.name, { multiple: true, title: 'Add files to the message' });
+      const picked = await pickCloudFiles(app, { multiple: true, title: 'Add files to the message', label, logo });
       const files = await Promise.all(
         picked.map(async (p) => {
-          const res = await fetch('/api/connectors/files/download', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fileId: p.id }) });
+          const res = await fetch('/api/connectors/files/download', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fileId: p.id, app }) });
           if (!res.ok) throw new Error(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? `“${p.name}” couldn’t be added.`);
           const name = decodeURIComponent(/filename\*=UTF-8''([^;]+)/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? p.name);
           return new File([await res.blob()], name, { type: res.headers.get('content-type') ?? p.mime });
@@ -172,27 +170,31 @@ export function AddMenu({ disabled, down, onAddFiles, onScreenshot, web, researc
             Upload or add files
             <span className="ch-am-end">Ctrl+U</span>
           </button>
-          {drive && (
-            <>
-              <button type="button" className="ch-am-i" role="menuitem" onMouseEnter={flat} onClick={driveOn ? addFromDrive : () => drive.signIn && (window.location.href = connectHref(drive.name, window.location.pathname))}>
-                <AppLogo app={logoFor(drive)} size={20} />
-                <span className="ch-am-two">
-                  Add from {drive.name === 'google' ? 'Google Drive' : drive.label}
-                  <small>{driveOn ? drive.connection!.label : drive.connection ? 'Connect again' : 'Not connected'}</small>
-                </span>
-              </button>
-              {!driveOn && drive.signIn && (
-                <div className="ch-am-i is-indent" onMouseEnter={flat}>
-                  Log in to {drive.name === 'google' ? 'Google Drive' : drive.label}
-                  <span className="ch-am-end">
-                    <a className="ch-am-pill" href={connectHref(drive.name, window.location.pathname)}>
-                      Connect
-                    </a>
+          {clouds.map((c) => {
+            const on = c.connection?.status === 'ok';
+            const { title, logo } = serviceFor(c, 'files');
+            return (
+              <Fragment key={c.name}>
+                <button type="button" className="ch-am-i" role="menuitem" onMouseEnter={flat} onClick={on ? () => addFromCloud(c.name, title, logo) : () => c.signIn && (window.location.href = connectHref(c.name, window.location.pathname))}>
+                  <AppLogo app={logo} size={20} />
+                  <span className="ch-am-two">
+                    Add from {title}
+                    <small>{on ? c.connection!.label : c.connection ? 'Connect again' : 'Not connected'}</small>
                   </span>
-                </div>
-              )}
-            </>
-          )}
+                </button>
+                {!on && c.signIn && (
+                  <div className="ch-am-i is-indent" onMouseEnter={flat}>
+                    Log in to {title}
+                    <span className="ch-am-end">
+                      <a className="ch-am-pill" href={connectHref(c.name, window.location.pathname)}>
+                        Connect
+                      </a>
+                    </span>
+                  </div>
+                )}
+              </Fragment>
+            );
+          })}
           {shots && (
             <button type="button" className="ch-am-i" role="menuitem" onMouseEnter={flat} onClick={() => done(onScreenshot)}>
               <Icon name="camera" />

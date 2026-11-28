@@ -16,6 +16,8 @@ export type ConnectorView = {
   signIn: boolean;
   /* a pasted key is offered (the main way when there's no sign-in), and where to make one */
   apiKey: { helpUrl: string } | null;
+  /* where to choose at the app what Citezeno may see (GitHub repositories) */
+  manage: { url: string; label: string } | null;
   connection: Connection | null;
   /* what the assistant may do with it, per kind of action (defaults until connected) */
   permissions: PermissionRow[];
@@ -33,6 +35,7 @@ export async function connectorCatalog(d: ConnectorDeps, userId: string): Promis
     capabilities: [...def.capabilities],
     signIn: connector.auth.signIn != null,
     apiKey: connector.auth.apiKey ? { helpUrl: connector.auth.apiKey.helpUrl } : null,
+    manage: connector.manage ?? null,
     connection: mine.get(def.name) ?? null,
     permissions: permissionRows(def.capabilities, mine.get(def.name)?.permissions),
   }));

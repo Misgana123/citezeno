@@ -9,6 +9,7 @@ import type { ShelfItem } from '@/lib/shelf/types';
 import { connectHref } from '../../connectors/api';
 import { pickCloudFiles, PICK_PDF } from '../../connectors/pick';
 import { useConnectors } from '../../connectors/useConnectors';
+import { serviceFor } from '../../settings/customize/cards';
 import { Icon } from '../../Icon';
 import { toast } from '../../toast';
 import { authorsShort } from '../../papers/format';
@@ -22,15 +23,13 @@ import { fileSize, uploadPdf, type UploadStage } from './upload';
 /* A PDF from the user's computer, or picked from a connected app (fetched by our server). */
 type Source = { name: string; size: number | null; send: (onStage: (s: UploadStage, progress?: number) => void) => Promise<CompleteResult> };
 
-const DRIVE = 'google';
-
 const localSource = (file: File): Source => ({ name: file.name, size: file.size, send: (onStage) => uploadPdf(file, { onStage }) });
-const driveSource = (f: { id: string; name: string; size: number | null }): Source => ({
+const cloudSource = (app: string) => (f: { id: string; name: string; size: number | null }): Source => ({
   name: f.name,
   size: f.size,
   send: async (onStage) => {
     onStage('reading');
-    return shelfFetch<CompleteResult>('/api/connectors/files/pdf', { method: 'POST', body: { fileId: f.id } });
+    return shelfFetch<CompleteResult>('/api/connectors/files/pdf', { method: 'POST', body: { fileId: f.id, app } });
   },
 });
 
@@ -73,12 +72,12 @@ export function PdfUploadTab({
       .catch(() => {});
   }, []);
   const input = useRef<HTMLInputElement>(null);
-  const apps = useConnectors();
-  const drive = apps.find(DRIVE);
-  const fromDrive = async () => {
+  // every app with cloud files (Google Drive, OneDrive)
+  const clouds = useConnectors().appsFor('files');
+  const fromCloud = async (app: string, label: string, logo: string) => {
     try {
-      const picked = await pickCloudFiles(DRIVE, { mimeTypes: PICK_PDF, multiple: true, title: 'Choose PDFs to add' });
-      if (picked.length) void run(picked.map(driveSource));
+      const picked = await pickCloudFiles(app, { mimeTypes: PICK_PDF, multiple: true, title: 'Choose PDFs to add', label, logo });
+      if (picked.length) void run(picked.map(cloudSource(app)));
     } catch (e) {
       toast((e as Error).message, true);
     }
@@ -172,18 +171,21 @@ export function PdfUploadTab({
         />
       </label>
 
-      {drive && (
+      {clouds.length > 0 && (
         <p className="sh-up-cloud small">
-          {drive.connection?.status === 'ok' ? (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={fromDrive}>
-              <Icon name="upload" /> Add from {drive.label}
-            </button>
-          ) : (
-            <a className="btn btn-ghost btn-sm" href={connectHref(DRIVE, '/app/shelf')}>
-              {drive.connection ? `Connect ${drive.label} again` : `Connect ${drive.label}`}
-            </a>
-          )}
-          <span>Choose PDFs or Google Docs from your Drive; Citezeno only sees the files you choose.</span>
+          {clouds.map((c) => {
+            const { title, logo } = serviceFor(c, 'files');
+            return c.connection?.status === 'ok' ? (
+              <button key={c.name} type="button" className="btn btn-ghost btn-sm" onClick={() => fromCloud(c.name, title, logo)}>
+                <Icon name="upload" /> Add from {title}
+              </button>
+            ) : (
+              <a key={c.name} className="btn btn-ghost btn-sm" href={connectHref(c.name, '/app/shelf')}>
+                {c.connection ? `Connect ${title} again` : `Connect ${title}`}
+              </a>
+            );
+          })}
+          <span>Choose PDFs (or Google Docs and Word files, as PDFs). On Google Drive, Citezeno only sees the files you choose.</span>
         </p>
       )}
 

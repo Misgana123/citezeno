@@ -18,6 +18,15 @@ import { runClientTool } from './citations';
 import { AttachCard } from './AttachCard';
 import { Composer } from './Composer';
 import type { Picked } from './AddMenu';
+
+/* The browser's time zone, so the assistant's "tomorrow at 9" is the user's. */
+const userTimeZone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+};
 import { FilePanel } from './file/FilePanel';
 import { FilePanelProvider, useFilePanelState } from './file/panel-state';
 import { readPaper } from './file/read-paper';
@@ -361,7 +370,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
     setWaiting(null);
     setDeepResearch(false);
     setEntries((prev) => [...prev, { kind: 'user', text: question }]);
-    return run((onEvent, signal) => startResearch({ conversationId: activeId, text: question, model, webSearch }, onEvent, signal));
+    return run((onEvent, signal) => startResearch({ conversationId: activeId, text: question, model, webSearch, timeZone: userTimeZone() }, onEvent, signal));
   };
 
   const send = async (raw: string = text) => {
@@ -391,7 +400,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
     const extras = { ...(skill ? { skill: skill.id } : {}), ...(project ? { projectId: project.id } : {}) };
     setSkill(null);
     setProject(null);
-    await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId, webSearch, ...extras, ...(attachments.length ? { attachments } : {}) }, onEvent, signal));
+    await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId, webSearch, timeZone: userTimeZone(), ...extras, ...(attachments.length ? { attachments } : {}) }, onEvent, signal));
   };
 
   /* Try again: the last answer goes, the last message is answered afresh, then the chat is reloaded as saved. */

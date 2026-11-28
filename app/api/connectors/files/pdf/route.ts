@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const body = z.object({ fileId: z.string().trim().min(1).max(200), itemId: z.string().min(1).max(80).nullish() });
+const body = z.object({ fileId: z.string().trim().min(1).max(200), itemId: z.string().min(1).max(80).nullish(), app: z.string().trim().max(40).nullish() });
 
 /* A PDF picked from the user's connected cloud files, onto their shelf. The
    answer is the same as a finished upload's (the paper it seems to be). */

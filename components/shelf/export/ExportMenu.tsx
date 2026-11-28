@@ -14,7 +14,7 @@ import type { ConnectorView } from '@/lib/connectors/catalog';
 /* Export the papers in view (or a selection) as BibTeX, RIS or CSV, or the
    whole shelf with notes and PDFs as one ZIP; or send them to a connected app. */
 
-const SEND_LABEL: Record<SendKind, (app: ConnectorView) => string> = { references: (a) => `Send to ${a.label}`, sheets: () => 'Send to Google Sheets', pages: (a) => `Send to a ${a.label} database` };
+const SEND_LABEL: Record<SendKind, (app: ConnectorView) => string> = { references: (a) => `Send to ${a.label}`, sheets: () => 'Send to Google Sheets', pages: (a) => `Send to a ${a.label} database`, tasks: (a) => `Reading list in ${a.label}` };
 
 export function ExportMenu({ groups, query, baseName, label = 'Export', everything = true, compact = false, count = null }: { groups: Groups; query: URLSearchParams; baseName: string; label?: string; everything?: boolean; compact?: boolean; count?: number | null }) {
   const [open, setOpen] = useState(false);
@@ -23,10 +23,14 @@ export function ExportMenu({ groups, query, baseName, label = 'Export', everythi
   const close = useCallback(() => setOpen(false), []);
   useDismiss(box, open, close);
   const apps = useConnectors();
-  const sendTo = (['references', 'sheets', 'pages'] as SendKind[]).flatMap((kind) => {
-    const app = apps.forCapability(kind);
-    return app?.connection?.status === 'ok' ? [{ kind, app }] : [];
-  });
+  const sendTo = [
+    ...(['references', 'sheets', 'pages'] as SendKind[]).flatMap((kind) => {
+      const app = apps.forCapability(kind);
+      return app?.connection?.status === 'ok' ? [{ kind, app }] : [];
+    }),
+    // every connected task app (Todoist, Linear): a reading list, one task per paper
+    ...apps.appsFor('tasks').flatMap((app) => (app.connection?.status === 'ok' ? [{ kind: 'tasks' as SendKind, app }] : [])),
+  ];
   const [sending, setSending] = useState<{ kind: SendKind; app: ConnectorView } | null>(null);
 
   const one = async (format: ExportFormat) => {
@@ -80,7 +84,7 @@ export function ExportMenu({ groups, query, baseName, label = 'Export', everythi
           )}
           {sendTo.map(({ kind, app }, i) => (
             <button
-              key={kind}
+              key={`${kind}-${app.name}`}
               type="button"
               role="menuitem"
               className={i === 0 ? 'sh-export-all' : undefined}

@@ -384,3 +384,9 @@ a.ch-file { text-decoration: none; }
 .ch-share-behind span { flex: 1; }
 .dialog.ch-share p.ch-share-err { margin: 14px 0 0; }
 @media (max-width: 560px) { .ch-share-btn { padding: 0 9px; } }
+/* "Send to Slack" under an answer (components/chat/SendToChat.tsx) */
+.ch-send-chat { position: relative; display: inline-flex; }
+.ch-send-chat-logo { border: 0 !important; background: transparent !important; filter: grayscale(1); opacity: 0.75; }
+.ch-act:hover .ch-send-chat-logo, .ch-act.is-on .ch-send-chat-logo { filter: none; opacity: 1; }
+.ch-send-chat-pop { bottom: calc(100% + 6px); left: -6px; width: 260px; max-height: 340px; overflow: auto; }
+.ch-send-chat-find { margin: 2px 4px 6px; height: 32px; padding: 0 10px; border: 1px solid var(--am-line); border-radius: 8px; background: transparent; font: inherit; font-size: 13.5px; color: var(--ink); outline: none; }

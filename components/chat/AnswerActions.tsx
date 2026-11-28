@@ -6,10 +6,11 @@ import { Icon } from '../Icon';
 import { toast } from '../toast';
 import { speakable, timeAgo } from './answer-text';
 import { rateAnswer } from './api';
+import { SendToChat } from './SendToChat';
 
 /* The small row under an answer: copy it, read it aloud (the browser's own
-   voice, nothing is sent anywhere), thumbs up or down, try again (the latest
-   answer only), and when it was written. */
+   voice, nothing is sent anywhere), thumbs up or down, send it to Slack (when
+   connected), try again (the latest answer only), and when it was written. */
 
 type Props = { chatId: string | null; text: string; seq?: number; at?: string; feedback?: Feedback; credits?: number; onRetry?: () => void };
 
@@ -84,6 +85,7 @@ export function AnswerActions({ chatId, text, seq, at, feedback, credits, onRetr
           </button>
         </>
       )}
+      <SendToChat text={text} />
       {onRetry && (
         <button type="button" className="ch-act" onClick={onRetry} aria-label="Try again" title="Try again">
           <Icon name="retry" />

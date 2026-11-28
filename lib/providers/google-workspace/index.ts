@@ -29,6 +29,8 @@ export const googleConnector: ConnectorDefinition = {
   description: 'Open PDFs from Drive in the reader or add them to your shelf, read Docs and Sheets, and save documents and tables to Drive.',
   services: ['Drive', 'Docs', 'Sheets'],
   capabilities: ['files', 'documents', 'sheets'],
+  // Google Calendar connects with the same OAuth client (one grant)
+  grantGroup: 'google',
   create(env, gate) {
     const client = googleClient(env);
     if (!client) return null;

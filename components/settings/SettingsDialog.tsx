@@ -24,7 +24,7 @@ const NAV: (NavItem | 'sep')[] = [
   { id: 'library', label: 'Library', icon: 'book', words: 'library traces citation studio' },
   { id: 'security', label: 'Security', icon: 'shield', words: 'security sign-in password two-step 2fa devices sessions google github' },
   'sep',
-  { id: 'customize', label: 'Customize', icon: 'sliders', words: 'customize connectors skills apps google drive docs sheets notion zotero' },
+  { id: 'customize', label: 'Customize', icon: 'sliders', words: 'customize connectors skills apps google drive docs sheets calendar notion zotero microsoft outlook onedrive mail github slack todoist linear tasks' },
 ];
 
 export function SettingsDialog({ target, onClose }: { target: SettingsTarget; onClose(): void }) {

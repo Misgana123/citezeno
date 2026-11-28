@@ -533,7 +533,7 @@ export const DOC_ARTICLES: DocArticle[] = [
     { type: 'p', text: '[History](/app/history) lists your traces, sharing and sign-ins. Filter it, **Download CSV**, or **Clear history**.' },
     { type: 'callout', tone: 'warn', title: 'Deleting your account', text: 'This can’t be undone. Export your shelf and download your drafts first.' },
   ]),
-  a('connected-apps', 'account', 'Connect Google Drive, Notion and Zotero', 'Bring papers and files in from your apps, and send your work back.', 3, [
+  a('connected-apps', 'account', 'Connect your apps', 'Google Drive, Calendar, Microsoft 365, Notion, Zotero, GitHub, Slack, Todoist and Linear: bring work in, and send it back.', 4, [
     { type: 'p', text: 'Open [Settings → Customize → Connectors](/app/chat?settings=customize&tab=connectors) and choose **Connect** (or + on an app’s card). You sign in on the app’s own page and choose what Citezeno may see. Disconnect at any time; nothing in the app or on your shelf is deleted.' },
     {
       type: 'table',
@@ -542,8 +542,14 @@ export const DOC_ARTICLES: DocArticle[] = [
         ['Google Drive', 'Add PDFs and Google Docs from Drive to your shelf (Upload PDFs → Add from Google Drive), save the studio’s document as a Google Doc, send shelf papers to a new Google Sheet'],
         ['Notion', 'Send shelf papers to a Notion database, and have the assistant read your pages or write answers and notes into a new page'],
         ['Zotero', 'Import your library or a collection onto your shelf (Add papers → From Zotero), keep it up to date with Sync now, and send shelf papers to a Zotero collection'],
+        ['Google Calendar', 'See your events and free time, and have the assistant add deadlines or reading time (nobody is invited)'],
+        ['Microsoft 365', 'One sign-in for Outlook mail (find and read emails and attachments, write drafts you send yourself), Outlook calendar, and OneDrive (add files to your shelf and chats)'],
+        ['GitHub', 'Read code and data in the repositories you choose, search them, read issues, and open new issues'],
+        ['Slack', 'Find what your lab said about a paper, read threads, post an answer to a channel (Send to Slack under an answer)'],
+        ['Todoist and Linear', 'Turn papers into a reading list (Export → Reading list), and have the assistant add tasks for gaps or reviewer comments'],
       ],
     },
+    { type: 'p', text: 'When two apps can do the same thing (Google Calendar and Outlook, Google Drive and OneDrive, Todoist and Linear), the assistant uses the first one unless you name the other, and asks when it isn’t clear.' },
     { type: 'h2', text: 'In the assistant' },
     { type: 'p', text: 'Once an app is connected, ask in plain words: “Make a Google Sheet of the papers in my Thesis project”, “Read my Notion page Lab meeting notes”, or “Sync my Zotero library”. The assistant asks before it changes anything in your apps.' },
     { type: 'p', text: 'To choose what the assistant may do, open an app in Customize → Connectors. Each kind of action (reading, making or changing things) can be **Always allow**, **Ask first** or **Never**. Turn an app off for the assistant with its switch there, or in the chat’s **+ → Connectors** menu.' },
@@ -554,6 +560,9 @@ export const DOC_ARTICLES: DocArticle[] = [
         { title: 'Google Drive', text: 'Only the files you choose in Google’s file picker, and the files Citezeno saves for you. Nothing else in your Drive is visible.' },
         { title: 'Notion', text: 'Only the pages and databases you share with Citezeno. To share more later, open a page in Notion and choose ••• → Connections.' },
         { title: 'Zotero', text: 'The libraries you allow when you sign in. You can also connect with an API key from your Zotero settings.' },
+        { title: 'Microsoft 365', text: 'Your mail, calendar and OneDrive. Citezeno never sends mail: drafts wait in your Drafts folder. If your university only lets its IT team approve apps, ask them to approve Citezeno, or connect a personal Microsoft account.' },
+        { title: 'GitHub', text: 'Only the repositories you choose when installing the Citezeno app on GitHub. Change them from the GitHub card in Customize → Connectors.' },
+        { title: 'Slack', text: 'What you can already see in Slack, as you. Posts appear under your name.' },
       ],
     },
     { type: 'callout', tone: 'note', title: 'Your connections stay private', text: 'Access tokens are stored encrypted and never shown in your browser or to the AI. Connected apps cost no credits; the assistant’s replies are charged as usual.' },

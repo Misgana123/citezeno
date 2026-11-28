@@ -31,7 +31,7 @@ const file = (id: string, kind: 'document' | 'pdf' | 'other' | 'folder', name: s
 
 describe('offering connected-app tools', () => {
   it('every connector tool says which capability it needs', () => {
-    expect(CONNECTOR_TOOLS.length).toBe(15);
+    expect(CONNECTOR_TOOLS.length).toBe(36);
     for (const t of CONNECTOR_TOOLS) expect(t.needs, t.name).toBeTruthy();
   });
 
@@ -46,6 +46,9 @@ describe('offering connected-app tools', () => {
 
   it('tells the assistant what is connected, or where to connect', () => {
     expect(connectorsContext(new Map([['files', { label: 'Google Drive' }], ['sheets', { label: 'Google Drive' }], ['references', { label: 'Zotero' }]]))).toContain('Google Drive (files, sheets); Zotero (references)');
+    const two = connectorsContext(new Map([['calendar', [{ label: 'Google Calendar', name: 'google-calendar' }, { label: 'Microsoft 365', name: 'microsoft' }]]]));
+    expect(two).toContain('Google Calendar (id "google-calendar": calendar); Microsoft 365 (id "microsoft": calendar)');
+    expect(two).toContain('Pass `app`');
     expect(connectorsContext(undefined)).toContain('Settings → Customize → Connectors');
   });
 });

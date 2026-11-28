@@ -32,6 +32,8 @@ export type OAuth2Auth = {
   exchange(p: { code: string; redirectUri: string; codeVerifier: string }): Promise<Credentials>;
   /* a fresh access token; the result keeps the old refresh token when the vendor sends none */
   refresh?(c: Credentials): Promise<Credentials>;
+  /* the vendor sent the user back with an error: what to tell them (null: the usual "not allowed") */
+  explainDenied?(error: string, description: string): string | null;
 };
 
 /* OAuth 1.0a (Zotero): a request token, the user's approval, then an access token. */
@@ -150,15 +152,96 @@ export interface ReferenceLibrary {
   addItems(libraryId: string, items: RefItemInput[], opts: { collectionKey?: string | null }): Promise<{ added: number; failed: number }>;
 }
 
+/* ---------- mail (read, and drafts the user sends themselves) ---------- */
+
+export type MailAddress = { name: string | null; address: string };
+export type MailSummary = { id: string; subject: string; from: MailAddress | null; receivedAt: string | null; preview: string; hasAttachments: boolean; url: string | null };
+export type MailMessage = MailSummary & { to: MailAddress[]; cc: MailAddress[]; text: string; attachments: { id: string; name: string; mime: string; sizeBytes: number | null }[] };
+
+export interface MailBox {
+  /* newest first; with a query, the mailbox's own search */
+  search(opts: { query?: string; limit: number }): Promise<MailSummary[]>;
+  read(id: string, maxChars: number): Promise<MailMessage>;
+  attachment(messageId: string, attachmentId: string, maxBytes: number): Promise<DownloadedFile>;
+  /* a draft in the user's mailbox (never sent); replyTo makes it a reply to that message */
+  draft(d: { to: string[]; cc?: string[]; subject: string; text: string; replyTo?: string | null }): Promise<{ id: string; url: string | null }>;
+}
+
+/* ---------- calendar ---------- */
+
+export type CalendarInfo = { id: string; name: string; primary: boolean; canWrite: boolean };
+/* times are ISO 8601; an all-day event has dates (YYYY-MM-DD) and allDay */
+export type CalendarEvent = { id: string; calendarId: string; title: string; start: string; end: string; allDay: boolean; location: string | null; url: string | null };
+export type BusyTime = { start: string; end: string };
+
+export interface Calendar {
+  calendars(): Promise<CalendarInfo[]>;
+  /* events between two times (ISO), across the given calendars (default: the primary one) */
+  events(opts: { from: string; to: string; calendarIds?: string[]; query?: string; limit: number }): Promise<CalendarEvent[]>;
+  /* when the user is busy between two times */
+  busy(opts: { from: string; to: string; calendarIds?: string[] }): Promise<BusyTime[]>;
+  /* a new event with no guests (nobody is invited or emailed). start/end: local "YYYY-MM-DDTHH:mm" in timeZone, or dates for all day */
+  create(e: { calendarId?: string | null; title: string; start: string; end: string; allDay?: boolean; timeZone: string; location?: string | null; description?: string | null }): Promise<CalendarEvent>;
+}
+
+/* ---------- code repositories ---------- */
+
+export type Repo = { id: string; fullName: string; description: string | null; private: boolean; defaultBranch: string; url: string; updatedAt: string | null };
+export type RepoIssue = { number: number; title: string; state: 'open' | 'closed'; isPullRequest: boolean; author: string | null; body: string; url: string; updatedAt: string | null; comments: number };
+
+export interface CodeRepos {
+  /* the repositories the user let Citezeno see */
+  repos(opts: { query?: string; limit: number }): Promise<Repo[]>;
+  /* a file's text, or a folder's entries */
+  read(repo: string, path: string, opts: { ref?: string | null; maxChars: number }): Promise<{ kind: 'file'; path: string; text: string; cut: boolean; url: string } | { kind: 'folder'; path: string; entries: { name: string; path: string; kind: 'file' | 'folder'; sizeBytes: number | null }[] }>;
+  search(opts: { query: string; repo?: string | null; limit: number }): Promise<{ repo: string; path: string; url: string }[]>;
+  issues(repo: string, opts: { state: 'open' | 'closed' | 'all'; query?: string; limit: number }): Promise<RepoIssue[]>;
+  createIssue(repo: string, i: { title: string; body: string }): Promise<RepoIssue>;
+}
+
+/* ---------- team chat ---------- */
+
+export type ChatChannel = { id: string; name: string; private: boolean; member: boolean };
+export type ChatMessage = { id: string; channelId: string; channel: string | null; author: string | null; text: string; at: string; threadId: string | null; replies: number; url: string | null };
+
+export interface ChatMessages {
+  channels(opts: { query?: string; limit: number }): Promise<ChatChannel[]>;
+  search(opts: { query: string; limit: number }): Promise<ChatMessage[]>;
+  /* a thread's messages (or a channel's latest); limited says the app capped how many it gave */
+  thread(channelId: string, threadId: string | null, limit: number): Promise<{ messages: ChatMessage[]; limited: boolean }>;
+  /* posts as the user */
+  post(channelId: string, text: string, threadId?: string | null): Promise<ChatMessage>;
+}
+
+/* ---------- tasks ---------- */
+
+/* a list tasks live in: a Todoist project, a Linear team */
+export type TaskProject = { id: string; name: string };
+export type Task = { id: string; title: string; notes: string | null; due: string | null; priority: 1 | 2 | 3 | 4 | null; done: boolean; url: string | null; projectId: string | null };
+
+export interface TaskList {
+  /* what the app calls its lists, for questions ("project", "team") */
+  readonly listName: string;
+  projects(): Promise<TaskProject[]>;
+  tasks(opts: { projectId?: string | null; query?: string; includeDone?: boolean; limit: number }): Promise<Task[]>;
+  create(t: { projectId?: string | null; title: string; notes?: string | null; due?: string | null; priority?: 1 | 2 | 3 | 4 | null }): Promise<Task>;
+  update(id: string, t: { title?: string; notes?: string | null; due?: string | null; priority?: 1 | 2 | 3 | 4 | null; done?: boolean }): Promise<Task>;
+}
+
 export type Capabilities = {
   files: CloudFiles;
   documents: CloudDocuments;
   sheets: CloudSheets;
   pages: NotesPages;
   references: ReferenceLibrary;
+  mail: MailBox;
+  calendar: Calendar;
+  repos: CodeRepos;
+  messages: ChatMessages;
+  tasks: TaskList;
 };
 export type Capability = keyof Capabilities;
-export const CAPABILITIES = ['files', 'documents', 'sheets', 'pages', 'references'] as const satisfies readonly Capability[];
+export const CAPABILITIES = ['files', 'documents', 'sheets', 'pages', 'references', 'mail', 'calendar', 'repos', 'messages', 'tasks'] as const satisfies readonly Capability[];
 
 /* ---------- picking files in the browser ---------- */
 
@@ -185,6 +268,8 @@ export type Connector = {
   revoke?(c: Credentials): Promise<void>;
   /* the vendor's file picker, when it has one and it is set up */
   picker?(c: Credentials): FilePicker | null;
+  /* where the user chooses at the vendor what Citezeno may see (GitHub: which repositories) */
+  manage?: { url: string; label: string };
 };
 
 export type ConnectorDefinition = {
@@ -195,6 +280,9 @@ export type ConnectorDefinition = {
   /* the parts of the app a connection covers, as the user knows them ("Drive", "Docs", "Sheets") */
   readonly services: readonly string[];
   readonly capabilities: readonly Capability[];
+  /* connectors that share one vendor sign-in grant (one OAuth client): withdrawing
+     access for one would cut the others off, so it's skipped while another is connected */
+  readonly grantGroup?: string;
   /* null when it isn't set up (missing client ID); a key-only connector is always available */
   create(env: Env, gate: Gate): Connector | null;
 };

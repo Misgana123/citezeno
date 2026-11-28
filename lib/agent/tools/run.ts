@@ -40,6 +40,9 @@ export function failureMessage(e: unknown): { message: string; code?: string } {
   return { message: 'Something went wrong with this step.', code: 'unavailable' };
 }
 
+/* Tools whose input has an "app" field (capabilities more than one app can give). */
+const takesApp = (tool: AgentTool | ClientTool) => !!(tool.input as { shape?: Record<string, unknown> }).shape?.app;
+
 /* onStart: called once the input is valid, before anything runs (to show the step). */
 export async function runTool(ctx: AgentContext, name: string, rawInput: unknown, opts: { confirmed?: boolean; onStart?: (label: string, input: unknown) => void } = {}): Promise<ToolRun> {
   const tool = findTool(name);
@@ -51,22 +54,25 @@ export async function runTool(ctx: AgentContext, name: string, rawInput: unknown
     const where = issue?.path.length ? ` (${issue.path.join('.')})` : '';
     return { tool, input: rawInput, label: tool.name, outcome: { status: 'error', message: `Invalid input${where}: ${issue?.message ?? 'check the input'}.`, code: 'bad_request' } };
   }
-  const input = parsed.data;
+  let input = parsed.data;
+  // a connected app's tool: which app (the one asked for, else the first the user allows), and what the user lets it do
+  const chosen = tool.kind !== 'client' && tool.needs ? ctx.connectors?.pick?.(tool.needs, tool.kind, (input as { app?: string }).app) : undefined;
+  if (chosen && takesApp(tool)) input = { ...(input as object), app: chosen.name } as typeof input;
   const label = tool.label(input);
   opts.onStart?.(label, input);
   if (tool.kind === 'client') return { tool, input, label, outcome: { status: 'client' } };
 
   try {
-    // a connected app's tool: what the user lets the assistant do with it (Settings → Customize)
-    const perm = tool.needs ? ctx.connectors?.permission?.(tool.needs, tool.kind) : undefined;
+    // what the user lets the assistant do with that app (Settings → Customize)
+    const perm = tool.needs ? ctx.connectors?.permission?.(tool.needs, tool.kind, chosen?.name) : undefined;
+    const appName = chosen?.label ?? ctx.connectors?.connected.get(tool.needs!)?.label;
     if (perm === 'never') {
-      const app = ctx.connectors?.connected.get(tool.needs!)?.label ?? 'this app';
-      return { tool, input, label, outcome: { status: 'error', message: `The user turned this off for ${app} in Settings → Customize → Connectors.`, code: 'denied' } };
+      return { tool, input, label, outcome: { status: 'error', message: `The user turned this off for ${appName ?? 'this app'} in Settings → Customize → Connectors.`, code: 'denied' } };
     }
     if (!opts.confirmed && perm !== 'allow' && (tool.confirm || perm === 'ask')) {
       const ask = tool.confirm ? await tool.confirm(input, ctx) : null;
       if (ask) return { tool, input, label, outcome: { status: 'needs_confirmation', ...(typeof ask === 'string' ? { question: ask } : ask) } };
-      if (perm === 'ask') return { tool, input, label, outcome: { status: 'needs_confirmation', question: `Allow this step in ${ctx.connectors?.connected.get(tool.needs!)?.label ?? 'the connected app'}: ${label}?` } };
+      if (perm === 'ask') return { tool, input, label, outcome: { status: 'needs_confirmation', question: `Allow this step in ${appName ?? 'the connected app'}: ${label}?` } };
     }
     return { tool, input, label, outcome: { status: 'done', output: await tool.run(ctx, input) } };
   } catch (e) {

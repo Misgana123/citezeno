@@ -105,17 +105,25 @@ function guarded<T extends object>(api: T, onAuth: () => Promise<never>): T {
   });
 }
 
-/* The connected apps that give each capability, for this user (connections
-   that work). assistant: only those the user lets the assistant use. */
-export async function connectedCapabilities(d: ConnectorDeps, userId: string, opts: { assistant?: boolean } = {}): Promise<Map<Capability, string>> {
-  const out = new Map<Capability, string>();
+/* Every connected app that gives each capability, for this user (connections
+   that work), in registry order. assistant: only those the user lets the
+   assistant use. */
+export async function connectedApps(d: ConnectorDeps, userId: string, opts: { assistant?: boolean } = {}): Promise<Map<Capability, string[]>> {
+  const out = new Map<Capability, string[]>();
   if (!d.keys) return out;
   const reg = registryOf(d);
-  for (const c of await listConnections(d.db, userId)) {
+  const order = Object.keys(reg);
+  const conns = (await listConnections(d.db, userId)).sort((a, b) => order.indexOf(a.connector) - order.indexOf(b.connector));
+  for (const c of conns) {
     if (c.status !== 'ok' || (opts.assistant && !c.assistant) || !Object.hasOwn(reg, c.connector) || !d.build(c.connector)) continue;
-    for (const cap of reg[c.connector].capabilities) if (!out.has(cap)) out.set(cap, c.connector);
+    for (const cap of reg[c.connector].capabilities) out.set(cap, [...(out.get(cap) ?? []), c.connector]);
   }
   return out;
+}
+
+/* The first connected app for each capability. */
+export async function connectedCapabilities(d: ConnectorDeps, userId: string, opts: { assistant?: boolean } = {}): Promise<Map<Capability, string>> {
+  return new Map([...(await connectedApps(d, userId, opts))].map(([cap, names]) => [cap, names[0]]));
 }
 
 /* One capability of one connected app, ready to call. */
@@ -131,17 +139,23 @@ export async function openConnector<C extends Capability>(d: ConnectorDeps, user
 }
 
 /* Opens a capability for one user: what services take, so the app's routes
-   and the assistant (with its own connections) share them. */
-export type CapabilityOpener = <C extends Capability>(cap: C) => Promise<{ api: Capabilities[C]; connector: string; label: string }>;
+   and the assistant (with its own connections) share them. app: which
+   connected app, when more than one gives it (default: the first). */
+export type CapabilityOpener = <C extends Capability>(cap: C, app?: string | null) => Promise<{ api: Capabilities[C]; connector: string; label: string }>;
 
 export const capabilityOpener =
   (d: ConnectorDeps, userId: string): CapabilityOpener =>
-  (cap) =>
-    openCapability(d, userId, cap);
+  (cap, app) =>
+    openCapability(d, userId, cap, app);
 
-/* The capability from whichever connected app gives it. */
-export async function openCapability<C extends Capability>(d: ConnectorDeps, userId: string, cap: C): Promise<{ api: Capabilities[C]; connector: string; label: string }> {
-  const name = (await connectedCapabilities(d, userId)).get(cap);
+/* The capability from the chosen connected app, or the first that gives it. */
+export async function openCapability<C extends Capability>(d: ConnectorDeps, userId: string, cap: C, app?: string | null): Promise<{ api: Capabilities[C]; connector: string; label: string }> {
+  const names = (await connectedApps(d, userId)).get(cap) ?? [];
+  if (app && !names.includes(app)) {
+    const known = Object.hasOwn(registryOf(d), app) ? definitionOf(d, app).label : 'That app';
+    throw new ConnectorError('not_connected', `${known} isn’t connected, or can’t do this. Connect it in Settings → Customize → Connectors.`, app);
+  }
+  const name = app ?? names[0];
   if (!name) throw new ConnectorError('not_connected', `No connected app can do this yet. Connect one in Settings → Customize → Connectors.`);
   return { api: await openConnector(d, userId, name, cap), connector: name, label: definitionOf(d, name).label };
 }

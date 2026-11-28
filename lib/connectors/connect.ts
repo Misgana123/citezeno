@@ -5,7 +5,8 @@ import { isConnectorAuthError, type Credentials } from '@/lib/providers/connecto
 import { definitionOf, requireConnector, type ConnectorDeps } from './access';
 import { ConnectorError } from './errors';
 import { newNonce, newVerifier, packState, readState, STATE_TTL_MS } from './state';
-import { deleteConnection, saveConnection, secretFor, type Connection } from './store';
+import { deleteConnection, listConnections, saveConnection, secretFor, type Connection } from './store';
+import { CONNECTORS } from '@/lib/providers/connectors/registry';
 
 /* Connecting and disconnecting, the same for every app: one OAuth 2 flow,
    one OAuth 1.0a flow and one pasted-key flow drive every connector in the
@@ -39,7 +40,10 @@ export async function finishSignIn(d: ConnectorDeps, userId: string, name: strin
   const signIn = connector.auth.signIn;
   if (!signIn) throw new ConnectorError('bad_request', `${def.label} connects with a key, not a sign-in.`, name);
   const p = opts.params;
-  if (p.get('error') || p.get('denied')) throw new ConnectorError('denied', `${def.label} wasn’t connected: access wasn’t allowed.`, name);
+  if (p.get('error') || p.get('denied')) {
+    const why = signIn.type === 'oauth2' ? signIn.explainDenied?.(p.get('error') ?? '', p.get('error_description') ?? '') : null;
+    throw new ConnectorError('denied', why ?? `${def.label} wasn’t connected: access wasn’t allowed.`, name);
+  }
   const nonce = signIn.type === 'oauth2' ? p.get('state') : p.get('oauth_token');
   const state = nonce ? readState(opts.cookie, keys, { userId, connector: name, nonce }, (d.now ?? Date.now)()) : null;
   if (!state) throw new ConnectorError('bad_request', 'This sign-in link expired or was already used. Please try connecting again.', name);
@@ -84,7 +88,10 @@ export async function disconnect(d: ConnectorDeps, userId: string, name: string)
   if (!connector || !d.keys) return deleteConnection(d.db, userId, name);
   const keys = d.keys;
   const row = await secretFor(d.db, keys, userId, name);
-  if (row?.credentials && connector.revoke) {
+  // one vendor grant shared with another connected app (Google Drive and Calendar): withdrawing it would cut that one off too
+  const group = definitionOf(d, name).grantGroup;
+  const shared = group ? (await listConnections(d.db, userId)).some((c) => c.connector !== name && Object.hasOwn(d.registry ?? CONNECTORS, c.connector) && (d.registry ?? CONNECTORS)[c.connector].grantGroup === group) : false;
+  if (row?.credentials && connector.revoke && !shared) {
     await connector.revoke(row.credentials).catch((e) => console.warn(`[citezeno] connectors: revoking ${name} failed`, (e as Error).message));
   }
   return deleteConnection(d.db, userId, name);

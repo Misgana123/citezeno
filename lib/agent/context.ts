@@ -43,12 +43,21 @@ export type AgentContext = {
      each gives, and one ready to call (as the user, through the gateway).
      Absent → none connected. */
   connectors?: AgentConnectors;
+  /* the user's time zone (IANA, from their browser), for dates and the calendar */
+  timeZone?: string;
 };
 
+export type ConnectedApp = { name: string; label: string };
+
 export type AgentConnectors = {
-  /* capability → the app's name, for the connections that work */
-  connected: ReadonlyMap<Capability, { name: string; label: string }>;
-  /* what the user lets the assistant do with the app giving this capability */
-  permission?(cap: Capability, kind: 'read' | 'write'): 'allow' | 'ask' | 'never';
-  open<C extends Capability>(cap: C): Promise<{ api: Capabilities[C]; connector: string; label: string }>;
+  /* capability → its first connected app (the default), for the connections that work */
+  connected: ReadonlyMap<Capability, ConnectedApp>;
+  /* capability → every connected app that gives it, in order */
+  apps?: ReadonlyMap<Capability, readonly ConnectedApp[]>;
+  /* what the user lets the assistant do with an app (default: the app pick() would choose).
+     Without an app, "never" means every app giving the capability is "never". */
+  permission?(cap: Capability, kind: 'read' | 'write', app?: string): 'allow' | 'ask' | 'never';
+  /* the app to use: the one asked for, else the first the user hasn't said "never" to */
+  pick?(cap: Capability, kind: 'read' | 'write', app?: string | null): ConnectedApp | null;
+  open<C extends Capability>(cap: C, app?: string | null): Promise<{ api: Capabilities[C]; connector: string; label: string }>;
 };

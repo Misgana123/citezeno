@@ -4,14 +4,17 @@ import { beginUpload, completeUpload, type CompleteResult, type MatchDeps, type 
 import { deletePdf, getPdfRow } from '@/lib/shelf/store/pdfs';
 import { openCapability, type ConnectorDeps } from '../access';
 
+/* Word files the storage can turn into a PDF (OneDrive does). */
+const WORD = /\.(docx?|odt|rtf)$/i;
+
 /* A PDF from the user's cloud files onto their shelf: the same checks and
    steps as an upload from their computer (size, storage, daily uploads, then
    reading it and suggesting the paper), except our server fetches the file
    instead of the browser sending it. A Google Doc comes as its PDF. */
-export async function cloudFileToShelf(d: ConnectorDeps, pdf: PdfDeps & MatchDeps, userId: string, f: { fileId: string; itemId?: string | null }): Promise<CompleteResult> {
-  const { api } = await openCapability(d, userId, 'files');
+export async function cloudFileToShelf(d: ConnectorDeps, pdf: PdfDeps & MatchDeps, userId: string, f: { fileId: string; itemId?: string | null; app?: string | null }): Promise<CompleteResult> {
+  const { api } = await openCapability(d, userId, 'files', f.app);
   const file = await api.get(f.fileId);
-  if (file.kind !== 'pdf' && file.kind !== 'document') throw new ShelfError('invalid_file', `“${file.name}” isn’t a PDF. Only PDFs (and Google Docs, as PDFs) can be added to your shelf.`);
+  if (file.kind !== 'pdf' && file.kind !== 'document' && !WORD.test(file.name)) throw new ShelfError('invalid_file', `“${file.name}” isn’t a PDF. Only PDFs (and Google Docs or Word files, as PDFs) can be added to your shelf.`);
   if (!pdf.store) throw new ShelfError('unavailable', 'PDF uploads aren’t set up yet. Please try again later.');
   const got = await api.download(f.fileId, { maxBytes: pdf.config.pdfMaxBytes, as: 'pdf' });
   if (!looksLikePdf(got.bytes)) throw new ShelfError('invalid_file', `“${file.name}” isn’t a valid PDF.`);

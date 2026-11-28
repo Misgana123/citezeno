@@ -2,17 +2,18 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ConnectorView } from '@/lib/connectors/catalog';
-import type { SendResult } from '@/lib/connectors/service/send-shelf';
-import type { NotesItem, RefCollection, RefLibrary } from '@/lib/providers/connectors/types';
+import { TASKS_MAX, type SendResult } from '@/lib/connectors/service/send-shelf';
+import type { NotesItem, RefCollection, RefLibrary, TaskProject } from '@/lib/providers/connectors/types';
 import { Icon } from '../Icon';
 import { Select } from '../Select';
 import { toast } from '../toast';
 import { connectorFetch } from './api';
 
 /* Send shelf papers (those in view, or a selection) to a connected app: a new
-   Google Sheet, rows in a Notion database, or a Zotero collection. */
+   Google Sheet, rows in a Notion database, a Zotero collection, or a reading
+   list of tasks in Todoist or Linear. */
 
-export type SendKind = 'sheets' | 'pages' | 'references';
+export type SendKind = 'sheets' | 'pages' | 'references' | 'tasks';
 
 const NEW = '__new__';
 const LIBRARY_ROOT = '';
@@ -26,6 +27,8 @@ export function SendDialog({ app, kind, query, count, defaultTitle, onClose }: {
   const [collections, setCollections] = useState<RefCollection[] | null>(null);
   const [collection, setCollection] = useState(NEW);
   const [newCollection, setNewCollection] = useState(defaultTitle);
+  const [lists, setLists] = useState<{ listName: string; projects: TaskProject[] } | null>(null);
+  const [list, setList] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<SendResult | null>(null);
@@ -52,7 +55,14 @@ export function SendDialog({ app, kind, query, count, defaultTitle, onClose }: {
           if (writable[0] && !writable.some((l) => l.id === 'user')) setLibrary(writable[0].id);
         })
         .catch((e) => setError((e as Error).message));
-  }, [kind]);
+    if (kind === 'tasks')
+      connectorFetch<{ listName: string; projects: TaskProject[] }>(`/api/connectors/tasks/projects?app=${encodeURIComponent(app.name)}`)
+        .then((r) => {
+          setLists(r);
+          if (r.projects[0]) setList(r.projects[0].id);
+        })
+        .catch((e) => setError((e as Error).message));
+  }, [kind, app.name]);
 
   useEffect(() => {
     if (kind !== 'references' || !libraries?.length) return;
@@ -72,9 +82,10 @@ export function SendDialog({ app, kind, query, count, defaultTitle, onClose }: {
   const target = () => {
     if (kind === 'sheets') return { to: 'sheets', title };
     if (kind === 'pages') return { to: 'pages', databaseId: database };
+    if (kind === 'tasks') return { to: 'tasks', app: app.name, projectId: list || null };
     return { to: 'references', libraryId: library, collectionKey: collection === NEW || collection === LIBRARY_ROOT ? null : collection, newCollection: collection === NEW ? newCollection : null };
   };
-  const ready = kind === 'sheets' ? true : kind === 'pages' ? !!database : !!libraries?.length && (collection !== NEW || !!newCollection.trim());
+  const ready = kind === 'sheets' ? true : kind === 'pages' ? !!database : kind === 'tasks' ? !!lists && (count == null || count <= TASKS_MAX) : !!libraries?.length && (collection !== NEW || !!newCollection.trim());
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +134,19 @@ export function SendDialog({ app, kind, query, count, defaultTitle, onClose }: {
             <p className="small">
               {papers} go to your {app.label} ({app.connection?.label}).
             </p>
+            {kind === 'tasks' &&
+              (!lists ? (
+                !error && <p className="sh-hint">Loading your {app.label} lists…</p>
+              ) : (
+                <label className="field">
+                  {lists.listName === 'team' ? 'Team' : 'Project'}
+                  <Select value={list} onChange={(v) => setList(String(v))} search={lists.projects.length > 8 ? `Find a ${lists.listName}` : undefined} options={lists.projects.map((p) => ({ value: p.id, label: p.name }))} />
+                  <span className="small">
+                    One task per paper: “Read: title (year)”, with its authors, journal and link.
+                    {count != null && count > TASKS_MAX ? ` At most ${TASKS_MAX} papers at once: choose fewer.` : ''}
+                  </span>
+                </label>
+              ))}
             {kind === 'sheets' && (
               <label className="field">
                 Spreadsheet name

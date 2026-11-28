@@ -16,6 +16,7 @@ const target = z.discriminatedUnion('to', [
   z.object({ to: z.literal('sheets'), title: z.string().trim().max(200).default('') }),
   z.object({ to: z.literal('pages'), databaseId: z.string().trim().min(32).max(300) }),
   z.object({ to: z.literal('references'), libraryId: z.string().regex(/^(user|group:\d{1,12})$/), collectionKey: z.string().regex(/^[A-Z0-9]{8}$/).nullish(), newCollection: z.string().trim().max(200).nullish() }),
+  z.object({ to: z.literal('tasks'), app: z.string().trim().max(40).nullish(), projectId: z.string().trim().max(100).nullish() }),
 ]);
 const body = z.object({
   /* the shelf listing's query string (filters), as the page sends it to /api/shelf/papers */

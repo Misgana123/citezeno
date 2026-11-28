@@ -5,7 +5,8 @@ import type { CapabilityOpener } from '../access';
 import { ConnectorError } from '../errors';
 
 /* Sending shelf papers to a connected app: a new spreadsheet, rows in a notes
-   database, or references in a reference manager's collection. */
+   database, references in a reference manager's collection, or a reading
+   list of tasks (one per paper). */
 
 /* The most papers one send may carry. */
 export const SEND_MAX = 1000;
@@ -13,7 +14,19 @@ export const SEND_MAX = 1000;
 export type SendTarget =
   | { to: 'sheets'; title: string }
   | { to: 'pages'; databaseId: string }
-  | { to: 'references'; libraryId: string; collectionKey?: string | null; newCollection?: string | null };
+  | { to: 'references'; libraryId: string; collectionKey?: string | null; newCollection?: string | null }
+  | { to: 'tasks'; app?: string | null; projectId?: string | null };
+
+/* The most tasks one send makes (one call each). */
+export const TASKS_MAX = 100;
+
+/* A reading-list task for one paper: "Read: Title (2021)", with who, where and its link. */
+export function toReadingTask({ item }: ExportRow): { title: string; notes: string } {
+  const p = item.paper;
+  const authors = p.authors.slice(0, 3).map((a) => a.name).join(', ') + (p.authors.length > 3 ? ' et al.' : '');
+  const link = p.doi ? `https://doi.org/${p.doi}` : p.landingUrl;
+  return { title: `Read: ${(p.title ?? 'Untitled').slice(0, 250)}${p.year ? ` (${p.year})` : ''}`, notes: [authors, p.source, link].filter(Boolean).join('\n') };
+}
 
 export type SendResult = { app: string; sent: number; failed: number; url: string | null; where: string };
 
@@ -61,6 +74,18 @@ export async function sendShelf(open: CapabilityOpener, rows: ExportRow[], targe
     const { title } = await api.columns(target.databaseId);
     const r = await api.addRows(target.databaseId, rows.map(toNotesRow));
     return { app: label, sent: r.added, failed: rows.length - r.added, url: r.url, where: title };
+  }
+
+  if (target.to === 'tasks') {
+    if (rows.length > TASKS_MAX) throw new ConnectorError('bad_request', `At most ${TASKS_MAX} papers can become tasks at once. Choose fewer papers.`);
+    const { api, label } = await open('tasks', target.app);
+    const where = target.projectId ? ((await api.projects()).find((p) => p.id === target.projectId)?.name ?? `the ${api.listName}`) : `your default ${api.listName}`;
+    let sent = 0;
+    for (const r of rows) {
+      await api.create({ projectId: target.projectId ?? null, ...toReadingTask(r) });
+      sent++;
+    }
+    return { app: label, sent, failed: rows.length - sent, url: null, where };
   }
 
   const { api, label } = await open('references');

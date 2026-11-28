@@ -114,6 +114,18 @@ export function ConnectorDetail({ connector: c, keyForm = false, onBack }: { con
               </form>
             )}
           </div>
+          {c.manage && conn && !stale && (
+            <div className="st-line">
+              <div className="st-txt">
+                <b>What Citezeno can see</b>
+                <small>Citezeno only sees what you choose at {c.label}. Change it there at any time.</small>
+              </div>
+              <a className="st-btn" href={c.manage.url} target="_blank" rel="noreferrer">
+                {c.manage.label}
+                <Icon name="external" />
+              </a>
+            </div>
+          )}
           {conn && !stale && (
             <div className="st-line">
               <div className="st-txt">

@@ -15,7 +15,7 @@ import { agentConnectors } from '@/lib/connectors/agent';
 import { shelfConfig } from '@/lib/shelf/config';
 import type { AgentContext } from './context';
 import { agentFiles } from './files';
-import { connectorsContext, projectContext, readingContext, skillContext, webContext } from './prompt';
+import { connectorsContext, projectContext, readingContext, skillContext, timeContext, webContext } from './prompt';
 import { takeSkill } from '@/lib/skills/store';
 import { listProjects } from '@/lib/shelf/store/projects';
 import { research, RESEARCH_MS } from './research';
@@ -91,7 +91,7 @@ async function newChatModel(userId: string, asked: string | null | undefined) {
 }
 
 /* named: the chat was just made here, so the model titles it in its first reply */
-type Start = { conversation: Conversation; run(deps: LoopDeps, history: Parameters<typeof answer>[1]): Promise<void>; extraSystem?: string; named?: boolean };
+type Start = { conversation: Conversation; run(deps: LoopDeps, history: Parameters<typeof answer>[1]): Promise<void>; extraSystem?: string; named?: boolean; timeZone?: string };
 
 /* A reply as a stream of events. The work happens while the stream is open. */
 async function streamReply(userId: string, req: Request, start: () => Promise<Start>, modelId: string | null | undefined, replyMs = REPLY_MS, kind: ReplyKind = 'assistant'): Promise<Response> {
@@ -104,7 +104,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
   const hooks: CallCredits = { before: async (p, usd) => credits?.calls.before(p, usd), after: async (c) => credits?.calls.after(c) };
   const meter = newMeter(hooks);
   const models = await chatModelsFor(meter);
-  const { conversation, run, extraSystem, named } = await start();
+  const { conversation, run, extraSystem, named, timeZone } = await start();
   let model;
   try {
     // a model the plan doesn't allow: refused when asked for, replaced by the plan's default when it's the chat's own
@@ -158,6 +158,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     credits: reply.meter,
     limits,
     connectors,
+    timeZone,
   };
 
   const encoder = new TextEncoder();
@@ -185,7 +186,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
     setPending: (p) => setPending(pool, conversation.id, p),
     maxTurns: MAX_TURNS,
     deadline: Date.now() + replyMs,
-    extraSystem: (extraSystem ?? '') + (conversation.webSearch ? webContext() : '') + connectorsContext(connectors?.connected),
+    extraSystem: (extraSystem ?? '') + timeContext(timeZone) + (conversation.webSearch ? webContext() : '') + connectorsContext(connectors?.apps ?? connectors?.connected),
     tools: offeredTools({ web: conversation.webSearch, connected: connectors?.connected, permission: connectors?.permission }),
     ...(named
       ? {
@@ -226,7 +227,7 @@ async function streamReply(userId: string, req: Request, start: () => Promise<St
 }
 
 /* A new message, in a new conversation or an existing one. */
-export function replyToMessage(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null; paperId?: string | null; attachments?: Attachment[]; webSearch?: boolean; skill?: string | null; projectId?: string | null }) {
+export function replyToMessage(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null; paperId?: string | null; attachments?: Attachment[]; webSearch?: boolean; skill?: string | null; projectId?: string | null; timeZone?: string }) {
   return streamReply(
     userId,
     req,
@@ -251,7 +252,7 @@ export function replyToMessage(req: Request, userId: string, body: { conversatio
       }
       // a skill and a shelf project picked in the + menu, for this message
       const extra = (reading?.context ?? '') + (await messageExtras(userId, body));
-      return { conversation, run: (deps, history) => answer(deps, history, body.text, body.attachments ?? []), extraSystem: extra || undefined, named };
+      return { conversation, run: (deps, history) => answer(deps, history, body.text, body.attachments ?? []), extraSystem: extra || undefined, named, timeZone: body.timeZone };
     },
     body.model,
   );
@@ -259,7 +260,7 @@ export function replyToMessage(req: Request, userId: string, body: { conversatio
 
 /* Deep research, started from the + menu: plan, search, read, then a cited
    report. Its own endpoint, because it runs for a few minutes. */
-export function replyWithResearch(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null; webSearch?: boolean }) {
+export function replyWithResearch(req: Request, userId: string, body: { conversationId?: string | null; text: string; model?: string | null; webSearch?: boolean; timeZone?: string }) {
   return streamReply(
     userId,
     req,
@@ -277,7 +278,7 @@ export function replyWithResearch(req: Request, userId: string, body: { conversa
         await setWebSearch(pool, userId, conversation.id, body.webSearch);
         conversation = { ...conversation, webSearch: body.webSearch };
       }
-      return { conversation, run: (deps) => research(deps, body.text), named };
+      return { conversation, run: (deps) => research(deps, body.text), named, timeZone: body.timeZone };
     },
     body.model,
     RESEARCH_MS,
@@ -322,7 +323,7 @@ async function messageExtras(userId: string, body: { skill?: string | null; proj
     if (skill) out += skillContext(skill);
   }
   if (body.projectId) {
-    const project = (await listProjects(pool, userId).catch(() => [])).find((p) => p.id === body.projectId);
+    const project = (await listProjects(pool, userId).catch(() => [] as Awaited<ReturnType<typeof listProjects>>)).find((p) => p.id === body.projectId);
     if (project) out += projectContext(project);
   }
   return out;

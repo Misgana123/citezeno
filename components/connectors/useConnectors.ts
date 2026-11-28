@@ -51,5 +51,10 @@ export function useConnectors(load = true) {
     const able = connectors?.filter((c) => c.capabilities.includes(cap)) ?? [];
     return able.find((c) => c.connection?.status === 'ok') ?? able[0] ?? null;
   };
-  return { connectors, find, connected, forCapability, reload };
+  /* every app that can do this: connected ones first, then the rest */
+  const appsFor = (cap: Capability) => {
+    const able = connectors?.filter((c) => c.capabilities.includes(cap)) ?? [];
+    return [...able.filter((c) => c.connection?.status === 'ok'), ...able.filter((c) => c.connection?.status !== 'ok')];
+  };
+  return { connectors, find, connected, forCapability, appsFor, reload };
 }
