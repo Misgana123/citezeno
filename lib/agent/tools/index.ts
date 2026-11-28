@@ -23,13 +23,17 @@ import { ZIP_TOOLS } from './zip';
    app. New features add their tools here and the agent can use them. */
 export const AGENT_TOOLS: readonly AgentTool[] = [...PAPER_TOOLS, ...LIBRARY_TOOLS, ...SAVE_TOOLS, ...ORGANIZE_TOOLS, ...EXPORT_TOOLS, ...REFERENCE_TOOLS, ...TEXT_TOOLS, ...READER_TOOLS, ...WEB_TOOLS, ...DOCUMENT_TOOLS, ...MEDIA_TOOLS, ...PDF_TOOLS, ...ZIP_TOOLS, ...CODE_TOOLS, ...CONVERT_TOOLS, ...RESEARCH_TOOLS] as AgentTool[];
 
+const CODE_TOOL_NAMES = new Set(CODE_TOOLS.map((t) => t.name));
+
 const byName = new Map<string, AgentTool | ClientTool>([...AGENT_TOOLS, ...CLIENT_TOOLS].map((t) => [t.name, t]));
 
 /* A tool the server runs, or one the user's browser runs ("client"). */
 export const findTool = (name: string): AgentTool | ClientTool | null => byName.get(name) ?? null;
 
-/* The tools offered for one reply: the web tools only while the user has web search on. */
-export const offeredTools = (opts: { web: boolean }): (AgentTool | ClientTool)[] => [...AGENT_TOOLS, ...CLIENT_TOOLS].filter((t) => opts.web || !WEB_TOOL_NAMES.has(t.name));
+/* The tools offered for one reply: the web tools only while the user has web
+   search on, Python runs only on a plan with the code sandbox (Lab). */
+export const offeredTools = (opts: { web: boolean; sandbox?: boolean }): (AgentTool | ClientTool)[] =>
+  [...AGENT_TOOLS, ...CLIENT_TOOLS].filter((t) => (opts.web || !WEB_TOOL_NAMES.has(t.name)) && (opts.sandbox !== false || !CODE_TOOL_NAMES.has(t.name)));
 
 /* A tool's input as JSON Schema, for the model. */
 export function inputSchema(tool: AgentTool | ClientTool): Record<string, unknown> {

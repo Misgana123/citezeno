@@ -7,6 +7,15 @@ const ID = z.string().trim().min(1).max(80);
 
 export const MESSAGE_MAX = 8000;
 
+/* An IANA time zone name; anything else is dropped. */
+const TZ = z
+  .string()
+  .trim()
+  .max(64)
+  .regex(/^[A-Za-z_]+(\/[A-Za-z0-9_+-]+){0,2}$|^UTC$/)
+  .optional()
+  .catch(undefined);
+
 /* Files added to a message, read in the browser (limits in attachments.ts). */
 const attachmentName = z.string().trim().min(1).max(200);
 export const attachmentSchema = z.discriminatedUnion('kind', [
@@ -28,6 +37,12 @@ export const messageBody = z
     paperId: z.string().trim().max(300).nullish(),
     /* the Web switch in the + menu: web search on for this chat */
     webSearch: z.boolean().optional(),
+    /* a skill picked in the + menu, for this message (its ID) */
+    skill: ID.nullish(),
+    /* a shelf project picked in the + menu ("Add from shelf"): what the message is about */
+    projectId: ID.nullish(),
+    /* the user's time zone, from their browser (IANA, e.g. "Europe/Berlin") */
+    timeZone: TZ,
     attachments: z.array(attachmentSchema).max(ATTACH_MAX, `Add at most ${ATTACH_MAX} files to a message.`).optional(),
   })
   .refine((b) => b.text || b.attachments?.length, 'Type a message.')
@@ -36,6 +51,7 @@ export const messageBody = z
 /* Deep research (the + menu): one question, in a new or existing chat. */
 export const researchBody = z.object({
   conversationId: ID.nullish(),
+  timeZone: TZ,
   text: z.string().trim().min(3, 'Say what to research.').max(2000, 'Keep the research question under 2,000 characters.'),
   model: z.string().trim().max(80).nullish(),
   webSearch: z.boolean().optional(),

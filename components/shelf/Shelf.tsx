@@ -11,7 +11,7 @@ import { AddPapersDialog } from './add/AddPapersDialog';
 import { FilesDialog } from './pdf/FilesDialog';
 import { PdfUploadTab } from './pdf/PdfUploadTab';
 import { ImportTab } from './add/ImportTab';
-import { shelfFetch } from './api';
+import { shelfFetch, shelfSpace } from './api';
 import { BulkBar, type DistributiveOmit } from './BulkBar';
 import { DuplicatesView } from './DuplicatesView';
 import { runBulk } from './bulk';
@@ -24,6 +24,7 @@ import { SortPill } from './SortPill';
 import { ExportMenu } from './export/ExportMenu';
 import { RetractionNotices } from './RetractionNotices';
 import { ShelfSidebar, type ViewPick } from './ShelfSidebar';
+import { CopyToLab } from '../labs/CopyToLab';
 import { activeFilterCount, COLLECTION_LABELS, filtersFromParams, filtersToParams, listParams, type ShelfFilters } from './shelf-state';
 import { CollectionNav } from './CollectionNav';
 import { ShelfHead } from './ShelfHead';
@@ -37,7 +38,7 @@ import { ContinueReading } from '../reader/ContinueReading';
 /* The shelf page: views on the left (all, Unsorted, projects, folders, tags),
    the papers on the right, a selection bar for bulk actions, and a drawer
    for one paper. The current view and filters live in the address bar. */
-export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focusItem: string | null }) {
+export function Shelf({ initialQuery, focusItem, top }: { initialQuery: string; focusItem: string | null; /* the lab switch */ top?: React.ReactNode }) {
   const [filters, setFilters] = useState<ShelfFilters>(() => filtersFromParams(new URLSearchParams(initialQuery)));
   // the address bar leaves out defaults; listing requests always name the collection
   const query = useMemo(() => filtersToParams(filters).toString(), [filters]);
@@ -235,6 +236,7 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
         </div>
       )}
       <ShelfSidebar
+        top={top}
         open={sideOpen}
         groups={groups}
         filters={filters}
@@ -286,7 +288,12 @@ export function Shelf({ initialQuery, focusItem }: { initialQuery: string; focus
                   onDelete={bulkDelete}
                   onClear={() => setSelected(new Set())}
                   onSelectAll={selected.size < list.items.length ? () => setSelected(new Set(list.items.map((i) => i.id))) : undefined}
-                  extra={<ExportMenu groups={groups} query={new URLSearchParams({ ids: [...selected].join(',') })} baseName="citezeno-selected" label="Export" everything={false} />}
+                  extra={
+                    <>
+                      <ExportMenu groups={groups} query={new URLSearchParams({ ids: [...selected].join(',') })} baseName="citezeno-selected" label="Export" everything={false} />
+                      {!shelfSpace() && <CopyToLab itemIds={[...selected]} onDone={() => setSelected(new Set())} />}
+                    </>
+                  }
                 />
               )}
 

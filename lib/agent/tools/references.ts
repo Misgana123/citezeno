@@ -9,6 +9,7 @@ import { lookupPaper } from '@/lib/shelf/service/lookup';
 import { bibtex, csljson, disambiguate, plain, ris, sortKey, STYLES } from '@/lib/styles';
 import type { Source } from '@/lib/types';
 import type { AgentContext } from '../context';
+import { shelfOf } from '../context';
 import { paperBrief } from './format';
 import { readText, textSource } from './text-input';
 import { defineTool, tally } from './types';
@@ -186,7 +187,7 @@ export const checkReferences = defineTool({
       if (i.searchTitles && searches < TITLE_SEARCHES_MAX && (e.title ?? e.line)) {
         searches++;
         const query = (e.title ?? e.line!).slice(0, 300);
-        const r = await lookupPaper({ db: ctx.db, sources: ctx.sources(), reserveSearches: ctx.reserveSearches }, ctx.userId, query);
+        const r = await lookupPaper({ db: ctx.db, sources: ctx.sources(), reserveSearches: ctx.reserveSearches }, shelfOf(ctx), query);
         const best = r.papers.find((p) => compare(e, p).matches);
         if (best) {
           const { issues } = compare(e, best);

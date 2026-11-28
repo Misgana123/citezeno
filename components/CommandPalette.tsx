@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { SearchResult } from '@/lib/search';
 import { Icon, type IconName } from './Icon';
 import { readHref } from './reader/api';
+import { openSettings } from './settings/open';
 
 /* Search (Ctrl K): one box for the user's chats, the papers on their shelf,
    their citation drafts, and actions (going somewhere, page commands).
@@ -185,7 +186,7 @@ export function CommandPalette() {
       { id: 'go-papers', group: 'Actions', label: 'Explore papers', icon: 'compass', keywords: 'find search browse explore research papers articles openalex literature', run: go('/app/papers') },
       { id: 'go-shelf', group: 'Actions', label: 'My shelf', icon: 'layers', keywords: 'shelf saved papers keep reading list projects', run: go('/app/shelf') },
       { id: 'go-history', group: 'Actions', label: 'History', icon: 'clock', keywords: 'activity log timeline past', run: go('/app/history') },
-      { id: 'go-account', group: 'Actions', label: 'Account settings', icon: 'user', keywords: 'profile password sign in', run: go('/app/account') },
+      { id: 'go-account', group: 'Actions', label: 'Settings', icon: 'gear', keywords: 'account profile password sign in credits skills theme', run: () => openSettings('account') },
       { id: 'go-pricing', group: 'Actions', label: 'Pricing and credits', icon: 'bolt', keywords: 'buy credits plan billing', run: go('/pricing') },
       { id: 'go-styles', group: 'Actions', label: 'Citation styles', icon: 'quote', keywords: 'apa mla chicago harvard', run: go('/styles') },
       { id: 'theme', group: 'Actions', label: 'Switch light or dark theme', icon: 'moon', keywords: 'appearance', run: flipTheme },

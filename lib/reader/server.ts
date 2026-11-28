@@ -1,4 +1,5 @@
 import 'server-only';
+import { accountPayer } from '@/lib/labs/chat';
 import { createMeter } from '@/lib/credits/meter';
 import { planLimits } from '@/lib/credits/limits';
 import { wallet } from '@/lib/credits/server';
@@ -26,9 +27,14 @@ export function readerDeps(): ReaderDeps {
     chat: () => chatModelsFor(),
     maxPdfBytes: config.maxPdfBytes,
     // one action per text, so an upload is charged once however many runs it takes; re-embedding later is free
-    embedMeter: (t) => createMeter(wallet(), { userId: t.userId, kind: 'reader.embed', actionId: `embed:${t.textId}`, ttlMs: 60 * 60 * 1000, meta: { paperId: t.paperId } }),
+    // a lab's PDF (held by its shelf account) is paid for by the lab's owner
+    embedMeter: async (t) => {
+      const payer = await accountPayer(pool, t.userId);
+      return createMeter(wallet(), { userId: payer, kind: 'reader.embed', actionId: `embed:${t.textId}`, ttlMs: 60 * 60 * 1000, meta: { paperId: t.paperId, ...(payer !== t.userId ? { labShelf: t.userId } : {}) } });
+    },
     // uploads embedded this calendar month (UTC), against the plan; one already started (or embedded before) always goes ahead
-    embedAllowed: async (userId, textId) => {
+    embedAllowed: async (account, textId) => {
+      const userId = await accountPayer(pool, account);
       const { rows } = await pool.query<{ mine: boolean; n: number }>(
         `select exists (select 1 from credit_action where id = $2 and "userId" = $1) as mine,
                 (select count(*)::int from credit_action where "userId" = $1 and kind = 'reader.embed' and id <> $2 and (charged > 0 or status = 'held')

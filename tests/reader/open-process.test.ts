@@ -257,6 +257,26 @@ describe.skipIf(!TEST_DB_URL)('opening and processing papers (Postgres)', { time
     expect(r.rows[0]).toMatchObject({ paperId: 'openalex:W7', title: 'Paper W7' });
   });
 
+  it('reads a paper from another shelf (a lab’s): its upload and text, without changing its status', async () => {
+    works.W8 = work('W8', { best_oa_location: null, open_access: { is_oa: false } });
+    const labShelf = await db.addUser();
+    const shared = await putShared(db.pool, paper('openalex:W8'));
+    const { item } = await addItem(db.pool, labShelf, shared.id, 'search');
+    const pdf = await createPending(db.pool, labShelf, { fileName: 'lab.pdf', sizeBytes: PAPER_PDF.byteLength, itemId: item.id });
+    await markReady(db.pool, labShelf, pdf.id, { sizeBytes: PAPER_PDF.byteLength, pageCount: 2, textStatus: 'done', text: null, found: { doi: null, title: null } });
+    store.put(pdf.storageKey, PAPER_PDF);
+
+    const lab = { ...deps, shelfUserId: labShelf };
+    const r = await openPaper(lab, user, 'openalex:W8');
+    expect(r.view.pdf).toMatchObject({ kind: 'upload', fileName: 'lab.pdf' });
+    expect(r.view.shelf).toEqual({ itemId: item.id, readingStatus: 'to_read' });
+    expect((await db.pool.query(`select "readingStatus" from shelf_item where id = $1`, [item.id])).rows[0].readingStatus).toBe('to_read');
+    await processNext(lab, { id: r.needsWork!, deadline: later() });
+    expect((await readableText(lab, user, 'openalex:W8')).text).toMatchObject({ scope: 'user', ownerId: labShelf, status: 'ready' });
+    // outside the lab the same user sees no upload
+    expect((await openPaper(deps, user, 'openalex:W8')).view.pdf).toEqual({ kind: 'none', reason: 'no_pdf' });
+  });
+
   it('re-embeds when the embedding model changes, using keywords meanwhile', async () => {
     embedder = fakeEmbedder('new-embed');
     expect(await queueReembedding(db.pool, 'new-embed', DIMS)).toBeGreaterThan(0);

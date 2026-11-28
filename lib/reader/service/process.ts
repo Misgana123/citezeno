@@ -98,7 +98,7 @@ async function embed(deps: ReaderDeps, t: TextRow, deadline: number): Promise<Wo
   const now = deps.now ?? Date.now;
   const v = vectorSql(ns, embedder.dimensions);
   // a user's own upload is charged (once); shared open-access papers are the owner's cost
-  const meter = t.scope === 'user' && t.ownerId ? deps.embedMeter?.({ userId: t.ownerId, textId: t.id, paperId: t.paperId }) : undefined;
+  const meter = t.scope === 'user' && t.ownerId ? await deps.embedMeter?.({ userId: t.ownerId, textId: t.id, paperId: t.paperId }) : undefined;
   let reserved = 0;
   if (meter && deps.embedAllowed && !(await deps.embedAllowed(t.ownerId!, t.id))) {
     await markKeywordsOnly(deps.db, t.id, EMBED_LIMIT);

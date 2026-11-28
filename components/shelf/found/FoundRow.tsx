@@ -7,6 +7,7 @@ import { authorsShort, citationLabel } from '../../papers/format';
 import { readHref } from '../../reader/api';
 import { STATUS_LABELS } from '../shelf-state';
 import { RowMenu } from './RowMenu';
+import { shelfSpace } from '../api';
 
 export type RowProps = {
   item: ShelfItem;
@@ -67,7 +68,7 @@ export function FoundRow({ item, tags, active, selected, fresh, onSelect, onOpen
             <span className="sh-chip is-line">Paywalled</span>
           ))}
         {pdf && (
-          <Link className="sh-chip is-mine" href={readHref(p.id, pdf.id)} prefetch={false} title="Read your PDF">
+          <Link className="sh-chip is-mine" href={readHref(p.id, pdf.id, shelfSpace())} prefetch={false} title="Read your PDF">
             <Icon name="file" /> Your PDF
           </Link>
         )}

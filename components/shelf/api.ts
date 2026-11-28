@@ -11,6 +11,7 @@ export type ShelfApiCode =
   | 'user_limit'
   | 'invalid_file'
   | 'busy'
+  | 'forbidden'
   | 'unavailable'
   | 'budget'
   | 'network';
@@ -25,6 +26,12 @@ export class ShelfApiError extends Error {
   }
 }
 
+/* Which shelf the page works on: the user's own, or a lab's ("lab:<id>").
+   The shelf page sets it; the server checks it against the user's labs. */
+let space: string | null = null;
+export const setShelfSpace = (v: string | null) => (space = v);
+export const shelfSpace = () => space;
+
 export async function shelfFetch<T>(url: string, init: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
   let res: Response;
   try {
@@ -32,7 +39,7 @@ export async function shelfFetch<T>(url: string, init: { method?: string; body?:
       method: init.method ?? 'GET',
       signal: init.signal,
       cache: 'no-store',
-      headers: { accept: 'application/json', ...(init.body !== undefined && !(init.body instanceof FormData) ? { 'content-type': 'application/json' } : {}) },
+      headers: { accept: 'application/json', ...(space ? { 'x-cz-space': space } : {}), ...(init.body !== undefined && !(init.body instanceof FormData) ? { 'content-type': 'application/json' } : {}) },
       body: init.body === undefined ? undefined : init.body instanceof FormData ? init.body : JSON.stringify(init.body),
     });
   } catch (e) {

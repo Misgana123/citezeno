@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import type { ReaderData } from '../../reader/api';
-import { readHref } from '../../reader/api';
+import { readHref, readerSpace } from '../../reader/api';
 import { originalHref } from '../../reader/Details';
 import { Icon, type IconName } from '../../Icon';
 import { authorsShort } from '../../papers/format';
@@ -48,7 +48,7 @@ export function FileHeader({
   useDismiss(ref, menu, () => setMenu(false));
   const p = data?.paper;
   const pdfUrl = data && data.pdf.kind !== 'none' ? data.pdf.url : null;
-  const readerLink = p ? readHref(p.id) : null;
+  const readerLink = p ? readHref(p.id, null, readerSpace()) : null;
 
   const save = async () => {
     if (!p) return;

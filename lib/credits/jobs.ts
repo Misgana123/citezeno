@@ -55,7 +55,7 @@ export async function runCreditJobs(d: { db: Db; wallet: Wallet; billing: Billin
     if (!claimed.rowCount) continue;
     const endsOn = new Date(r.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
     try {
-      await sendEmail({ to: r.email, ...creditsExpiringEmail(r.name, r.left, endsOn, `${d.siteURL}/app/account#billing`) });
+      await sendEmail({ to: r.email, ...creditsExpiringEmail(r.name, r.left, endsOn, `${d.siteURL}/app/chat?settings=usage`) });
       warned++;
     } catch (e) {
       console.warn('[citezeno] credits: expiry warning email failed', e);

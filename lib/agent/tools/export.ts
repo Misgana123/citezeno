@@ -5,6 +5,7 @@ import { listItems } from '@/lib/shelf/store/items';
 import type { ShelfItem } from '@/lib/shelf/types';
 import { listFilters, listQuery, loadGroups } from './library';
 import { defineTool, tally } from './types';
+import { shelfOf } from '../context';
 
 /* Exporting saved papers as BibTeX, RIS or CSV: the same files as the shelf's
    Export menu, offered to the user as a download in the chat. */
@@ -25,14 +26,14 @@ export const exportLibrary = defineTool({
   label: (i) => `Exporting ${EXPORT_FILES[i.format].label}`,
   done: (i) => ({ did: 'Exported', about: EXPORT_FILES[i.format].label }),
   async confirm(input, ctx) {
-    const { total } = await listItems(ctx.db, ctx.userId, listQuery(input, 1, 1));
+    const { total } = await listItems(ctx.db, shelfOf(ctx), listQuery(input, 1, 1));
     return total > EXPORT_CONFIRM_AT ? `Export ${Math.min(total, EXPORT_MAX)} papers as ${EXPORT_FILES[input.format].label}?` : null;
   },
   async run(ctx, { format, ...f }) {
     const items: ShelfItem[] = [];
     let total = 0;
     for (let page = 1; items.length < EXPORT_MAX; page++) {
-      const r = await listItems(ctx.db, ctx.userId, listQuery(f, page, PAGE))
+      const r = await listItems(ctx.db, shelfOf(ctx), listQuery(f, page, PAGE))
       total = r.total;
       items.push(...r.items);
       if (!r.items.length || items.length >= r.total) break;

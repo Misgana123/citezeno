@@ -8,6 +8,7 @@ import { doiHref } from '../../papers/format';
 import { readHref } from '../../reader/api';
 import { STATUS_LABELS } from '../shelf-state';
 import { useDismiss } from '../useDismiss';
+import { shelfSpace } from '../api';
 
 /* A paper's "…" menu: read it, open its details, set its status, open its
    DOI or link, or remove it from the shelf. */
@@ -31,7 +32,7 @@ export function RowMenu({ item, onOpen, onStatus, onRemove }: { item: ShelfItem;
       </button>
       {open && (
         <div className="umenu-pop sh-rowmenu-pop" role="menu">
-          <Link role="menuitem" href={readHref(p.id, pdf?.id)} prefetch={false} onClick={close}>
+          <Link role="menuitem" href={readHref(p.id, pdf?.id, shelfSpace())} prefetch={false} onClick={close}>
             <Icon name="book" /> {hasPdf ? 'Read' : 'Read abstract'}
           </Link>
           <button type="button" role="menuitem" onClick={run(() => onOpen(item))}>

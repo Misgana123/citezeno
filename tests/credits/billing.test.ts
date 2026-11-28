@@ -28,7 +28,7 @@ describe.skipIf(!TEST_DB_URL)('plans and payments', { timeout: 90_000 }, () => {
   const clock = () => new Date(now);
   beforeAll(async () => {
     db = await openTestDb();
-    await db.pool.query(`alter table "user" add column email text, add column name text`);
+    await db.pool.query(`alter table "user" add column if not exists email text, add column if not exists name text`);
     w = createWallet(db.pool, clock);
     b = createBilling(db.pool, w, ENV, clock);
   });
@@ -55,14 +55,14 @@ describe.skipIf(!TEST_DB_URL)('plans and payments', { timeout: 90_000 }, () => {
     const u = await db.addUser();
     const s = sub(`sy-${u}`, u, 'lab_y', { current_period_end: iso(addMonths(new Date(now), 12).getTime()) });
     await b.onOrderPaid({ id: `oy-${u}`, product_id: 'lab_y', customer: { external_id: u }, subscription: s, billing_reason: 'subscription_create' });
-    expect((await w.balance(u)).total).toBe(3900);
+    expect((await w.balance(u)).total).toBe(7900);
     expect(await b.addAnnualSlices()).toBe(0);
     const start = now;
     now = addMonths(new Date(start), 1).getTime() + 60_000;
     expect(await b.addAnnualSlices()).toBeGreaterThanOrEqual(1);
     const bal = await w.balance(u);
     // the first month's credits have expired; the second month's are there
-    expect(bal.total).toBe(3900);
+    expect(bal.total).toBe(7900);
     expect(bal.lots).toHaveLength(1);
     now = start;
   });

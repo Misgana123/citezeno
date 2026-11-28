@@ -17,7 +17,11 @@ const notFound = () => new AgentHttpError(404, 'That conversation no longer exis
 export const GET = agentRoute<P>(async (_req, userId, { id }) => {
   const c = await getConversation(pool, userId, id);
   if (!c) throw notFound();
-  return json(toView(c, await loadMessages(pool, c.id)));
+  const messages = await loadMessages(pool, c.id);
+  // a lab chat names the people who wrote in it
+  const ids = c.labId ? [...new Set(messages.flatMap((m) => (m.authorId ? [m.authorId] : [])))] : [];
+  const names = ids.length ? new Map((await pool.query<{ id: string; name: string | null; email: string }>(`select id, name, email from "user" where id = any($1::text[])`, [ids])).rows.map((u) => [u.id, u.name || u.email])) : new Map<string, string>();
+  return json(toView(c, messages, c.labId ? { names, viewer: userId } : undefined));
 });
 
 export const PATCH = agentRoute<P>(async (req, userId, { id }) => {

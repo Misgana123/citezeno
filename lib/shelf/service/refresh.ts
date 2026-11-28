@@ -19,8 +19,9 @@ export const REFRESH_BATCH = 50;
 export type DuePaper = { id: string; provider: string; isRetracted: boolean; title: string };
 
 /* Days between refreshes for each plan's shelves (lib/plans.ts); a paper is
-   due on the shortest schedule among the users who saved it. Shelves without
-   a plan aren't refreshed (records saved during an outage still are). */
+   due on the shortest schedule among the users who saved it; a lab's shelf
+   goes by its owner's plan. Shelves without a plan aren't refreshed (records
+   saved during an outage still are). */
 export type PlanRefresh = Record<string, number | null>;
 
 export async function papersToRefresh(db: Db, providers: readonly string[], olderThanDays: number, limit: number, byPlan?: PlanRefresh): Promise<DuePaper[]> {
@@ -32,7 +33,8 @@ export async function papersToRefresh(db: Db, providers: readonly string[], olde
        where p."ownerId" is null and p.provider = any($2)
          and (p."refreshDue" or exists (
            select 1 from shelf_item i
-           join credit_plan c on c."userId" = i."userId"
+           left join lab l on l."shelfUserId" = i."userId"
+           join credit_plan c on c."userId" = coalesce(l."ownerId", i."userId")
              and c.status not in ('revoked', 'unpaid', 'incomplete', 'incomplete_expired', 'ended')
              and (c."periodEnd" is null or c."periodEnd" > now() - interval '3 days')
            join plan_days d on d.plan = c.plan

@@ -33,6 +33,8 @@ export type ShelfItem = {
   paper: ShelfPaper;
   addedAt: string;
   addedVia: AddedVia;
+  /* in a lab's shelf: the member who added it (a user ID) */
+  addedBy?: string | null;
   readingStatus: ReadingStatus;
   note: string | null;
   projectIds: string[];

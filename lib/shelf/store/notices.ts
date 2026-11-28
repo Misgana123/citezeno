@@ -20,6 +20,16 @@ export async function unreadNotices(q: Queryable, userId: string): Promise<{ not
   return { notices: rows.map((r) => ({ ...r, createdAt: iso(r.createdAt) })) as Notice[], unread: Number(count.rows[0].n) };
 }
 
+/* Unread notices on the shelf of the lab the user is a member of (guests: none; 0 outside a lab). */
+export async function labUnreadNotices(q: Queryable, userId: string): Promise<number> {
+  const { rows } = await q.query<{ n: string }>(
+    `select count(*) as n from shelf_notice n join lab l on l."shelfUserId" = n."userId" join lab_member m on m."labId" = l.id
+     where m."userId" = $1 and m.role <> 'guest' and n."readAt" is null`,
+    [userId],
+  );
+  return Number(rows[0]?.n ?? 0);
+}
+
 export async function markNoticesRead(q: Queryable, userId: string, ids?: string[]): Promise<number> {
   const { rowCount } = ids?.length
     ? await q.query(`update shelf_notice set "readAt" = now() where "userId" = $1 and id = any($2) and "readAt" is null`, [userId, ids])

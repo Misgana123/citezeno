@@ -8,7 +8,7 @@ import { deleteOrphanedPrivate, PAPER_COLUMNS, paperFromPrefixed } from './paper
    the signed-in user's ID and only ever reads or changes that user's rows. */
 
 export const ITEM_SELECT = `
-  select i.id, i."addedAt", i."addedVia", i."readingStatus", i.note, ${PAPER_COLUMNS},
+  select i.id, i."addedAt", i."addedVia", i."addedBy", i."readingStatus", i.note, ${PAPER_COLUMNS},
     array(select "projectId" from shelf_item_project where "itemId" = i.id order by "projectId") as "projectIds",
     array(select "folderId" from shelf_item_folder where "itemId" = i.id order by "folderId") as "folderIds",
     array(select "tagId" from shelf_item_tag where "itemId" = i.id order by "tagId") as "tagIds",
@@ -23,6 +23,7 @@ export function toItem(r: Record<string, unknown>): ShelfItem {
     paper: paperFromPrefixed(r),
     addedAt: iso(r.addedAt as Date) as string,
     addedVia: r.addedVia as AddedVia,
+    addedBy: (r.addedBy as string | null) ?? null,
     readingStatus: r.readingStatus as ReadingStatus,
     note: (r.note as string | null) ?? null,
     projectIds: (r.projectIds as string[]) ?? [],

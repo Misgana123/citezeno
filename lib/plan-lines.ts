@@ -21,6 +21,8 @@ export function receiptLines(key: PlanKey, monthlyCredits: number): [string, str
     ['Models', modelsLabel(key)],
     ['Deep research', l.researchBudgetCap ? 'included' : 'not included'],
     ['Web searches / reply', String(l.webSearchesPerReply)],
+    ['Shared lab', l.labMembers ? `you + ${l.labMembers} people` : 'not included'],
+    ['Python runs', l.codeSandbox ? 'included' : 'not included'],
     ['Shelf', `${l.shelfPapers.toLocaleString('en-US')} papers`],
     ['PDF storage', sizeLabel(l.pdfStorageBytes)],
     ['Exports & share links', 'free'],

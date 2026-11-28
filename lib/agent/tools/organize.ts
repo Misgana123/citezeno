@@ -10,6 +10,7 @@ import { createProject, deleteProject, listProjects, renameProject } from '@/lib
 import { createTag, deleteTag, listTags, updateTag } from '@/lib/shelf/store/tags';
 import { READING_STATUSES } from '@/lib/shelf/types';
 import type { AgentContext } from '../context';
+import { shelfOf } from '../context';
 import { itemBrief } from './format';
 import { loadGroups } from './library';
 import { defineTool, tally } from './types';
@@ -28,7 +29,7 @@ const COLOR = z.string().regex(/^#[0-9a-f]{6}$/i).optional().describe('A hex col
 const notFound = (what: string) => new ShelfError('not_found', `That ${what} no longer exists.`);
 
 async function nameOf(ctx: AgentContext, kind: 'project' | 'folder' | 'tag', id: string): Promise<string> {
-  const list = kind === 'project' ? await listProjects(ctx.db, ctx.userId) : kind === 'folder' ? await listFolders(ctx.db, ctx.userId) : await listTags(ctx.db, ctx.userId);
+  const list = kind === 'project' ? await listProjects(ctx.db, shelfOf(ctx)) : kind === 'folder' ? await listFolders(ctx.db, shelfOf(ctx)) : await listTags(ctx.db, shelfOf(ctx));
   const found = list.find((x) => x.id === id);
   if (!found) throw notFound(kind);
   return found.name;
@@ -38,7 +39,7 @@ async function nameOf(ctx: AgentContext, kind: 'project' | 'folder' | 'tag', id:
 async function which(ctx: AgentContext, ids: string[]): Promise<string> {
   const unique = [...new Set(ids)];
   if (unique.length === 1) {
-    const item = await getItem(ctx.db, ctx.userId, unique[0]);
+    const item = await getItem(ctx.db, shelfOf(ctx), unique[0]);
     if (item) return `“${item.paper.title.slice(0, 100)}”`;
   }
   return `these ${unique.length} papers`;
@@ -55,7 +56,7 @@ export const createProjectTool = defineTool({
   label: (i) => `Creating project “${i.name}”`,
   done: (i) => ({ did: 'Created a project', about: i.name }),
   run: async (ctx, { name }) => {
-    const p = await createProject(ctx.db, ctx.userId, name);
+    const p = await createProject(ctx.db, shelfOf(ctx), name);
     return { result: { projectId: p.id, name: p.name }, display: { summary: 'Created' } };
   },
 });
@@ -69,7 +70,7 @@ export const renameProjectTool = defineTool({
   label: (i) => `Renaming a project to “${i.name}”`,
   done: (i) => ({ did: 'Renamed a project', about: `to “${i.name}”` }),
   run: async (ctx, { projectId, name }) => {
-    if (!(await renameProject(ctx.db, ctx.userId, projectId, name))) throw notFound('project');
+    if (!(await renameProject(ctx.db, shelfOf(ctx), projectId, name))) throw notFound('project');
     return { result: { ok: true }, display: { summary: 'Renamed' } };
   },
 });
@@ -84,7 +85,7 @@ export const deleteProjectTool = defineTool({
   done: () => ({ did: 'Deleted a project' }),
   confirm: async (i, ctx) => `Delete the project “${await nameOf(ctx, 'project', i.projectId)}”? Its papers stay on your shelf.`,
   run: async (ctx, { projectId }) => {
-    if (!(await deleteProject(ctx.db, ctx.userId, projectId))) throw notFound('project');
+    if (!(await deleteProject(ctx.db, shelfOf(ctx), projectId))) throw notFound('project');
     return { result: { ok: true }, display: { summary: 'Deleted' } };
   },
 });
@@ -98,7 +99,7 @@ export const createFolderTool = defineTool({
   label: (i) => `Creating folder “${i.name}”`,
   done: (i) => ({ did: 'Created a folder', about: i.name }),
   run: async (ctx, { projectId, name }) => {
-    const f = await createFolder(ctx.db, ctx.userId, projectId, name);
+    const f = await createFolder(ctx.db, shelfOf(ctx), projectId, name);
     return { result: { folderId: f.id, projectId: f.projectId, name: f.name }, display: { summary: 'Created' } };
   },
 });
@@ -112,7 +113,7 @@ export const renameFolderTool = defineTool({
   label: (i) => `Renaming a folder to “${i.name}”`,
   done: (i) => ({ did: 'Renamed a folder', about: `to “${i.name}”` }),
   run: async (ctx, { folderId, name }) => {
-    if (!(await renameFolder(ctx.db, ctx.userId, folderId, name))) throw notFound('folder');
+    if (!(await renameFolder(ctx.db, shelfOf(ctx), folderId, name))) throw notFound('folder');
     return { result: { ok: true }, display: { summary: 'Renamed' } };
   },
 });
@@ -127,7 +128,7 @@ export const deleteFolderTool = defineTool({
   done: () => ({ did: 'Deleted a folder' }),
   confirm: async (i, ctx) => `Delete the folder “${await nameOf(ctx, 'folder', i.folderId)}”? Its papers stay in the project.`,
   run: async (ctx, { folderId }) => {
-    if (!(await deleteFolder(ctx.db, ctx.userId, folderId))) throw notFound('folder');
+    if (!(await deleteFolder(ctx.db, shelfOf(ctx), folderId))) throw notFound('folder');
     return { result: { ok: true }, display: { summary: 'Deleted' } };
   },
 });
@@ -141,7 +142,7 @@ export const createTagTool = defineTool({
   label: (i) => `Creating tag “${i.name}”`,
   done: (i) => ({ did: 'Created a tag', about: i.name }),
   run: async (ctx, { name, color }) => {
-    const t = await createTag(ctx.db, ctx.userId, name, color ?? null);
+    const t = await createTag(ctx.db, shelfOf(ctx), name, color ?? null);
     return { result: { tagId: t.id, name: t.name }, display: { summary: 'Created' } };
   },
 });
@@ -155,7 +156,7 @@ export const updateTagTool = defineTool({
   label: () => 'Updating a tag',
   done: () => ({ did: 'Updated a tag' }),
   run: async (ctx, { tagId, ...patch }) => {
-    if (!(await updateTag(ctx.db, ctx.userId, tagId, patch))) throw notFound('tag');
+    if (!(await updateTag(ctx.db, shelfOf(ctx), tagId, patch))) throw notFound('tag');
     return { result: { ok: true }, display: { summary: 'Updated' } };
   },
 });
@@ -170,7 +171,7 @@ export const deleteTagTool = defineTool({
   done: () => ({ did: 'Deleted a tag' }),
   confirm: async (i, ctx) => `Delete the tag “${await nameOf(ctx, 'tag', i.tagId)}”? The papers stay; only the tag goes.`,
   run: async (ctx, { tagId }) => {
-    if (!(await deleteTag(ctx.db, ctx.userId, tagId))) throw notFound('tag');
+    if (!(await deleteTag(ctx.db, shelfOf(ctx), tagId))) throw notFound('tag');
     return { result: { ok: true }, display: { summary: 'Deleted' } };
   },
 });
@@ -242,7 +243,7 @@ export const organizePapers = defineTool({
   confirm: async (i, ctx) => (new Set(i.itemIds).size > BULK_CONFIRM_AT ? organizeQuestion(ctx, i, await which(ctx, i.itemIds)) : null),
   async run(ctx, { itemIds, action, ...rest }) {
     const body = bulkBody.parse({ action: BULK_ACTION[action], ids: itemIds, ...rest });
-    const r = await runBulk(ctx.db, ctx.userId, body);
+    const r = await runBulk(ctx.db, shelfOf(ctx), body);
     const groups = await loadGroups(ctx);
     return { result: { changed: r.items.length, items: r.items.slice(0, 20).map((i) => itemBrief(i, groups)) }, display: { items: r.items, summary: `${tally(r.items.length, 'paper')} updated` } };
   },
@@ -257,7 +258,7 @@ export const updateLibraryItem = defineTool({
   label: (i) => (i.note !== undefined ? 'Writing a note' : 'Setting the reading status'),
   done: (i) => ({ did: i.note !== undefined ? 'Wrote a note' : 'Set the reading status' }),
   async run(ctx, { itemId, ...changes }) {
-    const item = await changeItem(ctx.db, ctx.userId, itemId, changes);
+    const item = await changeItem(ctx.db, shelfOf(ctx), itemId, changes);
     return { result: itemBrief(item, await loadGroups(ctx)), display: { items: [item], summary: 'Saved' } };
   },
 });
@@ -272,7 +273,7 @@ export const deletePapers = defineTool({
   done: (i) => ({ did: `Deleted ${i.itemIds.length === 1 ? 'a paper' : `${i.itemIds.length} papers`}` }),
   confirm: async (i, ctx) => `Delete ${await which(ctx, i.itemIds)} from your shelf, with their notes and PDFs? This can’t be undone.`,
   async run(ctx, { itemIds }) {
-    const r = await runBulk(ctx.db, ctx.userId, { action: 'delete', ids: itemIds });
+    const r = await runBulk(ctx.db, shelfOf(ctx), { action: 'delete', ids: itemIds });
     return { result: { deleted: r.deleted.length }, display: { summary: `${tally(r.deleted.length, 'paper')} deleted` } };
   },
 });
@@ -287,7 +288,7 @@ export const resolveDuplicate = defineTool({
   done: (i) => ({ did: i.action === 'merge' ? 'Merged two papers' : 'Kept both papers' }),
   confirm: async (i, ctx) => (i.action === 'merge' ? `Merge ${await which(ctx, [i.itemA])} and ${await which(ctx, [i.itemB])} into one paper?` : null),
   async run(ctx, { action, itemA, itemB }) {
-    const r = await decideDuplicate(ctx.db, ctx.userId, action, itemA, itemB);
+    const r = await decideDuplicate(ctx.db, shelfOf(ctx), action, itemA, itemB);
     if ('item' in r) return { result: { kept: itemBrief(r.item, await loadGroups(ctx)), removedItemId: r.removedId }, display: { items: [r.item], summary: 'Merged' } };
     return { result: r, display: { summary: 'Kept both' } };
   },

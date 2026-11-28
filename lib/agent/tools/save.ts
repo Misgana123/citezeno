@@ -6,6 +6,7 @@ import { saveFoundPaper } from '@/lib/shelf/service/save-found';
 import { saveManualPaper } from '@/lib/shelf/service/save-manual';
 import type { ShelfItem } from '@/lib/shelf/types';
 import type { AgentContext } from '../context';
+import { shelfOf } from '../context';
 import { itemBrief, paperBrief } from './format';
 import { loadGroups } from './library';
 import { defineTool, tally } from './types';
@@ -16,7 +17,7 @@ import { defineTool, tally } from './types';
 const PROJECT_ID = z.string().max(80).optional().describe('Also put it in this project (an ID from list_collections).');
 
 async function saved(ctx: AgentContext, item: ShelfItem, extra: Record<string, unknown> = {}, summary = 'Saved') {
-  const [groups, dups] = await Promise.all([loadGroups(ctx), possibleDuplicatesOf(ctx.db, ctx.userId, item.id)]);
+  const [groups, dups] = await Promise.all([loadGroups(ctx), possibleDuplicatesOf(ctx.db, shelfOf(ctx), item.id)]);
   return {
     result: { saved: itemBrief(item, groups), ...extra, ...(dups.length ? { possibleDuplicates: dups.map((d) => ({ itemId: d.id, title: d.paper.title, year: d.paper.year })) } : {}) },
     display: { items: [item], summary },
@@ -44,7 +45,7 @@ export const lookupPaperTool = defineTool({
   label: (i) => `Looking up “${i.input.slice(0, 60)}”`,
   done: (i) => ({ did: 'Looked up', about: i.input.slice(0, 80) }),
   async run(ctx, { input }) {
-    const r = await lookupPaper({ db: ctx.db, sources: ctx.sources(), reserveSearches: ctx.reserveSearches }, ctx.userId, input);
+    const r = await lookupPaper({ db: ctx.db, sources: ctx.sources(), reserveSearches: ctx.reserveSearches }, shelfOf(ctx), input);
     return { result: { via: r.via, papers: r.papers.map((p) => ({ ...paperBrief(p), savedItemId: r.saved[p.id] ?? null })) }, display: { papers: r.papers, summary: tally(r.papers.length, 'match', 'matches') } };
   },
 });
@@ -59,7 +60,7 @@ export const savePaper = defineTool({
   done: () => ({ did: 'Saved a paper to your shelf' }),
   run: (ctx, { paperId, projectId }) =>
     orAlreadySaved(ctx, async () => {
-      const { item, pending } = await saveFoundPaper({ db: ctx.db, sources: ctx.sources(), maxItems: ctx.shelfConfig.maxItems }, ctx.userId, { paperId, via: 'search', projectId: projectId ?? null });
+      const { item, pending } = await saveFoundPaper({ db: ctx.db, sources: ctx.sources(), maxItems: ctx.shelfConfig.maxItems }, shelfOf(ctx), { paperId, via: 'search', projectId: projectId ?? null });
       return saved(ctx, item, pending ? { note: 'Saved; its details will be refreshed once the paper database is reachable.' } : {});
     }),
 });
@@ -72,7 +73,7 @@ export const addPaperManually = defineTool({
   step: 'change',
   label: (i) => `Adding “${i.details.title.slice(0, 60)}” by hand`,
   done: (i) => ({ did: 'Added a paper by hand', about: i.details.title.slice(0, 80) }),
-  run: (ctx, { details, projectId }) => orAlreadySaved(ctx, async () => saved(ctx, await saveManualPaper(ctx.db, ctx.userId, details, projectId ?? null, 'manual', ctx.shelfConfig.maxItems), {}, 'Added')),
+  run: (ctx, { details, projectId }) => orAlreadySaved(ctx, async () => saved(ctx, await saveManualPaper(ctx.db, shelfOf(ctx), details, projectId ?? null, 'manual', ctx.shelfConfig.maxItems), {}, 'Added')),
 });
 
 export const SAVE_TOOLS = [lookupPaperTool, savePaper, addPaperManually];

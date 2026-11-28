@@ -144,9 +144,9 @@ export default function PrivacyPage() {
 
             <Sec n={7} id="choices" title="Your choices">
               <div className="lg-actions">
-                <Link href="/app/account">
+                <Link href="/app/chat?settings=account">
                   <b>
-                    Account page <Icon name="arrow" />
+                    Settings <Icon name="arrow" />
                   </b>
                   <small>Edit your name and sign out other devices.</small>
                 </Link>
@@ -164,7 +164,7 @@ export default function PrivacyPage() {
                 </Link>
               </div>
               <p>
-                Delete your account on the <Link href="/app/account">account page</Link> (we may ask you to confirm by email).
+                Delete your account in <Link href="/app/chat?settings=account">Settings → Account</Link> (we may ask you to confirm by email).
                 This removes your account, sessions and saved traces.
               </p>
             </Sec>

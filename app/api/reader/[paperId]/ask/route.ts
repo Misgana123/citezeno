@@ -23,7 +23,7 @@ const body = z.object({
 export const POST = readerRoute<P>(async (ctx, { paperId }) => {
   const { req, userId } = ctx;
   const input = await ctx.body(body);
-  const m = metered(ctx, input.kind === 'explain' ? 'reader.explain' : 'reader.ask', { paperId });
+  const m = await metered(ctx, input.kind === 'explain' ? 'reader.explain' : 'reader.ask', { paperId });
   const deps = m.deps;
   const encoder = new TextEncoder();
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { AppShell } from '@/components/app/AppShell';
-import { Shelf } from '@/components/shelf/Shelf';
+import { ShelfPage as ShelfSpaces } from '@/components/shelf/ShelfPage';
 import { requireSession } from '@/lib/session';
 import '../papers/papers.css';
 import './shelf.css';
@@ -21,7 +21,7 @@ export default async function ShelfPage({ searchParams }: Props) {
 
   return (
     <AppShell current="shelf" title="My shelf" variant="panel" rail>
-      <Shelf initialQuery={query.toString()} focusItem={focus} />
+      <ShelfSpaces initialQuery={query.toString()} focusItem={focus} />
     </AppShell>
   );
 }

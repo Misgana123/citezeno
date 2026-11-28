@@ -1,5 +1,7 @@
 'use client';
 
+import { useLab } from '../labs/useLab';
+
 import { useEffect, useRef, useState } from 'react';
 import type { BulkBody } from '@/lib/shelf/api/bodies';
 import { READING_STATUSES, type ReadingStatus, type ShelfItem } from '@/lib/shelf/types';
@@ -91,6 +93,7 @@ export function ItemDrawer({
               {p.origin === 'manual' && <span className="tag">Added manually</span>}
               {p.origin === 'import' && <span className="tag">Imported</span>}
               {p.isOpenAccess && <span className="tag oa">Open access</span>}
+              {item.addedBy && <AddedBy userId={item.addedBy} />}
             </div>
             <div className="fp-detail-links">
               <ReadButton paperId={p.id} hasPdf={item.pdfs.length > 0 || !!p.pdfUrl} main />
@@ -302,4 +305,11 @@ function NoteEditor({ item, onSaved }: { item: ShelfItem; onSaved: (item: ShelfI
       </div>
     </section>
   );
+}
+
+/* In a lab's shelf: which member added the paper. */
+function AddedBy({ userId }: { userId: string }) {
+  const { lab } = useLab();
+  const who = lab?.members.find((m) => m.userId === userId)?.name;
+  return who ? <span className="tag">Added by {who}</span> : null;
 }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Icon } from '../Icon';
 import { refreshCredits, useCredits } from '../useCredits';
+import { settingsHref } from '../settings/open';
 
 /* Polls the balance until the webhook has added the purchased credits (up to a minute). */
 export function PurchaseWatcher({ startTotal }: { startTotal: number }) {
@@ -37,7 +38,7 @@ export function PurchaseWatcher({ startTotal }: { startTotal: number }) {
         Open the studio
       </Link>
       <p className="auth-alt">
-        <Link href="/app/account#billing">See your balance and receipts</Link>
+        <Link href={settingsHref('usage')}>See your balance and receipts</Link>
       </p>
     </>
   );

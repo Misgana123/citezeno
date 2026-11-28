@@ -25,7 +25,7 @@ describe('models by plan', () => {
     expect(info.models.map((x) => [x.id, x.tier, x.locked, x.needs ?? null])).toEqual([
       ['g/lite', 'economy', false, null],
       ['g/flash', 'standard', true, 'Starter'],
-      ['a/big', 'premium', true, 'Lab'],
+      ['a/big', 'premium', true, 'Pro'],
     ]);
     expect(info.models[0].credits.reply).toMatchObject({ low: expect.any(Number) });
     expect(info.models[0].credits.research).toBeNull();

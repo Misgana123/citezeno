@@ -38,6 +38,8 @@ function features(key: PlanKey): string[] {
   const l = PLANS[key].limits;
   const models = l.tiers.includes('premium') ? 'Every assistant model, Premium included' : 'Economy and Standard assistant models';
   return [
+    ...(l.labMembers ? [`A shared lab: you + ${l.labMembers} people, one credit pool`] : []),
+    ...(l.codeSandbox ? ['Python runs on your data files'] : []),
     models,
     l.researchBudgetCap ? 'Deep research reports' : 'No deep research',
     `${l.shelfPapers.toLocaleString()} papers on your shelf`,

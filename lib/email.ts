@@ -112,3 +112,13 @@ export function creditsExpiringEmail(name: string, credits: number, endsOn: stri
     text: `Hi ${first},\n\n${n} credit${credits === 1 ? '' : 's'} on your Citezeno account end on ${endsOn}. Credits that end soonest are always used first.\n\n${url}`,
   };
 }
+
+export function labInviteEmail(m: { inviter: string; lab: string; role: string; url: string }) {
+  const who = m.inviter || 'Someone';
+  const what = m.role === 'guest' ? `a project in the lab “${m.lab}”` : `the lab “${m.lab}”`;
+  return {
+    subject: `${who} invited you to ${m.role === 'guest' ? 'a project on' : 'a lab on'} Citezeno`,
+    html: layout(`Join ${esc(m.lab)}`, [`${esc(who)} invited you to ${esc(what)} on Citezeno, to share papers, projects and chats. The link works for 7 days.`], { label: 'Join the lab', url: m.url }, esc(ignore)),
+    text: `${who} invited you to ${what} on Citezeno. Join (the link works for 7 days):\n${m.url}\n\n${ignore}`,
+  };
+}

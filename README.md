@@ -3,10 +3,10 @@
 Real, verifiable citations for AI-generated text, built with Next.js 15 and React 19.
 
 Paste text from any AI model. Citezeno picks out the sentences that make factual claims, searches live public databases (OpenAlex, Crossref, Open Library, Wikipedia) for real published works behind each one, and formats the results in the citation style and output form you choose. Every reference comes from a record that exists. Nothing is invented.
- 
+
 ## Run it
 
-You need Node.js 20 or newer and a Postgres database (a free one from [Neon](https://neon.tech) works, or add Neon/Supabase from the Vercel Marketplace). 
+You need Node.js 22 or newer and a Postgres database (a free one from [Neon](https://neon.tech) works, or add Neon/Supabase from the Vercel Marketplace).
 
 ```bash
 npm install

@@ -97,7 +97,7 @@ alter table credit_lot add column if not exists "warnedAt" timestamptz;
 -- ended one) means no plan.
 create table if not exists credit_plan (
   "userId"            text        primary key references "user"(id) on delete cascade,
-  plan                text        not null check (plan in ('starter', 'scholar', 'lab')),
+  plan                text        not null check (plan in ('starter', 'scholar', 'pro', 'lab')),
   "interval"          text        not null check ("interval" in ('month', 'year')),
   -- Polar's status: active, trialing, past_due, canceled, unpaid, incomplete, revoked...
   status              text        not null,
@@ -114,6 +114,9 @@ create table if not exists credit_plan (
   "updatedAt"         timestamptz not null default now()
 );
 create index if not exists credit_plan_slices on credit_plan ("nextSliceAt") where "nextSliceAt" is not null;
+-- the Pro plan joined later: databases made before it get the wider check
+alter table credit_plan drop constraint if exists credit_plan_plan_check;
+alter table credit_plan add constraint credit_plan_plan_check check (plan in ('starter', 'scholar', 'pro', 'lab'));
 
 -- The daily credit checks, run once per UTC day (their findings, for the admin page).
 create table if not exists credit_check (

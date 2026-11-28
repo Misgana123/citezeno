@@ -17,6 +17,17 @@ import { refreshChats, useChatIndex } from './chat-index';
 import { runClientTool } from './citations';
 import { AttachCard } from './AttachCard';
 import { Composer } from './Composer';
+import { setReaderSpace } from '../reader/api';
+import type { Picked } from './AddMenu';
+
+/* The browser's time zone, so the assistant's "tomorrow at 9" is the user's. */
+const userTimeZone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+};
 import { FilePanel } from './file/FilePanel';
 import { FilePanelProvider, useFilePanelState } from './file/panel-state';
 import { readPaper } from './file/read-paper';
@@ -163,6 +174,9 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
   const [webChoice, setWebSearch] = useState<boolean | null>(null);
   /* Deep research chosen from the + menu, for the next message only */
   const [deepResearch, setDeepResearch] = useState(false);
+  // a skill and a shelf project picked in the + menu, for the next message
+  const [skill, setSkill] = useState<Picked>(null);
+  const [project, setProject] = useState<Picked>(null);
   const abort = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -244,6 +258,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
       setWaiting(null);
       setBusy(false);
       if (!id) {
+        setReaderSpace(null);
         setEntries([]);
         setTitle(null);
         setModel(startModel());
@@ -260,6 +275,8 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
         setWaiting(c.waiting);
         setModel(c.model);
         setWebSearch(c.webSearch === true);
+        // a lab project's chat: papers open from the lab's shelf
+        setReaderSpace(c.labId ? `lab:${c.labId}` : null);
       } catch (e) {
         setError((e as Error).message);
         setEntries([]);
@@ -357,7 +374,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
     setWaiting(null);
     setDeepResearch(false);
     setEntries((prev) => [...prev, { kind: 'user', text: question }]);
-    return run((onEvent, signal) => startResearch({ conversationId: activeId, text: question, model, webSearch }, onEvent, signal));
+    return run((onEvent, signal) => startResearch({ conversationId: activeId, text: question, model, webSearch, timeZone: userTimeZone() }, onEvent, signal));
   };
 
   const send = async (raw: string = text) => {
@@ -384,7 +401,12 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
     }
     setEntries((prev) => [...prev, { kind: 'user', text: typed, ...(shown.length ? { attachments: shown } : {}) }]);
     const paperId = asking && panel.files.some((f) => f.paperId === asking) ? asking : null;
-    await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId, webSearch, ...(attachments.length ? { attachments } : {}) }, onEvent, signal));
+    const extras = { ...(skill ? { skill: skill.id } : {}), ...(project ? { projectId: project.id } : {}) };
+    // a new chat in a lab project reads its papers from the lab's shelf
+    if (!activeId && project?.labId) setReaderSpace(`lab:${project.labId}`);
+    setSkill(null);
+    setProject(null);
+    await run((onEvent, signal) => sendMessage({ conversationId: activeId, text: typed, model, paperId, webSearch, timeZone: userTimeZone(), ...extras, ...(attachments.length ? { attachments } : {}) }, onEvent, signal));
   };
 
   /* Try again: the last answer goes, the last message is answered afresh, then the chat is reloaded as saved. */
@@ -444,6 +466,10 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
       onWebSearch={setWebSearch}
       deepResearch={deepResearch}
       onDeepResearch={setDeepResearch}
+      skill={skill}
+      onSkill={setSkill}
+      project={project}
+      onProject={setProject}
       onSend={() => send()}
       onStop={() => abort.current?.abort()}
     />
@@ -542,6 +568,7 @@ export function Chat({ initialId, initialAsk = null }: { initialId: string | nul
                         ))}
                       </ul>
                     )}
+                    {!!t.user && t.author && <div className="ch-user-by">{t.author}</div>}
                     {!!t.user && <div className="ch-user">{t.user}</div>}
                     {t.parts.length > 0 && (
                       <div className="ch-ai">

@@ -35,7 +35,8 @@ export function middleware(req: NextRequest) {
   // server; this just saves a round trip for visitors who are clearly signed out.
   if (PROTECTED.some((p) => path === p || path.startsWith(p + '/')) && !getSessionCookie(req)) {
     const url = new URL('/sign-in', req.url);
-    url.searchParams.set('next', path);
+    // the query comes along, so a link like /app/chat?settings=usage still opens Settings after signing in
+    url.searchParams.set('next', path + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
   return NextResponse.next();

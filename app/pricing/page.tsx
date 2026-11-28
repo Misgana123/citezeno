@@ -13,7 +13,7 @@ import { JsonLd } from '@/components/JsonLd';
 import { appLd, faqLd, pageMeta } from '@/lib/seo';
 
 export const metadata: Metadata = pageMeta({
-  title: 'Pricing: Starter, Scholar and Lab plans',
+  title: 'Pricing: Starter, Scholar, Pro and Lab plans',
   description: 'Citezeno plans from $7 a month. One credit finds real sources for one claim, and powers the research assistant and the paper reader. Billed monthly or annually, 20% less a year.',
   path: '/pricing',
 });
@@ -36,7 +36,7 @@ const FAQ = [
 
 export default async function PricingPage() {
   const { plans, packs } = await pricing();
-  // until Scholar and Lab exist in Polar, show them at their display prices
+  // until the plans exist in Polar, show them at their display prices
   const preview = plans.length === 0;
   const shown = preview ? previewPlanViews() : plans;
   const prices = [...plans.flatMap((p) => [p.month, p.year]).filter((x) => x !== undefined), ...packs].map((x) => x!.price);

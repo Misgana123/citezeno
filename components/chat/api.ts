@@ -9,7 +9,8 @@ import type { Attachment } from '@/lib/providers/chat/types';
 /* Browser-side calls to /api/agent. Only our own server is called. */
 
 /* paperId: a paper's own conversation, opened in the reader */
-export type ConversationSummary = { id: string; title: string; model: string; pinned: boolean; updatedAt: string; paperId?: string | null };
+/* lab: a chat in a lab project (mine: you started it) */
+export type ConversationSummary = { id: string; title: string; model: string; pinned: boolean; updatedAt: string; paperId?: string | null; lab?: boolean; mine?: boolean };
 /* web: web search is set up (new chats start with it on) */
 export type ChatList = { conversations: ConversationSummary[]; models: PickerModel[]; defaultModel: string | null; web?: boolean };
 
@@ -77,13 +78,13 @@ export async function streamReply(url: string, body: unknown, onEvent: (e: Agent
 }
 
 export const sendMessage = (
-  body: { conversationId: string | null; text: string; model: string | null; paperId?: string | null; attachments?: Attachment[]; webSearch?: boolean },
+  body: { conversationId: string | null; text: string; model: string | null; paperId?: string | null; attachments?: Attachment[]; webSearch?: boolean; skill?: string | null; projectId?: string | null; timeZone?: string },
   onEvent: (e: AgentEvent) => void,
   signal?: AbortSignal,
 ) => streamReply('/api/agent/chat', body, onEvent, signal);
 
 /* Deep research (the + menu): its steps and then the report stream back like a reply. */
-export const startResearch = (body: { conversationId: string | null; text: string; model: string | null; webSearch?: boolean }, onEvent: (e: AgentEvent) => void, signal?: AbortSignal) =>
+export const startResearch = (body: { conversationId: string | null; text: string; model: string | null; webSearch?: boolean; timeZone?: string }, onEvent: (e: AgentEvent) => void, signal?: AbortSignal) =>
   streamReply('/api/agent/research', body, onEvent, signal);
 
 export const answerQuestion = (body: { conversationId: string; callId: string; approve: boolean }, onEvent: (e: AgentEvent) => void, signal?: AbortSignal) =>
